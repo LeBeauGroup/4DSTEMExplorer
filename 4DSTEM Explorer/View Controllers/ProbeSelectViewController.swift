@@ -151,7 +151,6 @@ class ProbeSelectViewController: NSViewController {
         
         let incre = notification.object as! Double / Double(dataController.width*dataController.height) * 100
 
-//        print(incre)
         progressIndicator.doubleValue = incre
 
 

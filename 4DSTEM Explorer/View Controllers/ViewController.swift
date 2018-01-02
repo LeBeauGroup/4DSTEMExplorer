@@ -60,6 +60,9 @@ class ViewController: NSViewController,NSWindowDelegate {
     
     @IBAction func changeLrup_xy(_ sender: Any) {
         self.detectImage()
+        
+
+        
     }
     
 
@@ -199,22 +202,33 @@ class ViewController: NSViewController,NSWindowDelegate {
         if let segControl = sender as? NSSegmentedControl{
             
             let newType:DetectorType
-            
-            print(segControl.selectedSegment)
-           
+                       
             switch segControl.selectedSegment{
             case 0:
                 newType = DetectorType.integrating
+                lrud_xySegmented.isEnabled = false
+
 
             case 1:
                 newType = DetectorType.dpc
-                
+                lrud_xySegmented.setLabel("lr", forSegment: 0)
+                lrud_xySegmented.setLabel("ud", forSegment: 1)
+                lrud_xySegmented.isEnabled = true
+
             case 2:
                 newType = DetectorType.com
+                
+                lrud_xySegmented.setLabel("x", forSegment: 0)
+                lrud_xySegmented.setLabel("y", forSegment: 1)
+
+                 lrud_xySegmented.isEnabled = true
 
             default:
                 newType = DetectorType.integrating
+                lrud_xySegmented.isEnabled = false
             }
+            
+
         
             
             patternViewer.detectorView?.detectorType = newType
@@ -326,20 +340,36 @@ class ViewController: NSViewController,NSWindowDelegate {
 
     @IBAction func exportImages(_ sender:Any){
         
-        
         let savePanel = NSSavePanel()
         
         savePanel.canCreateDirectories = true
         savePanel.showsTagField = false
         savePanel.isExtensionHidden = false
         savePanel.allowedFileTypes = ["tif"]
-        savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeSegmented.label(forSegment: detectorTypeSegmented.selectedSegment)!
+        
+        var lrud_xyLabel = ""
+        
+        let detector =  self.patternViewer.detectorView?.detector
+
+        
+        if detector?.type == DetectorType.com || detector?.type == DetectorType.dpc{
+            lrud_xyLabel = "_" + lrud_xySegmented.label(forSegment: lrud_xySegmented.selectedSegment)!
+
+        }
+        let detectorTypeLabel = detectorTypeSegmented.label(forSegment: detectorTypeSegmented.selectedSegment)!
+        
+        savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeLabel  + lrud_xyLabel
+        
+        
         
 
         savePanel.begin( completionHandler:{(result) in
             
             if result == NSApplication.ModalResponse.OK {
                 let filename = savePanel.url
+                
+               
+          
                     
                 let bitmapRep = self.imageView.matrix.floatImageRep()
                     
