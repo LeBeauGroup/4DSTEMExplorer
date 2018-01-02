@@ -27,6 +27,9 @@ class ViewController: NSViewController,NSWindowDelegate {
         
     override func awakeFromNib() {
         super.awakeFromNib()
+        
+        self.view.window?.aspectRatio = self.view.window!.frame.size
+
     }
     
     override func viewDidLoad() {
