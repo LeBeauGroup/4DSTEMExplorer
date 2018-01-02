@@ -610,7 +610,16 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             
             for i in 0..<real.count{
                 if maximum.a-minimum.a > 0 {
-                    out[i] = UInt8((real[i]-minimum.a)/(maximum.a-minimum.a)*255)
+                    
+                    var newValue = (real[i]-minimum.a)/(maximum.a-minimum.a)*255
+                    
+                    if newValue.isNaN || newValue.isInfinite{
+                        newValue = 0
+                    }
+                    
+                    out[i] = UInt8(newValue)
+                    
+                    
                 }else{
                     out[i] = 0
 
