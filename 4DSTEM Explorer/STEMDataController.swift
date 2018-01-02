@@ -483,8 +483,6 @@ class STEMDataController: NSObject {
                     
                     outArray[pos] = pixelSum[0]
                     
-//                    print("retain count:\(CFGetRetainCount(outArray as CFTypeRef))")
-
                     pos += 1
                 }
             }
