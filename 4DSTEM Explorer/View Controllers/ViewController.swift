@@ -18,15 +18,42 @@ class ViewController: NSViewController,NSWindowDelegate {
     @IBOutlet weak var lrud_xySegmented:NSSegmentedControl!
     @IBOutlet weak var detectorTypeSegmented:NSSegmentedControl!
 
+    @IBOutlet weak var viewHeightConstraint: NSLayoutConstraint!
+    @IBOutlet weak var viewWidthConstraint: NSLayoutConstraint!
     
+    @IBOutlet weak var clipView: CenteringClipView!
     @IBOutlet weak var displayLogCheckbox: NSButtonCell!
 
     var dataController = STEMDataController()
     var patternIndex  = 0
     var selectedDetector:Detector?
+    
+    var zoomFactor:CGFloat = 1.0 {
+        
+        didSet {
+            
+            guard imageView.image != nil else {
+                
+                return
+                
+            }
+            
+            viewHeightConstraint.constant = imageView.image!.size.height * zoomFactor
+            viewWidthConstraint.constant = imageView.image!.size.width * zoomFactor
+            
+        }
+        
+    }
         
     override func awakeFromNib() {
         super.awakeFromNib()
+    
+        DispatchQueue.main.async{
+            
+            self.zoomToFit(nil)
+            
+        }
+
     }
     
     override func viewDidLoad() {
@@ -94,6 +121,7 @@ class ViewController: NSViewController,NSWindowDelegate {
             self.imageView!.matrix = detectedImage!
         }
 
+        self.zoomToFit(nil)
             
         //detectedImage!.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil)
 
@@ -434,6 +462,84 @@ class ViewController: NSViewController,NSWindowDelegate {
         // Update the view, if already loaded.
         }
     }
+    
+    @IBAction func zoomIn(sender: NSMenuItem?) {
+        
+        if zoomFactor + 0.1 > 4 {
+            
+            zoomFactor = 4
+            
+        } else if zoomFactor == 0.05 {
+            
+            zoomFactor = 0.1
+            
+        } else {
+            
+            zoomFactor += 0.1
+            
+        }
+        
+    }
+    
+    @IBAction func zoomOut(sender: NSMenuItem?) {
+        
+        if zoomFactor - 0.1 < 0.05 {
+            
+            zoomFactor = 0.05
+            
+        } else {
+            
+            zoomFactor -= 0.1
+            
+        }
+        
+    }
+    
+    @IBAction func zoomToActual(sender: NSMenuItem?) {
+        
+        zoomFactor = 1.0
+        
+    }
+    
+    @IBAction func zoomToFit(_ sender: NSMenuItem?) {
+        
+        guard imageView!.image != nil else {
+            
+            return
+            
+        }
+        
+        let imSize = imageView!.image!.size
+        
+        var clipSize = clipView.bounds.size
+        
+        guard imSize.width > 0 && imSize.height > 0 && clipSize.width > 0 && clipSize.height > 0 else {
+            
+            return
+            
+        }
+        
+        //We want a 20 pixel gutter. To make the calculations easier, adjust the clipbounds down to account for the gutter. Use 2 * the pixel gutter, since we are adjusting only the height and width (this accounts for the left and right margin combined, and the top and bottom margin combined).
+        let imageMargin:CGFloat = 40
+        
+        clipSize.width -= imageMargin
+        clipSize.height -= imageMargin
+        
+        let clipAspectRatio = clipSize.width / clipSize.height
+        let imAspectRatio = imSize.width / imSize.height
+        
+        if clipAspectRatio > imAspectRatio {
+            
+            zoomFactor = clipSize.height / imSize.height
+            
+        } else {
+            
+            zoomFactor = clipSize.width / imSize.width
+            
+        }
+        
+    }
+
 
 
 }
