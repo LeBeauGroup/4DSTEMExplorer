@@ -259,7 +259,6 @@ class ViewController: NSViewController,NSWindowDelegate {
             
             let newShape:DetectorShape
             
-            print(segControl.selectedSegment)
             switch segControl.selectedSegment{
             case 0:
                 newShape = DetectorShape.bf

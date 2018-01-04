@@ -310,16 +310,11 @@ class STEMDataController: NSObject {
     func dpc(_ detector:Detector,strideLength:Int = 1, lrud:Int = 0)->Matrix{
         
         let mask = detector.detectorMask()
-        let group = DispatchGroup()
 
-        group.enter()
-        
-        
         let indices = Matrix.init(meshIndicesAlong: lrud, detectorSize.height, detectorSize.width)
         
         let ldMask:Matrix?
         let ruMask:Matrix?
-
 
         if lrud == 1{
              ldMask = indices < Float(detector.center.x)
@@ -339,55 +334,48 @@ class STEMDataController: NSObject {
         
         var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
         
-        DispatchQueue.global(qos: .userInteractive).sync {
-            
-            let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
+        let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
 
-            let ldMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
-            let ruMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ldMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ruMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
 
-            let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
 
-            let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        
+        vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, patternPixels)
+        vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, patternPixels)
+        
+        let ldPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+        let ruPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
 
-            
-            vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, patternPixels)
-            vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, patternPixels)
-            
-            let ldPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
-            let ruPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
-
-            var pos = 0
-            
-            for i in stride(from: 0, to: self.height, by: strideLength){
-                for j in stride(from: 0, to: self.width, by: strideLength){
-                    
-                    let nextPatternPointer = self.patternPointer!+(i*self.width+j)*detectorSize.width*detectorSize.height
-                    
-                    vDSP_vmul(ldMaskProduct, 1, nextPatternPointer, 1, ldProduct, 1, patternPixels)
-                    vDSP_vmul(ruMaskProduct, 1, nextPatternPointer, 1, ruProduct, 1, patternPixels)
-                    
+        var pos = 0
+        
+        for i in stride(from: 0, to: self.height, by: strideLength){
+            for j in stride(from: 0, to: self.width, by: strideLength){
+                
+                let nextPatternPointer = self.patternPointer!+(i*self.width+j)*detectorSize.width*detectorSize.height
+                
+                vDSP_vmul(ldMaskProduct, 1, nextPatternPointer, 1, ldProduct, 1, patternPixels)
+                vDSP_vmul(ruMaskProduct, 1, nextPatternPointer, 1, ruProduct, 1, patternPixels)
+                
 //                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, patternPixels)
-                    
-                    vDSP_sve(ldProduct, 1, ldPixelSum, patternPixels)
-                    vDSP_sve(ruProduct, 1, ruPixelSum, patternPixels)
+                
+                vDSP_sve(ldProduct, 1, ldPixelSum, patternPixels)
+                vDSP_sve(ruProduct, 1, ruPixelSum, patternPixels)
 
-                    
-                    let dpcSignal = ldPixelSum.pointee-ruPixelSum.pointee
-                    
-                    outArray[pos] = dpcSignal
-                    pos += 1
-                }
+                
+                let dpcSignal = ldPixelSum.pointee-ruPixelSum.pointee
+                
+                outArray[pos] = dpcSignal
+                pos += 1
             }
+
 
             // need to deallocate
             
-            group.leave()
             
         }
-        
-        
-        group.wait()
         
         return Matrix.init(array: outArray, strideHeight, strideWidth)
     }
