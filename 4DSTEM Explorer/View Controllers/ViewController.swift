@@ -65,6 +65,11 @@ class ViewController: NSViewController,NSWindowDelegate {
         
     }
     
+    @IBAction func changeLog(_ sender: Any){
+        
+        updatePattern((-1, -1))
+    }
+    
 
     func detectImage(stride:Int = 1){
         
@@ -142,8 +147,9 @@ class ViewController: NSViewController,NSWindowDelegate {
     @objc func patternChanged(note:Notification){
 
         let patternPoint = note.object as! NSPoint
-        let newIndex = Int(patternPoint.y) * dataController.width+Int(patternPoint.x)
-        self.updatePattern(Int(newIndex))
+        let patternIndices = (Int(patternPoint.y), Int(patternPoint.x))
+        
+        self.updatePattern(patternIndices)
         
         
     }
@@ -172,14 +178,19 @@ class ViewController: NSViewController,NSWindowDelegate {
     
     }
     
-    
-     func updatePattern(_ index: Int) {
+    // Input tuple for (i,j)
+    func updatePattern(_ indices: (i: Int, j:Int)) {
         
         if dataController.patternPointer != nil{
+            
+            if indices != (-1,-1){
+                patternIndex =  indices.i*dataController.width + indices.j
+            }
+
         
             let detectorSize = dataController.detectorSize
             let detectorPixels = Int(detectorSize.width * detectorSize.height)
-            let curPatternPointer = dataController.patternPointer! + (detectorPixels)*index
+            let curPatternPointer = dataController.patternPointer! + (detectorPixels)*patternIndex
             
             var matrix = Matrix.init(pointer: curPatternPointer, Int(detectorSize.height), Int(detectorSize.width))
     //        var matrix:Matrix = dataController.patterns[index]
@@ -308,7 +319,9 @@ class ViewController: NSViewController,NSWindowDelegate {
     @objc func didFinishLoadingData(note:Notification) {
         
 
+        if patternViewer.detectorView?.isHidden == true{
         patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)))
+        }
         
         patternViewer.detectorView?.isHidden = false
         
@@ -317,7 +330,7 @@ class ViewController: NSViewController,NSWindowDelegate {
             ,    dataController.width/2)
         
         self.detectImage()
-        self.updatePattern(middleIndex)
+        self.updatePattern((0,0))
 
     }
     

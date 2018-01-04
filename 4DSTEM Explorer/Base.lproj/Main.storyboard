@@ -673,7 +673,6 @@
                         <rect key="contentRect" x="196" y="240" width="632" height="368"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
                         <value key="minSize" type="size" width="624" height="368"/>
-                        <value key="maxSize" type="size" width="624" height="368"/>
                         <connections>
                             <outlet property="delegate" destination="B8D-0N-5wS" id="pcu-i3-dtq"/>
                         </connections>
@@ -692,24 +691,22 @@
             <objects>
                 <viewController id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="624" height="368"/>
+                        <rect key="frame" x="0.0" y="0.0" width="708" height="487"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
-                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ngL-7u-fQA" customClass="ImageViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                <rect key="frame" x="297" y="38" width="310" height="310"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" imageFrameStyle="photo" id="y8g-Ao-gdF"/>
-                            </imageView>
                             <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="APx-ft-7EN">
-                                <rect key="frame" x="18" y="68" width="45" height="18"/>
+                                <rect key="frame" x="18" y="187" width="45" height="18"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <buttonCell key="cell" type="check" title="Log" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="osA-bR-xWW">
                                     <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                     <font key="font" metaFont="system"/>
                                 </buttonCell>
+                                <connections>
+                                    <action selector="changeLog:" target="XfG-lQ-9wD" id="Dyk-y8-1jh"/>
+                                </connections>
                             </button>
                             <slider verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="JSZ-Zq-QgB">
-                                <rect key="frame" x="306" y="18" width="96" height="19"/>
+                                <rect key="frame" x="140" y="100" width="96" height="19"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <sliderCell key="cell" enabled="NO" state="on" alignment="left" minValue="-1" maxValue="1" tickMarkPosition="above" sliderType="linear" id="gOv-06-F2N"/>
                                 <connections>
@@ -717,7 +714,7 @@
                                 </connections>
                             </slider>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="OF5-up-YWX">
-                                <rect key="frame" x="140" y="62" width="138" height="24"/>
+                                <rect key="frame" x="140" y="181" width="138" height="24"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="z8n-nt-XH2">
                                     <font key="font" metaFont="system"/>
@@ -732,7 +729,7 @@
                                 </connections>
                             </segmentedControl>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="aMy-NF-9gR">
-                                <rect key="frame" x="63" y="13" width="54" height="22"/>
+                                <rect key="frame" x="63" y="132" width="54" height="22"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="5" drawsBackground="YES" id="Sgr-8K-uMH">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="feM-Vg-Ha0"/>
@@ -745,7 +742,7 @@
                                 </connections>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="l4m-vg-bpK">
-                                <rect key="frame" x="18" y="43" width="39" height="17"/>
+                                <rect key="frame" x="18" y="162" width="39" height="17"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Outer" id="7AO-k1-DRk">
                                     <font key="font" metaFont="system"/>
@@ -754,7 +751,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="5wp-Q9-Mwy">
-                                <rect key="frame" x="18" y="15" width="35" height="17"/>
+                                <rect key="frame" x="18" y="134" width="35" height="17"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Inner" id="5ME-pu-Xqe">
                                     <font key="font" metaFont="system"/>
@@ -763,7 +760,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="AN5-dg-408">
-                                <rect key="frame" x="63" y="41" width="54" height="22"/>
+                                <rect key="frame" x="63" y="160" width="54" height="22"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="10" drawsBackground="YES" id="hyg-C0-ERG">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" usesGroupingSeparator="NO" groupingSize="0" minimumIntegerDigits="0" maximumIntegerDigits="42" id="N42-u8-Yi6"/>
@@ -776,7 +773,7 @@
                                 </connections>
                             </textField>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FvP-LK-bqC">
-                                <rect key="frame" x="140" y="33" width="138" height="24"/>
+                                <rect key="frame" x="140" y="152" width="138" height="24"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="qmr-Mw-sVy">
                                     <font key="font" metaFont="system"/>
@@ -791,12 +788,12 @@
                                 </connections>
                             </segmentedControl>
                             <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                <rect key="frame" x="20" y="92" width="256" height="256"/>
+                                <rect key="frame" x="20" y="211" width="256" height="256"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="UYP-wE-asd"/>
                             </imageView>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
-                                <rect key="frame" x="536" y="10" width="70" height="24"/>
+                                <rect key="frame" x="208" y="123" width="70" height="24"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="grT-Cc-ea8">
                                     <font key="font" metaFont="system"/>
@@ -809,12 +806,42 @@
                                     </connections>
                                 </segmentedCell>
                             </segmentedControl>
+                            <scrollView fixedFrame="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
+                                <rect key="frame" x="297" y="0.0" width="411" height="487"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <clipView key="contentView" ambiguous="YES" id="uLd-GI-Ws8">
+                                    <rect key="frame" x="1" y="1" width="409" height="485"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                    <subviews>
+                                        <view fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
+                                            <rect key="frame" x="0.0" y="0.0" width="394" height="470"/>
+                                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <subviews>
+                                                <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="WRv-TO-IWj" customClass="ImageViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                                    <rect key="frame" x="69" y="107" width="256" height="256"/>
+                                                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
+                                                    <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" id="yMq-6h-O8J"/>
+                                                </imageView>
+                                            </subviews>
+                                        </view>
+                                    </subviews>
+                                    <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                </clipView>
+                                <scroller key="horizontalScroller" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
+                                    <rect key="frame" x="1" y="470" width="409" height="16"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                </scroller>
+                                <scroller key="verticalScroller" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
+                                    <rect key="frame" x="394" y="1" width="16" height="485"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                </scroller>
+                            </scrollView>
                         </subviews>
                     </view>
                     <connections>
                         <outlet property="detectorTypeSegmented" destination="FvP-LK-bqC" id="xf6-kj-42q"/>
                         <outlet property="displayLogCheckbox" destination="osA-bR-xWW" id="NPc-Pv-oaD"/>
-                        <outlet property="imageView" destination="ngL-7u-fQA" id="te7-0D-WdF"/>
+                        <outlet property="imageView" destination="WRv-TO-IWj" id="1wl-m9-PHa"/>
                         <outlet property="innerAngleTextField" destination="aMy-NF-9gR" id="nUB-v4-Hnr"/>
                         <outlet property="isDisplayLog" destination="APx-ft-7EN" id="d48-hY-tvP"/>
                         <outlet property="lrud_xySegmented" destination="ezS-aJ-Jxe" id="Ekv-2k-dV1"/>
@@ -824,13 +851,9 @@
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
-                <customObject id="hOw-MY-DIZ" customClass="ImageViewerController" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                    <connections>
-                        <outlet property="imageViewer" destination="ngL-7u-fQA" id="ryU-Ql-Dzu"/>
-                    </connections>
-                </customObject>
+                <customObject id="hOw-MY-DIZ" customClass="ImageViewerController" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
             </objects>
-            <point key="canvasLocation" x="147" y="704"/>
+            <point key="canvasLocation" x="189" y="763.5"/>
         </scene>
         <!--File Loading...-->
         <scene sceneID="sAe-im-dvj">
