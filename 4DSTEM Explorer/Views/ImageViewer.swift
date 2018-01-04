@@ -7,6 +7,7 @@
 //
 
 import Cocoa
+import CoreGraphics
 
 class ImageViewer: NSImageView {
 
@@ -46,16 +47,46 @@ class ImageViewer: NSImageView {
     }
     
     override func mouseDragged(with event: NSEvent) {
-        var selectedPattern = (self.convert(event.locationInWindow, from:nil))
-        let scaleFactor = (self.image?.size.width)!/frame.width
+       
+        let testPoint = (self.convert(event.locationInWindow, from:nil))
         
+        
+        if self.visibleRect.contains(testPoint)
+        {
+            var selectedPattern = testPoint
+            let scaleFactor = (self.image?.size.width)!/frame.width
+        
+        // Check on the x position
         selectedPattern.x *= scaleFactor
+        if selectedPattern.x < 0 {
+            selectedPattern.x = 0
+        }else if  selectedPattern.x > (self.image?.size.width)!-1 {
+            selectedPattern.x = (self.image?.size.width)! - 1
+        }
+        // Check on the y position
+
         selectedPattern.y *= scaleFactor
         
+        if selectedPattern.y < 0 {
+            selectedPattern.y = 0
+        }else if selectedPattern.y > (self.image?.size.height)!-1 {
+            selectedPattern.y = (self.image?.size.height)! - 1
+        }
+        
+        
+        print(selectedPattern)
+        
         NotificationCenter.default.post(name: Notification.Name("patternChanged"), object: selectedPattern)
+        }
+        
     }
     
     override func draw(_ dirtyRect: NSRect) {
+        
+        NSColor.darkGray.set()
+        NSBezierPath(rect: dirtyRect).fill()
+        
+        
         super.draw(dirtyRect)
         
  

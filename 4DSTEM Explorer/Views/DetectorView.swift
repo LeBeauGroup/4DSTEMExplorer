@@ -143,9 +143,20 @@ class DetectorView: NSView {
         
         // rough test
         
-        if NSPointInRect(point, controlRect("outer")) || NSPointInRect(point, controlRect("inner")){
-            return true
+        if detectorShape == DetectorShape.bf{
+            if NSPointInRect(point, controlRect("outer")){
+                return true
+            }
+        } else if detectorShape == DetectorShape.af{
+            if NSPointInRect(point, controlRect("outer")) || NSPointInRect(point, controlRect("inner")){
+                return true
+            }
+        } else if detectorShape == DetectorShape.adf{
+            if  NSPointInRect(point, controlRect("inner")){
+                return true
+            }
         }
+
         
         
         //fine tuning
@@ -178,7 +189,6 @@ class DetectorView: NSView {
                 locationType = "outerControl"
             }else if(NSPointInRect(lastDragLocation, controlRect("inner"))){
                 locationType = "innerControl"
-
             }
             
         }else if(isPointInItem(lastDragLocation)){
@@ -262,6 +272,7 @@ class DetectorView: NSView {
                 drawBf(context!)
 
             }
+            drawCrosshairs(context!)
                 drawControls(context!)
         
             
@@ -320,6 +331,29 @@ class DetectorView: NSView {
         return radius
     }
 
+
+    func drawCrosshairs(_ context: CGContext){
+        let redColor = NSColor.red
+        
+        var crossCenter = center
+        crossCenter.x += strokeSize/2
+        crossCenter.y += strokeSize/2
+        
+        let length = CGFloat(3.0)
+
+        let updown = [CGPoint.init(x: crossCenter.x, y: crossCenter.y-length), CGPoint.init(x: crossCenter.x, y: crossCenter.y+length)]
+        let leftright =  [CGPoint.init(x: crossCenter.x-length, y: crossCenter.y), CGPoint.init(x: crossCenter.x+length, y: crossCenter.y)]
+
+        context.setLineWidth(1.0)
+        context.setFillColor(redColor.cgColor)
+        context.addLines(between: updown)
+        context.addLines(between: leftright)
+        
+        context.drawPath(using: .stroke)
+
+        
+        
+    }
     
     func drawControls(_ context:CGContext){
         
