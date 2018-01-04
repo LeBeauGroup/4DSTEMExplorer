@@ -35,5 +35,16 @@ class WindowController : NSWindowController, NSWindowDelegate {
         return false
     }
     
+    
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        
+        let ratio = CGFloat(624/368)
+        var controlledSize = frameSize
+        
+        controlledSize.height = (frameSize.width-233.5) * ratio
+        
+        return controlledSize
+    }
+    
 
 }

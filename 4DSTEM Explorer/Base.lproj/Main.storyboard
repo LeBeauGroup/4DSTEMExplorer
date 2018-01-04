@@ -716,9 +716,9 @@
                                 </connections>
                             </slider>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="OF5-up-YWX">
-                                <rect key="frame" x="140" y="62" width="138" height="24"/>
+                                <rect key="frame" x="140" y="62" width="139" height="23"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="z8n-nt-XH2">
+                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="texturedRounded" trackingMode="selectOne" id="z8n-nt-XH2">
                                     <font key="font" metaFont="system"/>
                                     <segments>
                                         <segment label="BF" selected="YES"/>
@@ -775,9 +775,9 @@
                                 </connections>
                             </textField>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FvP-LK-bqC">
-                                <rect key="frame" x="140" y="33" width="138" height="24"/>
+                                <rect key="frame" x="140" y="33" width="139" height="23"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="qmr-Mw-sVy">
+                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="texturedSquare" trackingMode="selectOne" id="qmr-Mw-sVy">
                                     <font key="font" metaFont="system"/>
                                     <segments>
                                         <segment label="Int" width="44" selected="YES"/>
@@ -790,7 +790,7 @@
                                 </connections>
                             </segmentedControl>
                             <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                <rect key="frame" x="20" y="92" width="256" height="256"/>
+                                <rect key="frame" x="23" y="95" width="250" height="250"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="UYP-wE-asd"/>
                             </imageView>
@@ -834,13 +834,13 @@
         <!--File Loading...-->
         <scene sceneID="sAe-im-dvj">
             <objects>
+                <customObject id="FqT-YQ-MY6" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
                 <viewController title="File Loading..." storyboardIdentifier="ProgressViewController" id="A31-mM-Osb" customClass="ProgressViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="tQm-mM-5bl">
                         <rect key="frame" x="0.0" y="0.0" width="263" height="58"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </view>
                 </viewController>
-                <customObject id="FqT-YQ-MY6" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="688.5" y="604"/>
         </scene>
