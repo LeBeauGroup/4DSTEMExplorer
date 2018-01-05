@@ -10,12 +10,19 @@ import Cocoa
 
 let controlRadius:CGFloat = 3.5
 
+protocol DetectorViewDelegate: class {
+}
+
+
 class DetectorView: NSView {
 
     override var isFlipped:Bool {
         return true
         
     }
+    
+    weak var delegate: DetectorViewDelegate?
+
     
     let strokeSize:CGFloat = 2
 
