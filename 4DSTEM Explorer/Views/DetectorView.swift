@@ -56,18 +56,6 @@ class DetectorView: NSView {
     }
     var detector:Detector {
         get{
-
-            
-
-//            let drawingRect:NSRect  = aCell.drawingRect(forBounds:superView.bounds)
-            
-//            print(drawingRect)
-//            let frameSize:NSSize = drawingRect.size;
-//            let frameAspect = frameSize.width/frameSize.height;
-//
-//            let imageSize = self.superviewimage.size;
-//            let imageAspect = imageSize.width/imageSize.height;
-//
             
             
             return Detector(shape: detectorShape, type: detectorType, center: convertPointToImageCoordinates(center), radii: radii!)
@@ -87,14 +75,7 @@ class DetectorView: NSView {
             
         }
     }
-    
-//     init(){
-//
-//        let newFrame = NSRect(x: 0, y: 0, width: 10, height: 10)
-//
-//        super.init(frame: newFrame)
-//    }
-    
+
     
     
     override init(frame frameRect: NSRect) {
@@ -110,9 +91,6 @@ class DetectorView: NSView {
     
     required init?(coder: NSCoder) {
         //        fatalError("init(coder:) has not been implemented")
-        
-//        center = CGPoint(x: 127, y: 127)
-
         
         super.init(coder: coder)
         
