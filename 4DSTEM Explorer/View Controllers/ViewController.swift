@@ -9,7 +9,11 @@
 import Cocoa
 import Quartz
 
-class ViewController: NSViewController,NSWindowDelegate {
+protocol ViewControllerDelegate: class {
+    func averagePatternInRect(_ rect:NSRect?)
+}
+
+class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
 
     @IBOutlet weak var patternViewer: PatternViewer!
     @IBOutlet weak var imageView: ImageViewer!
@@ -48,6 +52,8 @@ class ViewController: NSViewController,NSWindowDelegate {
     override func awakeFromNib() {
         super.awakeFromNib()
     
+        imageView.delegate = self
+        
         DispatchQueue.main.async{
             
             self.zoomToFit(nil)
@@ -81,7 +87,7 @@ class ViewController: NSViewController,NSWindowDelegate {
 
     func loadAndFormatData(_ sender: Any) {
         
-        dataController.formattedMatrixData()
+        dataController.formatMatrixData()
 
     }
     
@@ -206,6 +212,21 @@ class ViewController: NSViewController,NSWindowDelegate {
     
     }
     
+    func averagePatternInRect(_ rect:NSRect?){
+//        print(rect)
+        var avgMatrix = dataController.averagePattern(rect: rect!)
+    
+        if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
+            avgMatrix = avgMatrix.log()
+            
+        }
+        
+        patternViewer.matrix = avgMatrix
+        patternViewer.needsDisplay = true
+        
+        
+    }
+    
     // Input tuple for (i,j)
     func updatePattern(_ indices: (i: Int, j:Int)) {
         
@@ -231,7 +252,8 @@ class ViewController: NSViewController,NSWindowDelegate {
             
     //        let test = patternViewer.detectorView!.detector.detectorMask()
             
-            patternViewer.matrix = curPatternMatrix
+            
+            patternViewer.matrix = matrix
         }
         
     }
@@ -322,6 +344,7 @@ class ViewController: NSViewController,NSWindowDelegate {
     func openPanel(){
     
         let openPanel = NSOpenPanel()
+        openPanel.allowedFileTypes = ["raw", "public.tiff", ]
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
         openPanel.canCreateDirectories = false
@@ -336,6 +359,8 @@ class ViewController: NSViewController,NSWindowDelegate {
             
 
                 self.view.window?.title = selectedURL!.deletingPathExtension().lastPathComponent
+                
+
             
             self.displayProbePositionsSelection(openPanel.url)
             }
@@ -352,6 +377,7 @@ class ViewController: NSViewController,NSWindowDelegate {
         
         patternViewer.detectorView?.isHidden = false
         
+        imageView.isHidden = false
         
         let middleIndex = dataController.indexFor(dataController.height/2
             ,    dataController.width/2)
@@ -371,6 +397,17 @@ class ViewController: NSViewController,NSWindowDelegate {
         probeController.dataController = dataController
         probeController.parentController = self
         probeController.selectSizeFromURL(sender as! URL)
+        
+        let ext = (sender as! URL).pathExtension
+        
+        let uti = UTTypeCreatePreferredIdentifierForTag(
+            kUTTagClassFilenameExtension,
+            ext as CFString,
+            nil)
+        
+        if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
+            probeController.acceptSize(self)
+        }
 
         
 
