@@ -9,6 +9,11 @@
 import Cocoa
 import CoreGraphics
 
+protocol ImageViewerDelegate: class {
+    func averagePatternInRect(_ rect:NSRect?)
+
+}
+
 class ImageViewer: NSImageView {
 
     override var isFlipped:Bool {
@@ -16,10 +21,15 @@ class ImageViewer: NSImageView {
         
     }
     
+    weak var delegate:ImageViewerDelegate?
+    
     var matrixStorage:Matrix?
     
     var maxDisplay:Float?
     var minDisplay:Float?
+    var selectionRect:NSRect?
+    
+    let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
     var matrix:Matrix{
         get{
@@ -30,11 +40,17 @@ class ImageViewer: NSImageView {
             matrixStorage = newMatrix
         }
         
+        
     }    
     
     override func mouseDown(with event: NSEvent) {
         
+        
         var selectedPattern = (self.convert(event.locationInWindow, from:nil))
+        
+        selectionRect = NSRect(origin: selectedPattern, size: CGSize(width: 0, height: 0))
+
+        
         let scaleFactor = (self.image?.size.width)!/frame.width
         
         selectedPattern.x *= scaleFactor
@@ -50,11 +66,35 @@ class ImageViewer: NSImageView {
        
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
-        
+        let scaleFactor = (self.image?.size.width)!/frame.width
+
         if self.visibleRect.contains(testPoint)
         {
+            
             var selectedPattern = testPoint
-            let scaleFactor = (self.image?.size.width)!/frame.width
+            
+            if selectionRect != nil{
+                
+                var newSize = selectionRect?.size
+                
+                newSize?.width = testPoint.x-(selectionRect?.origin.x)!
+                newSize?.height = testPoint.y-(selectionRect?.origin.y)!
+                
+                selectionRect!.size = newSize!
+                
+                var scaledRect = selectionRect
+                scaledRect?.origin.x *= scaleFactor
+                scaledRect?.origin.y *= scaleFactor
+                scaledRect?.size.width *= scaleFactor
+                scaledRect?.size.height *= scaleFactor
+                
+                delegate?.averagePatternInRect(scaledRect)
+
+            }
+            
+
+
+            
         
         // Check on the x position
         selectedPattern.x *= scaleFactor
@@ -72,13 +112,29 @@ class ImageViewer: NSImageView {
         }else if selectedPattern.y > (self.image?.size.height)!-1 {
             selectedPattern.y = (self.image?.size.height)! - 1
         }
+            
         
-        
-        print(selectedPattern)
-        
+        self.needsDisplay = true
+
+            if selectionRect == nil{
         NotificationCenter.default.post(name: Notification.Name("patternChanged"), object: selectedPattern)
+            }
         }
         
+    }
+    override func mouseUp(with event: NSEvent) {
+    
+        let testPoint = (self.convert(event.locationInWindow, from:nil))
+        
+        if selectionRect != nil{
+            if testPoint == selectionRect?.origin{
+                selectionRect = nil
+            }
+
+        }
+        
+        self.needsDisplay = true
+
     }
     
     override func draw(_ dirtyRect: NSRect) {
@@ -86,8 +142,19 @@ class ImageViewer: NSImageView {
         NSColor.darkGray.set()
         NSBezierPath(rect: dirtyRect).fill()
         
-        
         super.draw(dirtyRect)
+
+        
+        if selectionRect != nil{
+            selectionFillColor.set()
+            let pathSelectionRect = NSBezierPath(rect: selectionRect!)
+            
+            pathSelectionRect.fill()
+            NSColor.red.set()
+            pathSelectionRect.stroke()
+            
+        }
+        
         
  
         
