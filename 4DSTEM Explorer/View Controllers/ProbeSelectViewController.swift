@@ -36,6 +36,7 @@ class ProbeSelectViewController: NSViewController {
     
     func selectSizeFromURL(_ url:URL) {
         
+
         let fileName = url.lastPathComponent
         let wh = self.decomposeFilenameString(fileName)
         
@@ -49,14 +50,13 @@ class ProbeSelectViewController: NSViewController {
         loadButton.isEnabled = false
         progressIndicator.isHidden = false
 
+        self.title = "Data loading..."
         
         let wh = self.decomposeComboxString()
         
         
         dataController.width = Int(wh.0)!
         dataController.height = Int(wh.1)!
-        
-        
         
         parentController.loadAndFormatData(self)
 //        self.dismiss(self)
