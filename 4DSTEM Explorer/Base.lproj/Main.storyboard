@@ -173,19 +173,24 @@
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Image View" id="HyV-fh-RgO">
                                     <items>
-                                        <menuItem title="Zoom in" keyEquivalent="=" id="snW-S8-Cw5">
+                                        <menuItem title="Zoom in" keyEquivalent="+" id="snW-S8-Cw5">
                                             <connections>
                                                 <action selector="zoomIn:" target="Ady-hI-5gd" id="QyE-Jd-dO5"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Zoom out" keyEquivalent="-" id="1UK-8n-QPP">
                                             <connections>
-                                                <action selector="zoomOut:" target="Ady-hI-5gd" id="boy-WI-eNq"/>
+                                                <action selector="zoomOut:" target="Ady-hI-5gd" id="eSw-NG-g26"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Zoom to fit" keyEquivalent="." id="GfY-qk-wq8">
                                             <connections>
-                                                <action selector="zoomToFit:" target="Ady-hI-5gd" id="Jqh-Pm-tz8"/>
+                                                <action selector="zoomToFit:" target="Ady-hI-5gd" id="qvp-zf-Gkg"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Actual size" keyEquivalent="'" id="2bc-A9-7RP">
+                                            <connections>
+                                                <action selector="zoomToActual:" target="Ady-hI-5gd" id="mYt-zl-zjE"/>
                                             </connections>
                                         </menuItem>
                                     </items>
