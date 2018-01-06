@@ -287,7 +287,7 @@ class ImageViewer: NSImageView {
             
                 pathSelectionRect.fill()
                 NSColor.red.set()
-                pathSelectionRect.lineWidth = 0.2
+                pathSelectionRect.lineWidth = 0.5
                 pathSelectionRect.stroke()
                 
             }
