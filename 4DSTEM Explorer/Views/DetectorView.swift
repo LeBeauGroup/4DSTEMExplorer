@@ -223,7 +223,7 @@ class DetectorView: NSView {
         
             center = newCenter
             
-            self.lastDragLocation = newDragLocation!;
+            self.lastDragLocation = newDragLocation!
         
             NotificationCenter.default.post(name: Notification.Name("detectorIsMoving"), object: 0)
         }

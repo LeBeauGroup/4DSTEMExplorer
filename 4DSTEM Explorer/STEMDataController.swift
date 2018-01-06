@@ -10,14 +10,38 @@ import Foundation
 import Cocoa
 import Accelerate
 
+protocol STEMDataControllerDelegate:class {
+    func didFinishLoadingData()
+}
+
 class STEMDataController: NSObject {
     
     var filePath:URL?
-    var width:Int = 0;
-    var height:Int = 0;
-    var imageSize:NSSize?
+    var imageSize:IntSize = IntSize(width: 0, height: 0)
     var fh:FileHandle?
+    
+    weak var delegate:STEMDataControllerDelegate?
+    
     var detectorSize:IntSize = empadSize
+    var patternSize:IntSize = empadSize
+    
+    var patternPixels:Int{
+        get{
+            return Int(patternSize.width * patternSize.height)
+        }
+    }
+    
+    var imagePixels:Int{
+        get{
+            return Int(imageSize.width*imageSize.height)
+        }
+    }
+    
+    var detectorPixels:Int{
+        get{
+            return Int(detectorSize.width*detectorSize.height)
+        }
+    }
     
     var fileStream:InputStream?
     
@@ -30,7 +54,28 @@ class STEMDataController: NSObject {
     
     func indexFor(_ i:Int,_ j:Int)->Int{
         
-        return i*width+j
+        return i*imageSize.width+j
+        
+    }
+    
+    func pattern(_ i:Int, _ j:Int)->Matrix?{
+        
+        var matrix:Matrix?
+        
+        if patternPointer != nil{
+            
+            var patternIndex = 0
+            
+            if i >= 0 && j >= 0{
+                patternIndex =  self.indexFor(i, j)
+            }
+        
+            let selectedPatternPointer = patternPointer! + (patternPixels)*patternIndex
+            
+            matrix = Matrix.init(pointer: selectedPatternPointer, patternSize.height, patternSize.width)
+        }
+        
+        return matrix
         
     }
     
@@ -44,8 +89,8 @@ class STEMDataController: NSObject {
         let pixelWidth = props.value(forKey: "PixelWidth") as! Int
         let pixelHeight = props.value(forKey: "PixelHeight") as! Int
         
-        
         detectorSize = IntSize(width: pixelWidth, height: pixelHeight)
+        patternSize = detectorSize
         
         if let imageDescription = tiffProps.value(forKey: "ImageDescription") as? String{
             
@@ -78,8 +123,8 @@ class STEMDataController: NSObject {
                 }
             }
             
-            self.width = Int(width)!
-            self.height = Int(height)!
+            self.imageSize.width = Int(width)!
+            self.imageSize.height = Int(height)!
         }
         
     }
@@ -88,17 +133,17 @@ class STEMDataController: NSObject {
         
         DispatchQueue.global(qos: .userInteractive).async {
 
-        let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
+            let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
 
-        let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
-        
-        self.readTiffInfo(myImageSource!)
+            let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
+            
+            self.readTiffInfo(myImageSource!)
 
 //        let imagePixels = CGImageSourceGetCount(myImageSource!)
         
-        let patternPixels = Int((self.detectorSize.width)*(self.detectorSize.height))
-        let floatSize = MemoryLayout<Float32>.size
-        let imagePixels = self.width*self.height
+            let patternPixels = self.patternPixels
+            let floatSize = MemoryLayout<Float32>.size
+            let imagePixels = self.imagePixels
         
         let nc = NotificationCenter.default
         
@@ -110,7 +155,6 @@ class STEMDataController: NSObject {
         self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels*imagePixels*floatSize)
         
         let fracComplete = Int(Double(imagePixels)*0.05)
-
 
             for i in 0..<imagePixels{
                     autoreleasepool{
@@ -143,6 +187,8 @@ class STEMDataController: NSObject {
             
             
                 DispatchQueue.main.async {
+                    
+                    self.delegate?.didFinishLoadingData()
                     nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
                 }
             }
@@ -179,38 +225,36 @@ class STEMDataController: NSObject {
         }
         
         self.openFileHandle(url: self.filePath!)
-        
-        self.detectorSize = empadSize
-        
-        self.detectorSize.height -= 2
+        self.patternSize.height -= 2
         
         DispatchQueue.global(qos: .userInteractive).async {
 
 //            self.fileStream?.open()
 
-
-            let empadPixels = empadSize.width * empadSize.height
-            let patternPixels = self.detectorSize.width*self.detectorSize.height
+            let detectorPixels = self.detectorPixels
+            let patternPixels = self.patternPixels
             let floatSize = MemoryLayout<Float32>.size
+            let imagePixels = self.imagePixels
 
-            let imagePixels = self.width * self.height
+            let dataPixels = patternPixels*imagePixels*floatSize
+
 
             let nc = NotificationCenter.default
             
             if self.patternPointer != nil{
-                self.patternPointer?.deallocate(capacity: patternPixels*imagePixels*floatSize)
+                self.patternPointer?.deallocate(capacity: dataPixels)
             }
             
-            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels*imagePixels*floatSize)
+            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: dataPixels)
             
             let fracComplete = Int(Double(imagePixels)*0.05)
 
-            let empadBitCount = empadPixels*floatSize
+            let detectorBitCount = detectorPixels*floatSize
             let patternBitCount = patternPixels*floatSize
         
             //
             
-            for i in stride(from: 0, to: self.height, by: 1){
+            for i in stride(from: 0, to: self.imageSize.height, by: 1){
                 
                 autoreleasepool{
                     
@@ -218,13 +262,14 @@ class STEMDataController: NSObject {
                 var rawBuffer:UnsafeRawPointer
                 var floatBuffer:UnsafePointer<Float32>
 
-                for j in stride(from: 0, to: self.width, by: 1){
+                for j in stride(from: 0, to: self.imageSize.width, by: 1){
                                         
-                    let curImagePixel = (i*self.width+j)
+                    let curImagePixel = (i*self.imageSize.width+j)
                     
-                    let patternIndex = curImagePixel*empadBitCount
+                    let patternOffset = curImagePixel*detectorBitCount
                     
-                    self.fh?.seek(toFileOffset: UInt64(patternIndex))
+                    self.fh?.seek(toFileOffset: UInt64(patternOffset))
+                    
                     newData = (self.fh?.readData(ofLength: patternBitCount))!
                     
                     rawBuffer = (newData as NSData).bytes
@@ -247,7 +292,8 @@ class STEMDataController: NSObject {
             
             
             DispatchQueue.main.async {
-                nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
+                self.delegate?.didFinishLoadingData()
+               nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
             }
         } // async queue
         
@@ -257,32 +303,49 @@ class STEMDataController: NSObject {
 
     func averagePattern(rect:NSRect)->Matrix{
         
-        let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
+        let patternPixels = self.patternPixels
         
-        var adder = [Float].init(repeating: 0.0, count: Int(patternPixels))
-        var adderPointer =  UnsafeMutablePointer(mutating: adder)
+        let adder = [Float].init(repeating: 0.0, count: patternPixels)
+        let adderPointer =  UnsafeMutablePointer(mutating: adder)
+        
         let starti = Int(rect.origin.y)
         let startj = Int(rect.origin.x)
-        let endi = starti + Int(rect.height)
-        let endj = startj + Int(rect.width)
         
-        for i in starti..<endi{
+        let endi = starti + Int(rect.size.height)
+        let endj = startj + Int(rect.size.width)
+        
+        var strideDirectioni = 1
+        var strideDirectionj = 1
+        
+        if starti > endi{
+            strideDirectioni = -1
+        }
+
+        if startj > endj{
+            strideDirectionj = -1
+        }
+        
+        
+        
+//        print("\(starti)->\(endi) ")
+        
+        for i in stride(from: starti, through: endi, by: strideDirectioni){
             
-            for j in startj..<endj{
+            for j in stride(from: startj, through: endj, by: strideDirectionj){
+                let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
                 
-                let nextPatternPointer = self.patternPointer!+(i*self.width+j)*detectorSize.width*detectorSize.height
                 
-                
-                vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, patternPixels)
+                vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, UInt(patternPixels))
                 
                 }
         }
         
-        var avgScaleFactor = 1.0/Float((endi-starti)*(endj-startj))
+        // +1 may be needed for correct average to be inclusive
+        var avgScaleFactor = 1.0/Float((endi-starti+1)*(endj-startj+1))
         
-        vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, patternPixels)
+        vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
         
-        return Matrix.init(array: adder, detectorSize.height-2, detectorSize.width)
+        return Matrix.init(array: adder, patternSize.height, patternSize.width)
 
         
     }
@@ -291,7 +354,7 @@ class STEMDataController: NSObject {
         
         let mask = detector.detectorMask()
 
-        let indices = Matrix.init(meshIndicesAlong: lrud, detectorSize.height, detectorSize.width)
+        let indices = Matrix.init(meshIndicesAlong: lrud, patternSize.height, patternSize.width)
         
         let ldMask:Matrix?
         let ruMask:Matrix?
@@ -307,41 +370,41 @@ class STEMDataController: NSObject {
 
         }
         
-        let strideWidth = width/strideLength
-        let strideHeight = height/strideLength
+        let strideWidth = imageSize.width/strideLength
+        let strideHeight = imageSize.height/strideLength
         
         //        let imageInts = self.integrating(mask, strideLength)
         
         var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
         
-        let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
+        let patternPixels = self.patternPixels
 
-        let ldMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
-        let ruMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ldMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        let ruMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
-        let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
-        let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+        let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
-        vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, patternPixels)
-        vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, patternPixels)
+        vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
+        vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
         
         let ldPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
         let ruPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
 
         var pos = 0
         
-        for i in stride(from: 0, to: self.height, by: strideLength){
-            for j in stride(from: 0, to: self.width, by: strideLength){
+        for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
+            for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
                 
-                let nextPatternPointer = self.patternPointer!+(i*self.width+j)*detectorSize.width*detectorSize.height
+                let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
                 
-                vDSP_vmul(ldMaskProduct, 1, nextPatternPointer, 1, ldProduct, 1, patternPixels)
-                vDSP_vmul(ruMaskProduct, 1, nextPatternPointer, 1, ruProduct, 1, patternPixels)
+                vDSP_vmul(ldMaskProduct, 1, nextPatternPointer, 1, ldProduct, 1, UInt(patternPixels))
+                vDSP_vmul(ruMaskProduct, 1, nextPatternPointer, 1, ruProduct, 1, UInt(patternPixels))
                 
 //                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, patternPixels)
                 
-                vDSP_sve(ldProduct, 1, ldPixelSum, patternPixels)
-                vDSP_sve(ruProduct, 1, ruPixelSum, patternPixels)
+                vDSP_sve(ldProduct, 1, ldPixelSum, UInt(patternPixels))
+                vDSP_sve(ruProduct, 1, ruPixelSum, UInt(patternPixels))
 
                 
                 let dpcSignal = ldPixelSum.pointee-ruPixelSum.pointee
@@ -365,45 +428,44 @@ class STEMDataController: NSObject {
         let group = DispatchGroup()
         group.enter()
     
-        let strideWidth = width/strideLength
-        let strideHeight = height/strideLength
+        let strideWidth = imageSize.width/strideLength
+        let strideHeight = imageSize.height/strideLength
         
         var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
 
-        let indices = Matrix.init(meshIndicesAlong: xy, detectorSize.height-2, detectorSize.width)
+        let indices = Matrix.init(meshIndicesAlong: xy, patternSize.height, patternSize.width)
 
         DispatchQueue.global(qos: .userInteractive).sync {
         
-            let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
-            let maskPatternProduct = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
-            let indexWeighted = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+            let patternPixels = self.patternPixels
+            let maskPatternProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let indexWeighted = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
             
             let pixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
-            let empadPixels = detectorSize.height*detectorSize.width
             
             var pos = 0
             
-            for i in stride(from: 0, to: self.height, by: strideLength){
-                for j in stride(from: 0, to: self.width, by: strideLength){
+            for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
+                for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
                 
-                    let nextPatternPointer = self.patternPointer!+(i*self.width+j)*empadPixels
+                    let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
                     
-                    vDSP_vmul(mask.real, 1, nextPatternPointer, 1, maskPatternProduct, 1, patternPixels)
+                    vDSP_vmul(mask.real, 1, nextPatternPointer, 1, maskPatternProduct, 1, UInt(patternPixels))
                     
-                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, patternPixels)
+                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, UInt(patternPixels))
                     
-                    vDSP_sve(maskPatternProduct, 1, pixelSum, patternPixels)
+                    vDSP_sve(maskPatternProduct, 1, pixelSum, UInt(patternPixels))
 
                     let intSum = pixelSum.pointee
                     
             
-                    vDSP_sve(indexWeighted, 1, pixelSum, patternPixels)
+                    vDSP_sve(indexWeighted, 1, pixelSum, UInt(patternPixels))
 
                     outArray[pos] = pixelSum.pointee/intSum
                     pos += 1
                 }
             }
-            maskPatternProduct.deallocate(capacity: detectorSize.width*detectorSize.height)
+            maskPatternProduct.deallocate(capacity: patternPixels)
 
             group.leave()
 
@@ -422,29 +484,28 @@ class STEMDataController: NSObject {
 //        let group = DispatchGroup()
 //        group.enter()
         
-        let strideWidth = width/strideLength
-        let strideHeight = height/strideLength
+        let strideWidth = imageSize.width/strideLength
+        let strideHeight = imageSize.height/strideLength
         
         var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
         
 //        DispatchQueue.global(qos: .default).sync {
         
-            let patternPixels = UInt(detectorSize.width*(detectorSize.height-2))
-            let c = UnsafeMutablePointer<Float32>.allocate(capacity: Int(patternPixels))
+//            let patternPixels = UInt(self.patternPixels)
+        let c = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
             let pixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
             
             var pos = 0
         
-            for i in stride(from: 0, to: self.height, by: strideLength){
+            for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
                 
-                for j in stride(from: 0, to: self.width, by: strideLength){
+                for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
                     
-                    let nextPatternPointer = self.patternPointer!+(i*self.width+j)*detectorSize.width*detectorSize.height
+                    let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternSize.width*patternSize.height
                     
-                    
-                    vDSP_vmul(mask.real, 1, nextPatternPointer, 1, c, 1, patternPixels)
-                    vDSP_sve(c, 1, pixelSum, patternPixels)
+                    vDSP_vmul(mask.real, 1, nextPatternPointer, 1, c, 1, UInt(patternPixels))
+                    vDSP_sve(c, 1, pixelSum, UInt(patternPixels))
                     
                     outArray[pos] = pixelSum[0]
                     
@@ -452,7 +513,7 @@ class STEMDataController: NSObject {
                 }
             }
             
-            c.deallocate(capacity: detectorSize.width*detectorSize.height)
+            c.deallocate(capacity: patternPixels)
             
 //            group.leave()
 //        }
