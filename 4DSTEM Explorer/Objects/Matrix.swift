@@ -579,6 +579,51 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         return bitmapRep
     }
     
+    func uInt8ImageRep()->NSBitmapImageRep?{
+        
+        var maximum = self.max.a
+        let minimum = self.min.a
+        
+        if maximum == 0 {
+            maximum = 1
+        }
+        
+        let uInt8Size = MemoryLayout<UInt8>.size
+        
+        var out = [UInt8].init(repeating: 0, count: real.count)
+        
+        for (i, element) in real.enumerated() {
+            
+            if element.isNaN || element.isInfinite{
+                continue
+            }
+            
+            out[i] = UInt8((element-minimum)/(maximum-minimum)*255)
+        }
+
+        
+        let imageData = NSData(bytes: UnsafePointer(out), length: real.count*uInt8Size)
+        
+        let uint8Pointer = imageData.bytes.bindMemory(to: UInt8.self, capacity: rows*columns*uInt8Size)
+        
+        
+        let bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns*uInt8Size, bitsPerPixel: 8)
+        
+        let imagePointer = bitmapRep?.bitmapData
+        
+        for i in 0..<rows*columns*uInt8Size{
+            
+            imagePointer![i] = uint8Pointer[i]
+            
+        }
+        //
+        //        let image = NSImage.init(size: NSSize(width: columns, height: rows))
+        //
+        //        image.addRepresentation(bitmapRep)
+        
+        return bitmapRep
+    }
+    
     func imageRepresentation(part:String, format:Int, _ max:Float?, _ min:Float?) -> NSImage? {
     
         var maximum = self.max
@@ -703,7 +748,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         
         return outImage
-            return nil
     }
     
     /// A custom playground Quick Look for this instance.

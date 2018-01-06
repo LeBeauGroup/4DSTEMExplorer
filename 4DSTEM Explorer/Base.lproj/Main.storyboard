@@ -83,19 +83,32 @@
                                             </menu>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="m54-Is-iLE"/>
+                                        <menuItem title="Export" id="otv-rB-i4G">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <menu key="submenu" title="Export" id="eaK-2N-Kni">
+                                                <items>
+                                                    <menuItem title="Image" keyEquivalent="I" id="oCU-fq-6ex">
+                                                        <connections>
+                                                            <action selector="export:" target="Ady-hI-5gd" id="aMD-cE-lHq"/>
+                                                        </connections>
+                                                    </menuItem>
+                                                    <menuItem title="Image with annotations..." alternate="YES" keyEquivalent="I" id="8e9-hF-sG1">
+                                                        <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
+                                                    </menuItem>
+                                                    <menuItem title="Pattern" tag="1" keyEquivalent="P" id="h9t-IC-dOU">
+                                                        <connections>
+                                                            <action selector="export:" target="Ady-hI-5gd" id="dK7-r9-YbK"/>
+                                                        </connections>
+                                                    </menuItem>
+                                                    <menuItem title="Pattern with annotations..." alternate="YES" keyEquivalent="P" id="dEc-60-NiU">
+                                                        <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
+                                                    </menuItem>
+                                                </items>
+                                            </menu>
+                                        </menuItem>
                                         <menuItem title="Close" keyEquivalent="w" id="DVo-aG-piG">
                                             <connections>
                                                 <action selector="performClose:" target="Ady-hI-5gd" id="HmO-Ls-i7Q"/>
-                                            </connections>
-                                        </menuItem>
-                                        <menuItem title="Export Images" keyEquivalent="I" id="i1y-dv-wab">
-                                            <connections>
-                                                <action selector="exportImages:" target="Ady-hI-5gd" id="fir-pg-m5t"/>
-                                            </connections>
-                                        </menuItem>
-                                        <menuItem title="Export Selected Pattern" keyEquivalent="P" id="J2W-zP-wqR">
-                                            <connections>
-                                                <action selector="exportImages:" target="Ady-hI-5gd" id="l3b-Ux-c1V"/>
                                             </connections>
                                         </menuItem>
                                     </items>
@@ -354,7 +367,7 @@
                             <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                 <rect key="frame" x="20" y="211" width="256" height="256"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" id="UYP-wE-asd"/>
+                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" id="UYP-wE-asd"/>
                             </imageView>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
                                 <rect key="frame" x="208" y="123" width="70" height="24"/>
@@ -410,6 +423,15 @@
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
+                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3E5-YH-H5V">
+                                <rect key="frame" x="25" y="449" width="211" height="17"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="(x, y)" placeholderString="(x, y)" id="Yfi-gJ-0oU">
+                                    <font key="font" metaFont="system"/>
+                                    <color key="textColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                </textFieldCell>
+                            </textField>
                         </subviews>
                     </view>
                     <connections>
@@ -424,6 +446,7 @@
                         <outlet property="lrud_xySegmented" destination="ezS-aJ-Jxe" id="Ekv-2k-dV1"/>
                         <outlet property="lrup_xdSegmented" destination="ezS-aJ-Jxe" id="Smm-xb-t4T"/>
                         <outlet property="outerAngleTextField" destination="AN5-dg-408" id="3gI-ac-Vl0"/>
+                        <outlet property="patternSelectionLabel" destination="3E5-YH-H5V" id="avF-cU-pgP"/>
                         <outlet property="patternViewer" destination="oQa-mo-g57" id="ech-I8-bGF"/>
                         <outlet property="viewHeightConstraint" destination="xog-Ze-6Y7" id="FYS-7c-0Tf"/>
                         <outlet property="viewWidthConstraint" destination="bRz-Iy-oBT" id="1TS-nZ-31Y"/>
