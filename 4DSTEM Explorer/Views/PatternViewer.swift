@@ -41,9 +41,14 @@ class PatternViewer: NSImageView {
             return matrixStorage!
         }
         set(newMatrix){
+            let imageRep:NSBitmapImageRep? = newMatrix.uInt8ImageRep()
+            let newImage = NSImage()
             
-            matrixStorage = newMatrix
-            self.image = newMatrix.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil)
+            if imageRep != nil{
+                newImage.addRepresentation(imageRep!)
+                self.image = newImage//newMatrix.imageRepresentation(part: "real", format: n, nil, nil)
+                matrixStorage = newMatrix
+            }
         }
     }
     
@@ -78,24 +83,24 @@ class PatternViewer: NSImageView {
     
     }
     
-    override func mouseDown(with event: NSEvent) {
-//        self.background = NSColor.blue
-        
-        self.needsDisplay = true
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        
-        
-        let newDragLocation = self.convert(event.locationInWindow, from: nil)
-        
-        if(newDragLocation.x >= frame.origin.x && newDragLocation.x <= frame.origin.x+frame.width){
-        
-        }
-        //        self.needsDisplay = true
-        //        }
-        
-    }
+//    override func mouseDown(with event: NSEvent) {
+////        self.background = NSColor.blue
+//
+//        self.needsDisplay = true
+//    }
+//
+//    override func mouseDragged(with event: NSEvent) {
+//
+//
+//        let newDragLocation = self.convert(event.locationInWindow, from: nil)
+//
+//        if(newDragLocation.x >= frame.origin.x && newDragLocation.x <= frame.origin.x+frame.width){
+//
+//        }
+//        //        self.needsDisplay = true
+//        //        }
+//
+//    }
     
     override func draw(_ dirtyRect: NSRect) {
         
