@@ -13,7 +13,7 @@ protocol ViewControllerDelegate: class {
     func averagePatternInRect(_ rect:NSRect?)
 }
 
-class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
+class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, STEMDataControllerDelegate{
 
     @IBOutlet weak var patternViewer: PatternViewer!
     @IBOutlet weak var imageView: ImageViewer!
@@ -31,6 +31,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
     var dataController = STEMDataController()
     var patternIndex  = 0
     var selectedDetector:Detector?
+    @IBOutlet weak var patternSelectionLabel:NSTextField?
     
     var zoomFactor:CGFloat = 1.0 {
         
@@ -53,6 +54,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
         super.awakeFromNib()
     
         imageView.delegate = self
+        dataController.delegate = self
         
         DispatchQueue.main.async{
             
@@ -69,12 +71,11 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
         
         let nc = NotificationCenter.default
         
-        nc.addObserver(self, selector: #selector(didFinishLoadingData(note:)), name: Notification.Name("finishedLoadingData"), object: nil)
+//        nc.addObserver(self, selector: #selector(didFinishLoadingData(note:)), name: Notification.Name("finishedLoadingData"), object: nil)
         
         nc.addObserver(self, selector: #selector(detectorIsMoving(note:)), name: Notification.Name("detectorIsMoving"), object: nil)
         nc.addObserver(self, selector: #selector(detectorFinishedMoving(note:)), name: Notification.Name("detectorFinishedMoving"), object: nil)
         
-        nc.addObserver(self, selector: #selector(patternChanged(note:)), name: Notification.Name("patternChanged"), object: nil)
                 
     }
     
@@ -100,9 +101,29 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
     
     @IBAction func changeLog(_ sender: Any){
         
-        updatePattern((-1, -1))
+        
+        selectPatternAt(-1,-1)
     }
     
+    @IBAction func changeImageViewSelectionMode(_ sender: Any){
+        
+        if let segmented = sender as? NSSegmentedControl{
+            
+            switch segmented.tag(forSegment: segmented.selectedSegment){
+            case 0:
+                imageView.selectMode = .point
+
+            case 1:
+                imageView.selectMode = .marquee
+
+            default:
+                imageView.selectMode = .none
+            }
+                
+        }
+        
+
+    }
 
     func detectImage(stride:Int = 1){
         
@@ -143,11 +164,25 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
         
         let stride:Int?
         
-        if dataController.width/64 > 0{
-            stride = dataController.width/64
+        
+        if dataController.imageSize.width % 2 == 0{
+         
+            print(dataController.imageSize.width)
+            var dividor = dataController.imageSize.width
+
+            
+            while(dividor > 80){
+                dividor /= 2
+                
+            }
+            
+             stride = dataController.imageSize.width/dividor
+            
         }else{
             stride = 1
         }
+        
+
         
         
         self.detectImage(stride: stride!)
@@ -178,15 +213,16 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
     
 
     
-    @objc func patternChanged(note:Notification){
-
-        let patternPoint = note.object as! NSPoint
-        let patternIndices = (Int(patternPoint.y), Int(patternPoint.x))
-        
-        self.updatePattern(patternIndices)
-        
-        
-    }
+//     func selectPatternAt(note:Notification){
+//
+//        let patternPoint = note.object as! NSPoint
+//
+//        let patternIndices = (Int(patternPoint.y), Int(patternPoint.x))
+//
+//        self.selectPatternAt(patternIndices)
+//
+//
+//    }
     
     @IBAction func detectorRadiusChanged(_ sender:Any){
     
@@ -215,6 +251,16 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
     func averagePatternInRect(_ rect:NSRect?){
 //        print(rect)
         var avgMatrix = dataController.averagePattern(rect: rect!)
+        
+        let starti = Int(rect!.origin.y)
+        let startj = Int(rect!.origin.x)
+        
+        let endi = starti + Int(rect!.size.height)
+        let endj = startj + Int(rect!.size.width)
+
+        
+        patternSelectionLabel?.stringValue = "(\(startj):\(endj), \(starti):\(endi))"
+
     
         if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
             avgMatrix = avgMatrix.log()
@@ -222,41 +268,27 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
         }
         
         patternViewer.matrix = avgMatrix
-        patternViewer.needsDisplay = true
+//        patternViewer.needsDisplay = true
         
         
     }
     
     // Input tuple for (i,j)
-    func updatePattern(_ indices: (i: Int, j:Int)) {
+    func selectPatternAt(_ i: Int, _ j:Int) {
         
-        if dataController.patternPointer != nil{
-            
-            if indices != (-1,-1){
-                patternIndex =  indices.i*dataController.width + indices.j
-            }
-
+        var patternMatrix:Matrix? = dataController.pattern(i, j)
+        patternSelectionLabel?.stringValue = "(\(j), \(i))"
         
-            let detectorSize = dataController.detectorSize
-            let detectorPixels = Int(detectorSize.width * detectorSize.height)
-            let curPatternPointer = dataController.patternPointer! + (detectorPixels)*patternIndex
-            
-            var matrix = Matrix.init(pointer: curPatternPointer, Int(detectorSize.height), Int(detectorSize.width))
-    //        var matrix:Matrix = dataController.patterns[index]
-            
+        if patternMatrix != nil{
             if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
-                matrix = matrix.log()
-                
+                    patternMatrix = patternMatrix!.log()
             }
-            let curPatternMatrix = matrix
             
-    //        let test = patternViewer.detectorView!.detector.detectorMask()
+            patternViewer.matrix = patternMatrix!
             
-            
-            patternViewer.matrix = matrix
         }
-        
     }
+    
     
     @IBAction func selectDetectorType(_ sender:Any){
         
@@ -360,30 +392,26 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
 
                 self.view.window?.title = selectedURL!.deletingPathExtension().lastPathComponent
                 
-
-            
             self.displayProbePositionsSelection(openPanel.url)
             }
         }
 
     }
     
-    @objc func didFinishLoadingData(note:Notification) {
+    @objc func didFinishLoadingData() {
         
-
         if patternViewer.detectorView?.isHidden == true{
         patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)))
         }
         
+        
         patternViewer.detectorView?.isHidden = false
         
         imageView.isHidden = false
-        
-        let middleIndex = dataController.indexFor(dataController.height/2
-            ,    dataController.width/2)
+        imageView.selectionRect = nil
         
         self.detectImage()
-        self.updatePattern((0,0))
+        self.selectPatternAt(dataController.imageSize.height/2, dataController.imageSize.width/2)
 
     }
     
@@ -415,7 +443,10 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
     }
     
 
-    @IBAction func exportImages(_ sender:Any){
+    @IBAction func export(_ sender:Any){
+        
+        
+        let menuItem = sender as! NSMenuItem
         
         let savePanel = NSSavePanel()
         
@@ -424,18 +455,24 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
         savePanel.isExtensionHidden = false
         savePanel.allowedFileTypes = ["tif"]
         
-        var lrud_xyLabel = ""
-        
-        let detector =  self.patternViewer.detectorView?.detector
+        if menuItem.tag == 0{
+            var lrud_xyLabel = ""
+            
+            let detector =  self.patternViewer.detectorView?.detector
 
-        
-        if detector?.type == DetectorType.com || detector?.type == DetectorType.dpc{
-            lrud_xyLabel = "_" + lrud_xySegmented.label(forSegment: lrud_xySegmented.selectedSegment)!
+            
+            if detector?.type == DetectorType.com || detector?.type == DetectorType.dpc{
+                lrud_xyLabel = "_" + lrud_xySegmented.label(forSegment: lrud_xySegmented.selectedSegment)!
+
+            }
+            let detectorTypeLabel = detectorTypeSegmented.label(forSegment: detectorTypeSegmented.selectedSegment)!
+            
+                savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeLabel  + lrud_xyLabel
+            
+        }else if menuItem.tag == 1{
+            savePanel.nameFieldStringValue = (self.view.window?.title)!+"_"+(patternSelectionLabel?.stringValue)!
 
         }
-        let detectorTypeLabel = detectorTypeSegmented.label(forSegment: detectorTypeSegmented.selectedSegment)!
-        
-        savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeLabel  + lrud_xyLabel
         
         
         
@@ -445,10 +482,18 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
             if result == NSApplication.ModalResponse.OK {
                 let filename = savePanel.url
                 
+                
+                var bitmapRep:NSBitmapImageRep?
                
           
+                if(menuItem.tag == 0){
+                    bitmapRep = self.imageView.matrix.floatImageRep()
                     
-                let bitmapRep = self.imageView.matrix.floatImageRep()
+                }else if menuItem.tag == 1{
+                    bitmapRep = self.patternViewer.matrix.floatImageRep()
+
+                }
+                
                     
                 // To add metadata, will need to switch to cgimagedestination
                 
@@ -461,7 +506,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
                 
                 if bitmapRep != nil{
                     
-                    data = bitmapRep.representation(using: NSBitmapImageRep.FileType.tiff, properties: props)!
+                    data = bitmapRep!.representation(using: NSBitmapImageRep.FileType.tiff, properties: props)!
                 }
 
                 
@@ -472,18 +517,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate {
                 
                  cgProps["{TIFF}" as CFString] = ["ImageDescription" as CFString:"A description" as CFString]
                 
-                CGImageDestinationAddImage(dest!, bitmapRep.cgImage!, cgProps as CFDictionary)
+                CGImageDestinationAddImage(dest!, bitmapRep!.cgImage!, cgProps as CFDictionary)
                 
                 CGImageDestinationFinalize(dest!)
-                
-                
-//                do{
-//                    try  data.write(to: filename!, options: .atomic)
-//
-//
-//                }catch{
-//                    print("failed")
-//                }
                 
                     
             } else {
