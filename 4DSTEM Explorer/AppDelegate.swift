@@ -29,12 +29,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Insert code here to tear down your application
     }
     
+    func application(_ application: NSApplication, open urls: [URL]) {
+        
+        let viewController =  NSApp.mainWindow?.contentViewController as! ViewController
+//        viewController.openPanel()
+        viewController.dataController.filePath = urls[0]
+        viewController.displayProbePositionsSelection(urls[0])
+    }
+    
     
     
     func applicationWillUnhide(_ notification: Notification) {
 //        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
 
     }
+    
+    
 
 
 
