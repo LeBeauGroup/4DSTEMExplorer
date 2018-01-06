@@ -341,7 +341,7 @@ class STEMDataController: NSObject {
         }
         
         // +1 may be needed for correct average to be inclusive
-        var avgScaleFactor = 1.0/Float((endi-starti+1)*(endj-startj+1))
+        var avgScaleFactor = 1.0/fabsf(Float((endi-starti+1)*(endj-startj+1)))
         
         vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
         

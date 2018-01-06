@@ -536,11 +536,11 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
     }
     
-    @IBAction func zoomIn(sender: NSMenuItem?) {
+    @IBAction func zoomIn(_ sender: NSMenuItem?) {
         
-        if zoomFactor + 0.1 > 4 {
+        if zoomFactor + 0.1 > 10 {
             
-            zoomFactor = 4
+            zoomFactor = 10
             
         } else if zoomFactor == 0.05 {
             
@@ -554,7 +554,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
     }
     
-    @IBAction func zoomOut(sender: NSMenuItem?) {
+    @IBAction func zoomOut(_ sender: NSMenuItem?) {
         
         if zoomFactor - 0.1 < 0.05 {
             
@@ -568,7 +568,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
     }
     
-    @IBAction func zoomToActual(sender: NSMenuItem?) {
+    @IBAction func zoomToActual(_ sender: NSMenuItem?) {
         
         zoomFactor = 1.0
         
