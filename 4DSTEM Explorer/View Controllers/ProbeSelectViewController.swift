@@ -55,8 +55,8 @@ class ProbeSelectViewController: NSViewController {
         let wh = self.decomposeComboxString()
         
         
-        dataController.width = Int(wh.0)!
-        dataController.height = Int(wh.1)!
+        dataController.imageSize.width = Int(wh.0)!
+        dataController.imageSize.height = Int(wh.1)!
         
         parentController.loadAndFormatData(self)
 //        self.dismiss(self)
@@ -149,7 +149,7 @@ class ProbeSelectViewController: NSViewController {
     
     @objc func updateProgressIndicator(notification:Notification){
         
-        let incre = notification.object as! Double / Double(dataController.width*dataController.height) * 100
+        let incre = notification.object as! Double / Double(dataController.imagePixels) * 100
 
         progressIndicator.doubleValue = incre
 
