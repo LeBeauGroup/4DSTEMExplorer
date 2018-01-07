@@ -20,7 +20,6 @@
 		A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B161FF4958A006D4044 /* ImageViewer.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
-		A57621991FF6BE7700D22964 /* PatternViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A57621981FF6BE7700D22964 /* PatternViewerController.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
@@ -45,7 +44,6 @@
 		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
 		A56918EA1FEDB2B000C0EF70 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
-		A57621981FF6BE7700D22964 /* PatternViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternViewerController.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
@@ -103,7 +101,6 @@
 				A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */,
 				A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */,
 				A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */,
-				A57621981FF6BE7700D22964 /* PatternViewerController.swift */,
 			);
 			path = "View Controllers";
 			sourceTree = "<group>";
@@ -234,7 +231,6 @@
 				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
-				A57621991FF6BE7700D22964 /* PatternViewerController.swift in Sources */,
 				A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */,
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
 				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,

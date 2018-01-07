@@ -10,6 +10,13 @@ import Foundation
 import Cocoa
 import Accelerate
 
+enum FileReadError: Error {
+    case invalidTiff
+    case invalidRaw
+    case invalidDimensions
+}
+
+
 protocol STEMDataControllerDelegate:class {
     func didFinishLoadingData()
 }
@@ -79,20 +86,21 @@ class STEMDataController: NSObject {
         
     }
     
-    func readTiffInfo(_ imgSrc:CGImageSource){
+    func readTiffInfo(_ imgSrc:CGImageSource) throws{
         
         let props = CGImageSourceCopyPropertiesAtIndex(imgSrc, 0, nil) as! NSDictionary
 
-        // {TIFF} key contains a dictionary with imageJ string containingthe width and height info (\nslices and \nframes)
+        // {TIFF} key contains a dictionary with imageJ string containing the width and height info (\nslices and \nframes)
 
         let tiffProps = props.value(forKey: "{TIFF}") as! NSDictionary
-        let pixelWidth = props.value(forKey: "PixelWidth") as! Int
-        let pixelHeight = props.value(forKey: "PixelHeight") as! Int
+        let pixelWidth = props.value(forKey: "PixelWidth") as? Int
+        let pixelHeight = props.value(forKey: "PixelHeight") as? Int
         
-        detectorSize = IntSize(width: pixelWidth, height: pixelHeight)
-        patternSize = detectorSize
         
         if let imageDescription = tiffProps.value(forKey: "ImageDescription") as? String{
+            
+            detectorSize = IntSize(width: pixelWidth!, height: pixelHeight!)
+            patternSize = detectorSize
             
             var width:String = ""
             var height:String = ""
@@ -125,26 +133,35 @@ class STEMDataController: NSObject {
             
             self.imageSize.width = Int(width)!
             self.imageSize.height = Int(height)!
+        }else{
+            throw FileReadError.invalidTiff
         }
         
     }
     
-    func openTIFF(url:URL){
+    func openTIFF(url:URL) throws {
         
-        DispatchQueue.global(qos: .userInteractive).async {
 
-            let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
+        let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
 
-            let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
+        let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
+        
+        do{
+        try self.readTiffInfo(myImageSource!)
+        }catch{
             
-            self.readTiffInfo(myImageSource!)
+            throw FileReadError.invalidTiff
+
+        }
 
 //        let imagePixels = CGImageSourceGetCount(myImageSource!)
         
-            let patternPixels = self.patternPixels
-            let floatSize = MemoryLayout<Float32>.size
+        let patternPixels = self.patternPixels
+        let floatSize = MemoryLayout<Float32>.size
             let imagePixels = self.imagePixels
         
+        DispatchQueue.global(qos: .userInteractive).async {
+
         let nc = NotificationCenter.default
         
         
@@ -184,14 +201,11 @@ class STEMDataController: NSObject {
                         }
                     }// autoreleasepool
                 }// for
+        }
             
-            
-                DispatchQueue.main.async {
-                    
-                    self.delegate?.didFinishLoadingData()
-                    nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
-                }
-            }
+        
+        self.delegate?.didFinishLoadingData()
+//        nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
     }
     
     func openFileHandle(url:URL){
@@ -210,7 +224,7 @@ class STEMDataController: NSObject {
     }
 
     
-    func formatMatrixData(){
+    func formatMatrixData() throws {
         
         let ext = filePath!.pathExtension
         
@@ -220,16 +234,19 @@ class STEMDataController: NSObject {
             nil)
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
-            self.openTIFF(url: self.filePath!)
-            return
+            do{
+                try self.openTIFF(url: self.filePath!)
+                return
+            }catch{
+                throw FileReadError.invalidTiff
+                
+            }
         }
         
         self.openFileHandle(url: self.filePath!)
-        self.patternSize.height -= 2
+        self.patternSize.height = empadSize.height-2
         
         DispatchQueue.global(qos: .userInteractive).async {
-
-//            self.fileStream?.open()
 
             let detectorPixels = self.detectorPixels
             let patternPixels = self.patternPixels
@@ -326,22 +343,24 @@ class STEMDataController: NSObject {
         }
         
         
-        
-//        print("\(starti)->\(endi) ")
+        var patternCount = 0
         
         for i in stride(from: starti, through: endi, by: strideDirectioni){
             
             for j in stride(from: startj, through: endj, by: strideDirectionj){
+                
                 let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
                 
-                
+
                 vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, UInt(patternPixels))
                 
+                patternCount += 1
                 }
         }
         
+        
         // +1 may be needed for correct average to be inclusive
-        var avgScaleFactor = 1.0/fabsf(Float((endi-starti+1)*(endj-startj+1)))
+        var avgScaleFactor = 1.0/Float(patternCount)
         
         vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
         

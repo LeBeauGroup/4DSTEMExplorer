@@ -58,9 +58,19 @@ class ProbeSelectViewController: NSViewController {
         dataController.imageSize.width = Int(wh.0)!
         dataController.imageSize.height = Int(wh.1)!
         
-        parentController.loadAndFormatData(self)
-//        self.dismiss(self)
-        
+        do{
+            try parentController.loadAndFormatData(self)
+        }catch{
+            
+            let alert = NSAlert.init()
+            alert.messageText = "Selected image is incompatible.  Please select an EMPAD tiff stack."
+
+            alert.runModal()
+    
+            self.dismiss(nil)
+            
+        }
+    
     }
     
     func decomposeFilenameString(_ string:String) -> (String, String){
@@ -156,11 +166,11 @@ class ProbeSelectViewController: NSViewController {
 
     }
     
-    override func viewWillDisappear() {
+    
+    override func viewDidDisappear() {
         
-        // Need to cancel the async function
-        
-        super.viewWillDisappear()
+
+        super.viewDidDisappear()
     }
     
 }

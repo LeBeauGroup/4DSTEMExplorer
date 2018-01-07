@@ -29,8 +29,11 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBOutlet weak var displayLogCheckbox: NSButtonCell!
 
     var dataController = STEMDataController()
-    var patternIndex  = 0
+    var patternRect:NSRect? //= NSRect(x: 0, y: 0, width: 0, height: 0)
+    
     var selectedDetector:Detector?
+    
+    
     @IBOutlet weak var patternSelectionLabel:NSTextField?
     
     var zoomFactor:CGFloat = 1.0 {
@@ -86,9 +89,17 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     }
         
 
-    func loadAndFormatData(_ sender: Any) {
+    func loadAndFormatData(_ sender: Any) throws {
         
-        dataController.formatMatrixData()
+        do{
+            try dataController.formatMatrixData()
+        }catch{
+            
+            throw FileReadError.invalidTiff
+            
+
+        }
+        
 
     }
     
@@ -102,7 +113,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBAction func changeLog(_ sender: Any){
         
         
-        selectPatternAt(-1,-1)
+        averagePatternInRect(patternRect)
     }
     
     @IBAction func changeImageViewSelectionMode(_ sender: Any){
@@ -249,6 +260,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     func averagePatternInRect(_ rect:NSRect?){
 //        print(rect)
+        
+        patternRect = rect
+        
         var avgMatrix = dataController.averagePattern(rect: rect!)
         
         let starti = Int(rect!.origin.y)
@@ -260,7 +274,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         patternSelectionLabel?.stringValue = "(\(startj):\(endj), \(starti):\(endi))"
 
-    
         if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
             avgMatrix = avgMatrix.log()
             
@@ -275,6 +288,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     // Input tuple for (i,j)
     func selectPatternAt(_ i: Int, _ j:Int) {
         
+//        patternRect = NSRect(x: j, y: i, width: 1, height: 1)
         var patternMatrix:Matrix? = dataController.pattern(i, j)
         patternSelectionLabel?.stringValue = "(\(j), \(i))"
         
@@ -398,8 +412,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             if selectedURL != nil{
             dataController.filePath = selectedURL
             
-
-                
             self.displayProbePositionsSelection(openPanel.url)
             }
         }
@@ -425,14 +437,13 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     @IBAction func displayProbePositionsSelection(_ sender: Any){
        
-        let probeController = storyboard?.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ProbeSelectViewController")) as! ProbeSelectViewController
-
+        let sizeSelectionController:ProbeSelectViewController = storyboard?.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ProbeSelectViewController")) as! ProbeSelectViewController
         
-        self.presentViewControllerAsModalWindow(probeController as! ProbeSelectViewController)
+        self.presentViewControllerAsSheet(sizeSelectionController)
         
-        probeController.dataController = dataController
-        probeController.parentController = self
-        probeController.selectSizeFromURL(sender as! URL)
+        sizeSelectionController.dataController = dataController
+        sizeSelectionController.parentController = self
+        sizeSelectionController.selectSizeFromURL(sender as! URL)
         
         self.view.window?.title = (sender as! URL).deletingPathExtension().lastPathComponent
 
@@ -445,7 +456,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             nil)
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
-            probeController.acceptSize(self)
+            
+    
+            sizeSelectionController.acceptSize(self)
         }
 
         
