@@ -101,7 +101,24 @@ class DetectorView: NSView {
         var itemHit = false
         
         // rough test
-        itemHit = NSPointInRect(point, apertureRect())
+        
+        var detectorRect:NSRect
+        
+        
+        
+        switch detectorShape {
+        case DetectorShape.adf:
+            detectorRect = apertureRect("inner")
+        default:
+            detectorRect = apertureRect("outer")
+
+        }
+        
+      
+        
+        itemHit = NSPointInRect(point, detectorRect)
+
+        let radius = detectorRect.width/2.0
         
         //fine tuning
         if itemHit{
@@ -111,7 +128,7 @@ class DetectorView: NSView {
             
             let dist2 = xdist2+ydist2
             
-            if dist2 >= scaledRadius()*scaledRadius(){
+            if dist2 >= radius*radius{
                 itemHit = false
             }
             
@@ -197,7 +214,18 @@ class DetectorView: NSView {
             
             var newRadii = self.radii
             
-            let deltaR = (newDragLocation!.x)-lastDragLocation.x
+            var deltaR:CGFloat = 0.0
+            
+            
+            switch locationType{
+            case "innerControl":
+                deltaR = lastDragLocation.y - (newDragLocation!.y)
+
+            default:
+                deltaR = (newDragLocation!.x)-lastDragLocation.x
+
+            }
+            
 
             if locationType == "outerControl"{
                 newRadii?.outer += deltaR*scaleFactor()
@@ -272,8 +300,18 @@ class DetectorView: NSView {
         let radius = scaledRadius(ioAngle)
         var controlOrigin = center
         
-        controlOrigin.x += (radius+strokeSize - controlRadius)
-        controlOrigin.y -= (controlRadius - strokeSize)
+
+        switch ioAngle {
+        case "inner":
+            controlOrigin.y += -radius  - controlRadius
+            controlOrigin.x -= (controlRadius - strokeSize/2)
+        default:
+            controlOrigin.x += (radius+strokeSize - controlRadius)
+            controlOrigin.y -= (controlRadius - strokeSize/2)
+        }
+
+        
+
         
         let rect = NSRect(origin: controlOrigin, size: NSSize(width: controlRadius*2, height: controlRadius*2))
         
