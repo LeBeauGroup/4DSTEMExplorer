@@ -336,11 +336,25 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     @IBAction func selectDetectorShape(_ sender:Any){
     
-        if let segControl = sender as? NSSegmentedControl{
+        var selectedTag:Int
+        
+        if let menuItem = sender as? NSMenuItem{
+            selectedTag =  menuItem.tag
+            
+        } else if let segControl = sender as? NSSegmentedControl{
+            
+            selectedTag = segControl.selectedSegment
+            
+        }
+        else{
+            print("detector not sent by segmented control")
+            return
+        }
+        
             
             let newShape:DetectorShape
             
-            switch segControl.selectedSegment{
+            switch selectedTag{
             case 0:
                 newShape = DetectorShape.bf
                 innerAngleTextField.isEnabled = false
@@ -367,11 +381,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             selectedDetector = patternViewer.detectorView!.detector
             self.detectImage(stride: 1)
             
-        }else{
-            print("detector not sent by segmented control")
         }
-    }
-    
     func openPanel(){
     
         let openPanel = NSOpenPanel()
@@ -389,7 +399,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             dataController.filePath = selectedURL
             
 
-                self.view.window?.title = selectedURL!.deletingPathExtension().lastPathComponent
                 
             self.displayProbePositionsSelection(openPanel.url)
             }
@@ -424,6 +433,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         probeController.dataController = dataController
         probeController.parentController = self
         probeController.selectSizeFromURL(sender as! URL)
+        
+        self.view.window?.title = (sender as! URL).deletingPathExtension().lastPathComponent
+
         
         let ext = (sender as! URL).pathExtension
         

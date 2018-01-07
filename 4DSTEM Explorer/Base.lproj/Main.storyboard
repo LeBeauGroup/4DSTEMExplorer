@@ -159,6 +159,28 @@
                                     </items>
                                 </menu>
                             </menuItem>
+                            <menuItem title="Detector" id="2eW-ya-qz9">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <menu key="submenu" title="Detector" id="DAc-pM-D2Z">
+                                    <items>
+                                        <menuItem title="Bright field" keyEquivalent="1" id="08A-Xd-h0g">
+                                            <connections>
+                                                <action selector="selectDetectorShape:" target="Ady-hI-5gd" id="CWa-el-5hp"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Annular Dark-field" tag="1" keyEquivalent="2" id="rN5-0T-dYM">
+                                            <connections>
+                                                <action selector="selectDetectorShape:" target="Ady-hI-5gd" id="w6K-Qx-x3G"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Annual Field" tag="2" keyEquivalent="3" id="l3c-iz-uRM">
+                                            <connections>
+                                                <action selector="selectDetectorShape:" target="Ady-hI-5gd" id="84U-1m-kMR"/>
+                                            </connections>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                            </menuItem>
                             <menuItem title="Pattern View" id="jxT-CU-nIS">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Pattern View" id="GEO-Iw-cKr">
@@ -169,9 +191,9 @@
                                     </items>
                                 </menu>
                             </menuItem>
-                            <menuItem title="Image View" id="H8h-7b-M4v">
+                            <menuItem title="Image" id="H8h-7b-M4v">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="Image View" id="HyV-fh-RgO">
+                                <menu key="submenu" title="Image" id="HyV-fh-RgO">
                                     <items>
                                         <menuItem title="Zoom in" keyEquivalent="+" id="snW-S8-Cw5">
                                             <connections>
