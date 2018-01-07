@@ -167,7 +167,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         if dataController.imageSize.width % 2 == 0{
          
-            print(dataController.imageSize.width)
             var dividor = dataController.imageSize.width
 
             

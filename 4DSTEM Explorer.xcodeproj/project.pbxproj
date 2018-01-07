@@ -42,6 +42,7 @@
 		A5219B121FF41936006D4044 /* PatternViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternViewer.swift; sourceTree = "<group>"; };
 		A5219B141FF4250E006D4044 /* DetectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorView.swift; sourceTree = "<group>"; };
 		A5219B161FF4958A006D4044 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
+		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
 		A56918EA1FEDB2B000C0EF70 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
 		A57621981FF6BE7700D22964 /* PatternViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternViewerController.swift; sourceTree = "<group>"; };
@@ -81,6 +82,7 @@
 		A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */ = {
 			isa = PBXGroup;
 			children = (
+				A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */,
 				A51FF4F21FF541F600BDC87E /* Views */,
 				A51FF4F51FF5431200BDC87E /* Objects */,
 				A51FF4F11FF541DD00BDC87E /* View Controllers */,
@@ -165,7 +167,7 @@
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.Sandbox = {
-								enabled = 0;
+								enabled = 1;
 							};
 						};
 					};
@@ -366,6 +368,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
@@ -373,7 +376,7 @@
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.LeBeauGroup.STEM-Explorer";
+				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
 			};
@@ -383,6 +386,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
@@ -390,7 +394,7 @@
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.LeBeauGroup.STEM-Explorer";
+				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 4.0;
 			};
