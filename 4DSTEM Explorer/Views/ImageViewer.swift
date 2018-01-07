@@ -108,7 +108,7 @@ class ImageViewer: NSImageView {
         case .marquee:
             
             if !isPointInSelectionRect(testPoint){
-                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 1, height: 1.0))
+                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
                 lastDragLocation = testPoint
                 isSelectionMoving = false
 
@@ -119,10 +119,16 @@ class ImageViewer: NSImageView {
             
             }
             
+//            if scaledRect!.width <= 1 && scaledRect!.height <= 1{
+//                
+//                selectionRect?.size.width += CGFloat(1)
+//                selectionRect?.size.height += CGFloat(1)
+//
+//            }
             
-            if scaledRect!.width <= 1 && scaledRect!.height <= 1{
-                delegate?.selectPatternAt(Int(scaledRect!.origin.y), Int(scaledRect!.origin.x))
-            }
+            
+            delegate?.averagePatternInRect(scaledRect)
+//                delegate?.average(Int(), Int())
 
         case .point:
             var selectedPattern:NSPoint? = testPoint
@@ -185,16 +191,16 @@ class ImageViewer: NSImageView {
                 if visibleRect.contains(newRect){
                     
                     selectionRect = newRect
-                    
                     lastDragLocation = testPoint
 
                 }
             
-                if scaledRect!.width <= 1 && scaledRect!.height <= 1{
-                    delegate?.selectPatternAt(Int(scaledRect!.origin.y), Int(scaledRect!.origin.x))
-                }else{
+                
+//                if scaledRect!.width <= 1 && scaledRect!.height <= 1{
+//                    delegate?.selectPatternAt(Int(scaledRect!.origin.y), Int(scaledRect!.origin.x))
+//                }else{
                 delegate?.averagePatternInRect(scaledRect)
-                }
+//                }
                 
             case .point:
                 
@@ -232,7 +238,7 @@ class ImageViewer: NSImageView {
                 let i = Int(selectedPattern.y)
                 let j = Int(selectedPattern.x)
                 
-                delegate?.selectPatternAt(i, j)
+//                delegate?.selectPatternAt(i, j)
                 
                 
                 
