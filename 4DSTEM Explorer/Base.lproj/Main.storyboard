@@ -287,14 +287,6 @@
                                     <action selector="changeLog:" target="XfG-lQ-9wD" id="Dyk-y8-1jh"/>
                                 </connections>
                             </button>
-                            <slider verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="JSZ-Zq-QgB">
-                                <rect key="frame" x="140" y="100" width="96" height="19"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <sliderCell key="cell" enabled="NO" state="on" alignment="left" minValue="-1" maxValue="1" tickMarkPosition="above" sliderType="linear" id="gOv-06-F2N"/>
-                                <connections>
-                                    <action selector="changeBrightness:" target="hOw-MY-DIZ" id="WLa-E9-5V8"/>
-                                </connections>
-                            </slider>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="OF5-up-YWX">
                                 <rect key="frame" x="140" y="181" width="138" height="24"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
