@@ -21,10 +21,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBOutlet weak var outerAngleTextField: NSTextField!
     @IBOutlet weak var lrud_xySegmented:NSSegmentedControl!
     @IBOutlet weak var detectorTypeSegmented:NSSegmentedControl!
+    @IBOutlet weak var detectorShapeSegmented:NSSegmentedControl!
 
     @IBOutlet weak var viewHeightConstraint: NSLayoutConstraint!
     @IBOutlet weak var viewWidthConstraint: NSLayoutConstraint!
     
+    @IBOutlet weak var scrollView: NSScrollView!
     @IBOutlet weak var clipView: CenteringClipView!
     @IBOutlet weak var displayLogCheckbox: NSButtonCell!
 
@@ -46,8 +48,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
                 
             }
             
-            viewHeightConstraint.constant = imageView.image!.size.height * zoomFactor
-            viewWidthConstraint.constant = imageView.image!.size.width * zoomFactor
+            scrollView.magnification = zoomFactor
+//            print(zoomFactor)
+            
             
         }
         
@@ -61,7 +64,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         DispatchQueue.main.async{
             
-            self.zoomToFit(nil)
+//            self.zoomToFit(nil)
             
         }
 
@@ -159,8 +162,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             self.imageView!.matrix = detectedImage!
         }
 
-        self.zoomToFit(nil)
-            
+//        self.zoomToFit(nil)
+        
         //detectedImage!.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil)
 
             //            print("retain count:\(CFGetRetainCount(detectedImage! as CFTypeRef))")
@@ -305,47 +308,58 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     @IBAction func selectDetectorType(_ sender:Any){
         
-        if let segControl = sender as? NSSegmentedControl{
-            
-            let newType:DetectorType
-                       
-            switch segControl.selectedSegment{
-            case 0:
-                newType = DetectorType.integrating
-                lrud_xySegmented.isEnabled = false
-
-
-            case 1:
-                newType = DetectorType.dpc
-                lrud_xySegmented.setLabel("lr", forSegment: 0)
-                lrud_xySegmented.setLabel("ud", forSegment: 1)
-                lrud_xySegmented.isEnabled = true
-
-            case 2:
-                newType = DetectorType.com
-                
-                lrud_xySegmented.setLabel("x", forSegment: 0)
-                lrud_xySegmented.setLabel("y", forSegment: 1)
-
-                 lrud_xySegmented.isEnabled = true
-
-            default:
-                newType = DetectorType.integrating
-                lrud_xySegmented.isEnabled = false
-            }
-            
-
+        // Update detector type after selecting with keyboard shortcut
+        var selectedTag:Int = 0
         
+        if let menuItem = sender as? NSMenuItem{
+            selectedTag =  menuItem.tag
+            detectorTypeSegmented.selectSegment(withTag: selectedTag)
             
-            patternViewer.detectorView?.detectorType = newType
-            patternViewer.detectorView?.needsDisplay = true
             
-            selectedDetector = patternViewer.detectorView!.detector
-            self.detectImage(stride: 1)
+        } else if let segControl = sender as? NSSegmentedControl{
+            
+            selectedTag = segControl.selectedSegment
+
             
         }else{
             print("detector not sent by segmented control")
+            return
         }
+        
+        let newType:DetectorType
+        
+        switch selectedTag{
+        case 0:
+            newType = DetectorType.integrating
+            lrud_xySegmented.isEnabled = false
+            
+            
+        case 1:
+            newType = DetectorType.dpc
+            lrud_xySegmented.setLabel("lr", forSegment: 0)
+            lrud_xySegmented.setLabel("ud", forSegment: 1)
+            lrud_xySegmented.isEnabled = true
+            
+        case 2:
+            newType = DetectorType.com
+            
+            lrud_xySegmented.setLabel("x", forSegment: 0)
+            lrud_xySegmented.setLabel("y", forSegment: 1)
+            
+            lrud_xySegmented.isEnabled = true
+            
+        default:
+            newType = DetectorType.integrating
+            lrud_xySegmented.isEnabled = false
+        }
+        
+        
+        patternViewer.detectorView?.detectorType = newType
+        patternViewer.detectorView?.needsDisplay = true
+        
+        selectedDetector = patternViewer.detectorView!.detector
+        self.detectImage(stride: 1)
+        
     }
     
     @IBAction func selectDetectorShape(_ sender:Any){
@@ -354,6 +368,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         if let menuItem = sender as? NSMenuItem{
             selectedTag =  menuItem.tag
+            detectorShapeSegmented.selectSegment(withTag: selectedTag)
+            
             
         } else if let segControl = sender as? NSSegmentedControl{
             
@@ -432,6 +448,16 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         self.detectImage()
         self.selectPatternAt(dataController.imageSize.height/2, dataController.imageSize.width/2)
+
+
+        imageView.setFrameSize(imageView.image!.size)
+        
+        viewHeightConstraint.constant = imageView.image!.size.height //* zoomFactor
+        viewWidthConstraint.constant = imageView.image!.size.width //* zoomFactor
+        
+        zoomToActual(nil)
+//        zoomToFit(nil)
+
 
     }
     
@@ -606,34 +632,41 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
         }
         
-        let imSize = imageView!.image!.size
+//        let imSize = imageView!.image!.size
+//
+//        var clipSize = clipView.bounds.size
+//
+//
+//        guard imSize.width > 0 && imSize.height > 0 && clipSize.width > 0 && clipSize.height > 0 else {
+//
+//            return
+//
+//        }
+//
+//        // 20 pixel gutter
+//
+//        let imageMargin:CGFloat = 40
+//
+//        clipSize.width -= imageMargin
+//        clipSize.height -= imageMargin
+//
+//        let clipAspectRatio = clipSize.width / clipSize.height
+//        let imAspectRatio = imSize.width / imSize.height
+//
+//        if clipAspectRatio > imAspectRatio {
+//
+//            zoomFactor = clipSize.height / imSize.height
+//
+//        } else {
+//
+//            zoomFactor = clipSize.width / imSize.width
+//
+//        }
         
-        var clipSize = clipView.bounds.size
         
-        guard imSize.width > 0 && imSize.height > 0 && clipSize.width > 0 && clipSize.height > 0 else {
-            
-            return
-            
-        }
+        scrollView.magnify(toFit: imageView.frame)
         
-        //We want a 20 pixel gutter. To make the calculations easier, adjust the clipbounds down to account for the gutter. Use 2 * the pixel gutter, since we are adjusting only the height and width (this accounts for the left and right margin combined, and the top and bottom margin combined).
-        let imageMargin:CGFloat = 40
-        
-        clipSize.width -= imageMargin
-        clipSize.height -= imageMargin
-        
-        let clipAspectRatio = clipSize.width / clipSize.height
-        let imAspectRatio = imSize.width / imSize.height
-        
-        if clipAspectRatio > imAspectRatio {
-            
-            zoomFactor = clipSize.height / imSize.height
-            
-        } else {
-            
-            zoomFactor = clipSize.width / imSize.width
-            
-        }
+        zoomFactor = scrollView.magnification
         
     }
 

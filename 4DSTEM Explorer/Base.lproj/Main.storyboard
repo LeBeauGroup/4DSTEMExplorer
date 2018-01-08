@@ -178,6 +178,25 @@
                                                 <action selector="selectDetectorShape:" target="Ady-hI-5gd" id="84U-1m-kMR"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem isSeparatorItem="YES" id="HZT-VC-ywq"/>
+                                        <menuItem title="Integrating" keyEquivalent="1" id="ZaC-A9-TIm">
+                                            <modifierMask key="keyEquivalentModifierMask" option="YES"/>
+                                            <connections>
+                                                <action selector="selectDetectorType:" target="Ady-hI-5gd" id="XLo-jk-gKl"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Differential Phase Contrast" tag="1" keyEquivalent="2" id="PHY-FI-esZ">
+                                            <modifierMask key="keyEquivalentModifierMask" option="YES"/>
+                                            <connections>
+                                                <action selector="selectDetectorType:" target="Ady-hI-5gd" id="ReS-gR-OJD"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Center of Mass" tag="2" keyEquivalent="3" id="YIo-nf-CuY">
+                                            <modifierMask key="keyEquivalentModifierMask" option="YES"/>
+                                            <connections>
+                                                <action selector="selectDetectorType:" target="Ady-hI-5gd" id="lqy-dK-QuN"/>
+                                            </connections>
+                                        </menuItem>
                                     </items>
                                 </menu>
                             </menuItem>
@@ -276,7 +295,7 @@
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="632" height="368"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
-                        <value key="minSize" type="size" width="624" height="368"/>
+                        <value key="minSize" type="size" width="624" height="378"/>
                         <connections>
                             <outlet property="delegate" destination="B8D-0N-5wS" id="pcu-i3-dtq"/>
                         </connections>
@@ -376,7 +395,7 @@
                                     <segments>
                                         <segment label="Int" width="44" selected="YES"/>
                                         <segment label="DPC" width="44" tag="1"/>
-                                        <segment label="COM" width="43"/>
+                                        <segment label="COM" width="43" tag="2"/>
                                     </segments>
                                 </segmentedCell>
                                 <connections>
@@ -402,10 +421,10 @@
                                     </connections>
                                 </segmentedCell>
                             </segmentedControl>
-                            <scrollView fixedFrame="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
+                            <scrollView fixedFrame="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
                                 <rect key="frame" x="297" y="0.0" width="411" height="487"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                <clipView key="contentView" ambiguous="YES" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                <clipView key="contentView" autoresizesSubviews="NO" ambiguous="YES" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                     <rect key="frame" x="1" y="1" width="409" height="485"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
@@ -455,6 +474,7 @@
                     </view>
                     <connections>
                         <outlet property="clipView" destination="uLd-GI-Ws8" id="bEO-D7-WZz"/>
+                        <outlet property="detectorShapeSegmented" destination="OF5-up-YWX" id="7hp-Ox-xzk"/>
                         <outlet property="detectorTypeSegmented" destination="FvP-LK-bqC" id="xf6-kj-42q"/>
                         <outlet property="displayLogCheckbox" destination="osA-bR-xWW" id="NPc-Pv-oaD"/>
                         <outlet property="docHeight" destination="xog-Ze-6Y7" id="Jtn-F7-jxE"/>
@@ -467,6 +487,7 @@
                         <outlet property="outerAngleTextField" destination="AN5-dg-408" id="3gI-ac-Vl0"/>
                         <outlet property="patternSelectionLabel" destination="3E5-YH-H5V" id="avF-cU-pgP"/>
                         <outlet property="patternViewer" destination="oQa-mo-g57" id="ech-I8-bGF"/>
+                        <outlet property="scrollView" destination="LG6-QM-bRM" id="HLg-yK-2PH"/>
                         <outlet property="viewHeightConstraint" destination="xog-Ze-6Y7" id="FYS-7c-0Tf"/>
                         <outlet property="viewWidthConstraint" destination="bRz-Iy-oBT" id="1TS-nZ-31Y"/>
                     </connections>
