@@ -252,6 +252,12 @@
                                                 <action selector="performZoom:" target="Ady-hI-5gd" id="DIl-cC-cCs"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem isSeparatorItem="YES" id="axu-2S-y8P"/>
+                                        <menuItem title="Explorer" keyEquivalent="0" id="eY5-me-92G">
+                                            <connections>
+                                                <action selector="restoreMainWindow:" target="Voe-Tx-rLC" id="m9b-Tt-BjO"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem isSeparatorItem="YES" id="eu3-7i-yIM"/>
                                         <menuItem title="Bring All to Front" id="LE2-aR-0XJ">
                                             <modifierMask key="keyEquivalentModifierMask"/>
@@ -408,13 +414,13 @@
                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" id="UYP-wE-asd"/>
                             </imageView>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
-                                <rect key="frame" x="208" y="123" width="70" height="24"/>
+                                <rect key="frame" x="194" y="123" width="84" height="24"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="grT-Cc-ea8">
                                     <font key="font" metaFont="system"/>
                                     <segments>
-                                        <segment label="x" width="32" selected="YES" tag="1"/>
-                                        <segment label="y" width="32"/>
+                                        <segment label="x" width="39" selected="YES" tag="1"/>
+                                        <segment label="y" width="38"/>
                                     </segments>
                                     <connections>
                                         <action selector="changeLrup_xy:" target="XfG-lQ-9wD" id="Afe-Vf-q7T"/>
@@ -527,6 +533,7 @@
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                     <objectValues>
                                         <string>64 x 64</string>
+                                        <string>100 x 100</string>
                                         <string>128 x 128</string>
                                         <string>256 x 256</string>
                                         <string>512 x 512</string>

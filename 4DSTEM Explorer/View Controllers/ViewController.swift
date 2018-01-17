@@ -62,11 +62,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         imageView.delegate = self
         dataController.delegate = self
         
-        DispatchQueue.main.async{
-            
-//            self.zoomToFit(nil)
-            
-        }
+        selectDetectorType(0)
+        
 
     }
     
@@ -93,14 +90,29 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
 
     func loadAndFormatData(_ sender: Any) throws {
+       
+        let ext = dataController.filePath!.pathExtension
+        
+        let uti = UTTypeCreatePreferredIdentifierForTag(
+            kUTTagClassFilenameExtension,
+            ext as CFString,
+            nil)
+        
+        if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
+            do{
+                try dataController.openTIFF(url: dataController.filePath!)
+                return
+            }catch{
+                throw FileReadError.invalidTiff
+                
+            }
+        }
         
         do{
             try dataController.formatMatrixData()
         }catch{
             
             throw FileReadError.invalidTiff
-            
-
         }
         
 
@@ -115,8 +127,10 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     @IBAction func changeLog(_ sender: Any){
         
-        
-        averagePatternInRect(patternRect)
+        // need to make sure that a rect has been selected to prevent crash
+        if patternRect != nil{
+            averagePatternInRect(patternRect)
+        }
     }
     
     @IBAction func changeImageViewSelectionMode(_ sender: Any){
@@ -161,6 +175,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         if detectedImage != nil{
             self.imageView!.matrix = detectedImage!
         }
+        
 
 //        self.zoomToFit(nil)
         
@@ -274,8 +289,21 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         let endi = starti + Int(rect!.size.height)
         let endj = startj + Int(rect!.size.width)
 
+        var stringi = String(starti)
+        var stringj = String(startj)
         
-        patternSelectionLabel?.stringValue = "(\(startj):\(endj), \(starti):\(endi))"
+        if starti != endi{
+            stringi += ":\(endi)"
+        }
+        
+        if startj != endj{
+            stringj += ":\(endj)"
+        }
+        
+        let labelString = "(" + stringi + "," + stringj + ")"
+        
+        
+        patternSelectionLabel?.stringValue = labelString
 
         if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
             avgMatrix = avgMatrix.log()
@@ -283,6 +311,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
         
         patternViewer.matrix = avgMatrix
+//        patternViewer.matrix = patternViewer.detectorView!.detector.detectorMask()
+
 //        patternViewer.needsDisplay = true
         
         
@@ -323,7 +353,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
         }else{
             print("detector not sent by segmented control")
-            return
+//            return
         }
         
         let newType:DetectorType
@@ -332,25 +362,29 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         case 0:
             newType = DetectorType.integrating
             lrud_xySegmented.isEnabled = false
+            lrud_xySegmented.isHidden = true
             
             
         case 1:
             newType = DetectorType.dpc
-            lrud_xySegmented.setLabel("lr", forSegment: 0)
-            lrud_xySegmented.setLabel("ud", forSegment: 1)
+            lrud_xySegmented.setLabel("L-R", forSegment: 0)
+            lrud_xySegmented.setLabel("U-D", forSegment: 1)
             lrud_xySegmented.isEnabled = true
+            lrud_xySegmented.isHidden = false
             
         case 2:
             newType = DetectorType.com
             
-            lrud_xySegmented.setLabel("x", forSegment: 0)
-            lrud_xySegmented.setLabel("y", forSegment: 1)
+            lrud_xySegmented.setLabel("X", forSegment: 0)
+            lrud_xySegmented.setLabel("Y", forSegment: 1)
             
             lrud_xySegmented.isEnabled = true
+            lrud_xySegmented.isHidden = false
             
         default:
             newType = DetectorType.integrating
             lrud_xySegmented.isEnabled = false
+            lrud_xySegmented.isHidden = true
         }
         
         
@@ -426,9 +460,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             let selectedURL = openPanel.url
             
             if selectedURL != nil{
-            dataController.filePath = selectedURL
-            
-            self.displayProbePositionsSelection(openPanel.url)
+                dataController.filePath = selectedURL
+                self.displayProbePositionsSelection(openPanel.url!)
             }
         }
 
@@ -437,31 +470,42 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @objc func didFinishLoadingData() {
         
         if patternViewer.detectorView?.isHidden == true{
-        patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)))
+            
+            let size = NSSize(width: dataController.patternSize.height, height: dataController.patternSize.width)
+            
+            patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)),size:size)
         }
         
-        
+    
         patternViewer.detectorView?.isHidden = false
+        
+
         
         imageView.isHidden = false
         imageView.selectionRect = nil
         
+        patternRect = NSRect(x: dataController.imageSize.height/2, y: dataController.imageSize.width/2, width: 0, height: 0)
+        
+        self.averagePatternInRect(patternRect)
+        
         self.detectImage()
-        self.selectPatternAt(dataController.imageSize.height/2, dataController.imageSize.width/2)
+        
 
+    
 
         imageView.setFrameSize(imageView.image!.size)
         
         viewHeightConstraint.constant = imageView.image!.size.height //* zoomFactor
         viewWidthConstraint.constant = imageView.image!.size.width //* zoomFactor
         
-        zoomToActual(nil)
-//        zoomToFit(nil)
+//        zoomToActual(nil)
+        zoomToFit(nil)
 
 
     }
     
     @IBAction func displayProbePositionsSelection(_ sender: Any){
+        
        
         let sizeSelectionController:ProbeSelectViewController = storyboard?.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ProbeSelectViewController")) as! ProbeSelectViewController
         
@@ -471,8 +515,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         sizeSelectionController.parentController = self
         sizeSelectionController.selectSizeFromURL(sender as! URL)
         
+        dataController.progressdelegate =  sizeSelectionController
+        
         self.view.window?.title = (sender as! URL).deletingPathExtension().lastPathComponent
-
         
         let ext = (sender as! URL).pathExtension
         
@@ -482,9 +527,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             nil)
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
-            
-    
-            sizeSelectionController.acceptSize(self)
+            print("stuff")
+            sizeSelectionController.loadTiff(self)
         }
 
         

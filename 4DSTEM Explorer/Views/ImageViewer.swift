@@ -47,8 +47,9 @@ class ImageViewer: NSImageView {
     var maxDisplay:Float?
     var minDisplay:Float?
     var selectionRect:NSRect?
-    var lastDragLocation:NSPoint?
-    var isSelectionMoving:Bool = false
+    private var lastDragLocation:NSPoint?
+    private var isSelectionMoving:Bool = false
+    private var isSelectionNew:Bool = true
 
     let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
@@ -60,6 +61,8 @@ class ImageViewer: NSImageView {
             
             let imageRep:NSBitmapImageRep? = newMatrix.uInt8ImageRep()
             let newImage = NSImage()
+            
+            selectionRect = nil
             
             if imageRep != nil{
                 newImage.addRepresentation(imageRep!)
@@ -104,51 +107,56 @@ class ImageViewer: NSImageView {
         
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
+        if selectionRect == nil {
+            isSelectionNew = true
+            selectionRect = nil
+            selectMode = .point
+            selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
+        }
+        
         switch selectMode{
-        case .marquee:
+        case .point:
             
-            if !isPointInSelectionRect(testPoint){
+            var pointRect = selectionRect!
+            pointRect.origin.x -= 2
+            pointRect.origin.y -= 2
+            
+            pointRect.size.width = 4
+            pointRect.size.height = 4
+            
+            
+            if !pointRect.contains(testPoint){
+                isSelectionNew = true
+                selectionRect = nil
+                selectMode = .point
                 selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
+
+            }
+            
+            delegate?.averagePatternInRect(scaledRect)
+
+        default:
+            if !isPointInSelectionRect(testPoint){
+                
+                isSelectionNew = true
+                selectionRect = nil
+                selectMode = .point
+                
+                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
+
+                
                 lastDragLocation = testPoint
                 isSelectionMoving = false
 
-
-            } else if isPointInSelectionRect(testPoint){
+            }else {
                 lastDragLocation = testPoint
                 isSelectionMoving = true
-            
+                
             }
             
-//            if scaledRect!.width <= 1 && scaledRect!.height <= 1{
-//                
-//                selectionRect?.size.width += CGFloat(1)
-//                selectionRect?.size.height += CGFloat(1)
-//
-//            }
-            
-            
             delegate?.averagePatternInRect(scaledRect)
-//                delegate?.average(Int(), Int())
 
-        case .point:
-            var selectedPattern:NSPoint? = testPoint
             
-            selectionRect = NSRect(origin: testPoint, size: CGSize(width: 1, height: 1.0))
-
-            let scaleFactor = (self.image?.size.width)!/frame.width
-            
-            selectedPattern?.x *= scaleFactor
-            selectedPattern?.y *= scaleFactor
-            
-            
-            let i = Int((selectedPattern?.y)!)
-            let j = Int((selectedPattern?.x)!)
-            
-            delegate?.selectPatternAt(i, j)
-            
-        default:
-            selectionRect = NSRect(origin: lastDragLocation!, size: CGSize(width: 0, height: 0))
-
         }
         
         
@@ -161,12 +169,14 @@ class ImageViewer: NSImageView {
     override func mouseDragged(with event: NSEvent) {
        
         let testPoint = (self.convert(event.locationInWindow, from:nil))
-        
         let scaleFactor = (self.image?.size.width)!/frame.width
 
         if self.visibleRect.contains(testPoint)
         {
             
+            if testPoint.distanceTo(selectionRect!.origin) > 2 && isSelectionNew{
+                selectMode = .marquee
+            }
             
             switch selectMode{
             case .marquee:
@@ -206,8 +216,6 @@ class ImageViewer: NSImageView {
                 
                 var newOrigin = (selectionRect?.origin)!
                 
-                
-                
                 newOrigin.x += testPoint.x-(selectionRect?.origin.x)!
                 newOrigin.y += testPoint.y-(selectionRect?.origin.y)!
 
@@ -235,8 +243,9 @@ class ImageViewer: NSImageView {
                     selectedPattern.y = (self.image?.size.height)! - 1
                 }
                 
-                let i = Int(selectedPattern.y)
-                let j = Int(selectedPattern.x)
+                
+                delegate?.averagePatternInRect(scaledRect)
+
                 
 //                delegate?.selectPatternAt(i, j)
                 
@@ -263,10 +272,17 @@ class ImageViewer: NSImageView {
     
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
+        
         if selectionRect != nil{
-            if testPoint == selectionRect?.origin{
-                selectionRect = nil
+            
+            isSelectionNew = false
+
+            
+            if testPoint.distanceTo(selectionRect!.origin) < 1.5{
+                selectMode = .point
             }
+            
+
         }
         
         
@@ -323,6 +339,10 @@ class ImageViewer: NSImageView {
         }
         
         return scaleFactor
+        
+    }
+    
+    func changeSelectionRect(){
         
     }
     
