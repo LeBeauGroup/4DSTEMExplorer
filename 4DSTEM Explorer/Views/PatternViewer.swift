@@ -66,14 +66,13 @@ class PatternViewer: NSImageView {
 
         self.addSubview(detectorView!)
 
-        
         let zeros = Matrix.init(128, 128)
         
         let imageRep = zeros.imageRepresentation(part: "real", format: MatrixOutput.uint8, nil,nil)
         
         self.image = imageRep
         
-        detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint(x:0,y:0), radii: DetectorRadii(inner: 0, outer: 10))
+        detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint(x:0,y:0), radii: DetectorRadii(inner: 0, outer: 10),size:NSSize(width: 128, height: 128))
         
         
 //       detectorView!.frame = NSRect(origin: CGPoint(x:0, y:0 ) , size: NSSize(width: 80, height: 80))

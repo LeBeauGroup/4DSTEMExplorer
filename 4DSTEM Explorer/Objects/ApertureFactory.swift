@@ -43,7 +43,7 @@ class ApertureFactory: NSObject {
 
                 let curLength = lengthI + lengthJ
                 
-                if(curLength < CGFloat(r2)){
+                if(curLength <= CGFloat(r2)){
                     bfMask.set(i, j, 1)
                 }
             }
