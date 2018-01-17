@@ -29,6 +29,7 @@ class Detector: NSObject {
     var radii:DetectorRadii?
     var scaleFactor:Float = 1
     var center:NSPoint
+    var size:NSSize
 
     
     override init() {
@@ -37,11 +38,15 @@ class Detector: NSObject {
         
         radii = DetectorRadii(inner: 0, outer: 10)
         center = NSPoint(x: CGFloat(empadSize.width)/2.0, y: CGFloat(empadSize.height)/2.0)
+        size = NSSize(width: 128, height: 128)
         
     }
-    init(shape:DetectorShape, type:DetectorType, center:NSPoint, radii:DetectorRadii) {
+    
+    init(shape:DetectorShape, type:DetectorType, center:NSPoint, radii:DetectorRadii, size:NSSize) {
         self.type = type
         self.shape = shape
+        
+        self.size = size
         
         self.radii = radii
         self.center = center
@@ -49,7 +54,7 @@ class Detector: NSObject {
     
     func detectorMask() -> Matrix {
         
-        let apFact = ApertureFactory()
+        let apFact = ApertureFactory(size: size)
         
         let mask:Matrix
         

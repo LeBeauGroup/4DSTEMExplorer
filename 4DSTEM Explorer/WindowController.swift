@@ -19,7 +19,7 @@ class WindowController : NSWindowController, NSWindowDelegate {
     
     override func windowDidLoad() {
         
-
+        self.window?.isReleasedWhenClosed = false
         
         super.windowDidLoad()
         self.window?.delegate = self
@@ -31,9 +31,13 @@ class WindowController : NSWindowController, NSWindowDelegate {
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         
-        NSApp.hide(nil)
+        self.window?.orderOut(self)
         return false
     }
+    
+
+    
+    
     
 
 }

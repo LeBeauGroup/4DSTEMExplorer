@@ -15,14 +15,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBAction func open(_ sender:Any){
 //        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
         
+        
+        if NSApp.mainWindow == nil{
+            self.restoreMainWindow(self)
+        }
+        
+        
         let viewController =  NSApp.mainWindow?.contentViewController as! ViewController
        viewController.openPanel()
         
-        print("open")
     }
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Insert code here to initialize your application
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
@@ -40,9 +49,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     
     func applicationWillUnhide(_ notification: Notification) {
-//        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
+        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
 
     }
+    
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if (flag) {
+            return false
+        }
+        else
+        {
+            let windows = NSApp.windows
+            
+            windows[0].makeKeyAndOrderFront(self)
+            return true
+        }
+    }
+    
+    @IBAction func restoreMainWindow(_ sender:Any){
+        let windows = NSApp.windows
+        windows[0].makeKeyAndOrderFront(self)
+    }
+    
+    
+
     
     
 
