@@ -20,6 +20,9 @@ enum FileReadError: Error {
 protocol STEMDataControllerDelegate:class {
     func didFinishLoadingData()
 }
+protocol STEMDataControllerProgressDelegate:class {
+    func didFinishLoadingData()
+}
 
 class STEMDataController: NSObject {
     
@@ -28,6 +31,7 @@ class STEMDataController: NSObject {
     var fh:FileHandle?
     
     weak var delegate:STEMDataControllerDelegate?
+    weak var progressdelegate:STEMDataControllerProgressDelegate?
     
     var detectorSize:IntSize = empadSize
     var patternSize:IntSize = empadSize
@@ -95,9 +99,11 @@ class STEMDataController: NSObject {
         let tiffProps = props.value(forKey: "{TIFF}") as! NSDictionary
         let pixelWidth = props.value(forKey: "PixelWidth") as? Int
         let pixelHeight = props.value(forKey: "PixelHeight") as? Int
+
         
         
         if let imageDescription = tiffProps.value(forKey: "ImageDescription") as? String{
+            
             
             detectorSize = IntSize(width: pixelWidth!, height: pixelHeight!)
             patternSize = detectorSize
@@ -112,6 +118,10 @@ class STEMDataController: NSObject {
             var regex = try! NSRegularExpression(pattern: patWidth, options: [])
             var matches = regex.matches(in: imageDescription, options: [], range: NSRange(location: 0, length: imageDescription.count))
             
+            if matches.count == 0{
+                throw FileReadError.invalidTiff
+            }
+
             
             if let match = matches.first {
                 let range = match.range(at:0)
@@ -133,6 +143,7 @@ class STEMDataController: NSObject {
             
             self.imageSize.width = Int(width)!
             self.imageSize.height = Int(height)!
+            
         }else{
             throw FileReadError.invalidTiff
         }
@@ -141,13 +152,12 @@ class STEMDataController: NSObject {
     
     func openTIFF(url:URL) throws {
         
-
         let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
 
         let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
         
         do{
-        try self.readTiffInfo(myImageSource!)
+           try self.readTiffInfo(myImageSource!)
         }catch{
             
             throw FileReadError.invalidTiff
@@ -201,10 +211,13 @@ class STEMDataController: NSObject {
                         }
                     }// autoreleasepool
                 }// for
+            DispatchQueue.main.sync {
+                self.delegate?.didFinishLoadingData()
+                self.progressdelegate?.didFinishLoadingData()
+            }
         }
             
-        
-        self.delegate?.didFinishLoadingData()
+
 //        nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
     }
     
@@ -226,34 +239,44 @@ class STEMDataController: NSObject {
     
     func formatMatrixData() throws {
         
-        let ext = filePath!.pathExtension
         
-        let uti = UTTypeCreatePreferredIdentifierForTag(
-            kUTTagClassFilenameExtension,
-            ext as CFString,
-            nil)
-        
-        if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
-            do{
-                try self.openTIFF(url: self.filePath!)
-                return
-            }catch{
-                throw FileReadError.invalidTiff
-                
-            }
-        }
         
         self.openFileHandle(url: self.filePath!)
-        self.patternSize.height = empadSize.height-2
+        
+        self.detectorSize = empadSize
+        self.patternSize = detectorSize
+        patternSize.height -= 2
+        
+        let detectorPixels = self.detectorPixels
+        let patternPixels = self.patternPixels
+        let floatSize = MemoryLayout<Float32>.size
+        let imagePixels = self.imagePixels
+        
+        let dataPixels = patternPixels*imagePixels*floatSize
+        
+        let detectorBitCount = detectorPixels*floatSize
+        let patternBitCount = patternPixels*floatSize
+        
+        var fileSize = 0
+        
+        do{
+            let attrib = try FileManager.default.attributesOfItem(atPath: (filePath?.path)!)
+            fileSize = attrib[.size] as! Int
+
+        }catch{
+            throw FileReadError.invalidRaw
+        }
+        if  fileSize != detectorPixels*imagePixels*floatSize {
+                throw FileReadError.invalidDimensions
+        }
+                
+
+            
         
         DispatchQueue.global(qos: .userInteractive).async {
 
-            let detectorPixels = self.detectorPixels
-            let patternPixels = self.patternPixels
-            let floatSize = MemoryLayout<Float32>.size
-            let imagePixels = self.imagePixels
-
-            let dataPixels = patternPixels*imagePixels*floatSize
+          
+            
 
 
             let nc = NotificationCenter.default
@@ -266,8 +289,7 @@ class STEMDataController: NSObject {
             
             let fracComplete = Int(Double(imagePixels)*0.05)
 
-            let detectorBitCount = detectorPixels*floatSize
-            let patternBitCount = patternPixels*floatSize
+
         
             //
             
@@ -310,7 +332,7 @@ class STEMDataController: NSObject {
             
             DispatchQueue.main.async {
                 self.delegate?.didFinishLoadingData()
-               nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
+                self.progressdelegate?.didFinishLoadingData()
             }
         } // async queue
         
@@ -518,12 +540,12 @@ class STEMDataController: NSObject {
             var pos = 0
         
             for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
-                
                 for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
                     
                     let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternSize.width*patternSize.height
                     
                     vDSP_vmul(mask.real, 1, nextPatternPointer, 1, c, 1, UInt(patternPixels))
+                    
                     vDSP_sve(c, 1, pixelSum, UInt(patternPixels))
                     
                     outArray[pos] = pixelSum[0]

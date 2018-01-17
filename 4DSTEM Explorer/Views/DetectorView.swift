@@ -33,8 +33,6 @@ class DetectorView: NSView {
     var radii:DetectorRadii?
     var lastDragLocation:NSPoint = NSPoint(x: 0, y: 0)
     let apFact = ApertureFactory()
-
-    var origin = NSPoint(x:0, y:0)
     
     var center = NSPoint(x:0, y:0)
     var frameCenter:NSPoint{
@@ -48,6 +46,9 @@ class DetectorView: NSView {
         get{
             let convertedCenter = convertPointToImageCoordinates(center)
 
+
+            
+            print(convertedCenter)
 //            convertedCenter.x += radii!.outer-strokeSize/(2/self.scaleFactor())
 //            convertedCenter.y += radii!.outer-strokeSize/(2/self.scaleFactor())
 
@@ -56,9 +57,12 @@ class DetectorView: NSView {
     }
     var detector:Detector {
         get{
+                    
             
+            let imageView = (self.superview as! NSImageView)
+
             
-            return Detector(shape: detectorShape, type: detectorType, center: convertPointToImageCoordinates(center), radii: radii!)
+            return Detector(shape: detectorShape, type: detectorType, center: convertPointToImageCoordinates(center), radii: radii!, size:imageView.image!.size)
         }
         set(newDetector){
             
@@ -309,9 +313,6 @@ class DetectorView: NSView {
             controlOrigin.x += (radius+strokeSize - controlRadius)
             controlOrigin.y -= (controlRadius - strokeSize/2)
         }
-
-        
-
         
         let rect = NSRect(origin: controlOrigin, size: NSSize(width: controlRadius*2, height: controlRadius*2))
         
@@ -322,7 +323,7 @@ class DetectorView: NSView {
     func apertureRect(_ ioAngle:String = "outer") -> NSRect {
         
         let radius:CGFloat = scaledRadius(ioAngle)
-        let rectWidth = 2*(radius) + strokeSize
+        let rectWidth = 2*(radius) + 2*strokeSize
         
         let rect = NSRect(origin: apertureOrigin(ioAngle), size: NSSize(width: rectWidth, height: rectWidth))
         
@@ -334,7 +335,9 @@ class DetectorView: NSView {
     func apertureOrigin(_ ioAngle:String = "outer") -> NSPoint {
         
         let radius:CGFloat = scaledRadius(ioAngle)
-        let apOrigin = NSPoint(x:center.x-radius, y:center.y-radius)
+
+        
+        let apOrigin = NSPoint(x:center.x-radius-strokeSize*scaleFactor(), y:center.y-radius-strokeSize*scaleFactor())
         
         return apOrigin
         
@@ -474,6 +477,7 @@ class DetectorView: NSView {
     func convertPointToFrameCoordinates(_ point:NSPoint)-> NSPoint{
         
         let scaleFactor = self.scaleFactor()
+        
         let newPoint = NSPoint(x: (point.x)/scaleFactor, y: (point.y)/scaleFactor)
         
         return newPoint

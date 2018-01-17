@@ -584,21 +584,21 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         var maximum = self.max.a
         let minimum = self.min.a
         
-        if maximum == 0 {
-            maximum = 1
-        }
+
         
         let uInt8Size = MemoryLayout<UInt8>.size
         
         var out = [UInt8].init(repeating: 0, count: real.count)
         
-        for (i, element) in real.enumerated() {
-            
-            if element.isNaN || element.isInfinite{
-                continue
+        if maximum != minimum{
+            for (i, element) in real.enumerated() {
+                
+                if element.isNaN || element.isInfinite{
+                    continue
+                }
+                
+                out[i] = UInt8((element-minimum)/(maximum-minimum)*255)
             }
-            
-            out[i] = UInt8((element-minimum)/(maximum-minimum)*255)
         }
 
         
