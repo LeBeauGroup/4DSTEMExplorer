@@ -581,16 +581,15 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     
     func uInt8ImageRep()->NSBitmapImageRep?{
         
-        var maximum = self.max.a
+        let maximum = self.max.a
         let minimum = self.min.a
         
-
         
         let uInt8Size = MemoryLayout<UInt8>.size
         
         var out = [UInt8].init(repeating: 0, count: real.count)
         
-        if maximum != minimum{
+        if maximum != minimum {
             for (i, element) in real.enumerated() {
                 
                 if element.isNaN || element.isInfinite{
