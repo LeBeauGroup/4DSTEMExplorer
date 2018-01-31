@@ -125,6 +125,8 @@ class ImageViewer: NSImageView {
             pointRect.size.height = 4
             
             
+
+            
             if !pointRect.contains(testPoint){
                 isSelectionNew = true
                 selectionRect = nil
@@ -171,7 +173,7 @@ class ImageViewer: NSImageView {
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         let scaleFactor = (self.image?.size.width)!/frame.width
 
-        if self.visibleRect.contains(testPoint)
+        if true
         {
             
             if testPoint.distanceTo(selectionRect!.origin) > 2 && isSelectionNew{
@@ -186,15 +188,23 @@ class ImageViewer: NSImageView {
                 
                 if isSelectionMoving{
                 
-                    newRect.origin.x += testPoint.x-(lastDragLocation?.x)!
-                    newRect.origin.y += testPoint.y-(lastDragLocation?.y)!
+                    var newOrigin = newRect.origin
+                    newOrigin.x += testPoint.x-(lastDragLocation?.x)!
+                    newOrigin.y += testPoint.y-(lastDragLocation?.y)!
+                    
+                    if visibleRect.minX > newOrigin.x || visibleRect.maxX-1 < newOrigin.x{
+                        newRect.origin.y = newOrigin.y
+                    }else if visibleRect.minY > newOrigin.y || visibleRect.maxY-1 < newOrigin.y{
+                        newRect.origin.x = newOrigin.x
+                    }else{
+                        newRect.origin = newOrigin
+                    }
                     
 //                    selectionRect?.origin = newRect
 
                 }else{
                     newRect.size.width = testPoint.x-(selectionRect?.origin.x)!
                     newRect.size.height = testPoint.y-(selectionRect?.origin.y)!
-                    
                     
                 }
                 

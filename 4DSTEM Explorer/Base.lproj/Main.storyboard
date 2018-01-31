@@ -197,15 +197,11 @@
                                                 <action selector="selectDetectorType:" target="Ady-hI-5gd" id="lqy-dK-QuN"/>
                                             </connections>
                                         </menuItem>
-                                    </items>
-                                </menu>
-                            </menuItem>
-                            <menuItem title="Pattern View" id="jxT-CU-nIS">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="Pattern View" id="GEO-Iw-cKr">
-                                    <items>
-                                        <menuItem title="Holding" id="Fal-I4-PZk">
-                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                        <menuItem isSeparatorItem="YES" id="Huv-fS-GFB"/>
+                                        <menuItem title="Show/Hide selection " keyEquivalent="/" id="M6O-lE-pmF">
+                                            <connections>
+                                                <action selector="showHideDetector:" target="Ady-hI-5gd" id="AVw-vw-lUt"/>
+                                            </connections>
                                         </menuItem>
                                     </items>
                                 </menu>
@@ -233,6 +229,10 @@
                                             <connections>
                                                 <action selector="zoomToActual:" target="Ady-hI-5gd" id="mYt-zl-zjE"/>
                                             </connections>
+                                        </menuItem>
+                                        <menuItem isSeparatorItem="YES" id="iQD-HD-SAJ"/>
+                                        <menuItem title="Show/hide selection" keyEquivalent="/" id="Xph-lh-Uow">
+                                            <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
                                         </menuItem>
                                     </items>
                                 </menu>
