@@ -396,6 +396,11 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
     }
     
+    @IBAction func showHideDetector(_ sender:Any){
+        patternViewer.detectorView?.selectionIsHidden = !(patternViewer.detectorView?.selectionIsHidden)!
+        patternViewer.detectorView?.needsDisplay = true
+    }
+    
     @IBAction func selectDetectorShape(_ sender:Any){
     
         var selectedTag:Int

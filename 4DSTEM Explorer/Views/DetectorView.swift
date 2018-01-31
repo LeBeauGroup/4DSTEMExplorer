@@ -27,6 +27,7 @@ class DetectorView: NSView {
     let strokeSize:CGFloat = 2
 
     var locationType:String = "detector"
+    var selectionIsHidden:Bool = false
     
     var detectorShape:DetectorShape = DetectorShape.bf
     var detectorType:DetectorType = DetectorType.integrating
@@ -186,7 +187,11 @@ class DetectorView: NSView {
 
     
     override func mouseDown(with event: NSEvent) {
-
+        
+        if selectionIsHidden {
+            return
+        }
+        
         self.lastDragLocation = (self.superview?.convert(event.locationInWindow, from: nil))!
         
         if(isPointInControl(lastDragLocation)){
@@ -203,13 +208,14 @@ class DetectorView: NSView {
         }else{
             locationType = "ignore"
         }
-
-        
-        
         
     }
     
     override func mouseDragged(with event: NSEvent) {
+        
+        if selectionIsHidden {
+            return
+        }
         
         let newDragLocation = self.superview?.convert(event.locationInWindow, from: nil)
         
@@ -229,7 +235,6 @@ class DetectorView: NSView {
                 deltaR = (newDragLocation!.x)-lastDragLocation.x
 
             }
-            
 
             if locationType == "outerControl"{
                 newRadii?.outer += deltaR*scaleFactor()
@@ -238,7 +243,6 @@ class DetectorView: NSView {
                 newRadii?.inner += deltaR*scaleFactor()
 
             }
-                
 
             self.radii = newRadii!
             self.lastDragLocation = newDragLocation!;
@@ -253,9 +257,16 @@ class DetectorView: NSView {
             newCenter.x += (-self.lastDragLocation.x + (newDragLocation?.x)!)
             newCenter.y += (-self.lastDragLocation.y + (newDragLocation?.y)!)
         
-            center = newCenter
+            if visibleRect.minX > newCenter.x || visibleRect.maxX-1 < newCenter.x{
+                center.y = newCenter.y
+            }else if visibleRect.minY > newCenter.y || visibleRect.maxY-1 < newCenter.y{
+                center.x = newCenter.x
+            }else{
+                center = newCenter
+            }
             
             self.lastDragLocation = newDragLocation!
+
         
             NotificationCenter.default.post(name: Notification.Name("detectorIsMoving"), object: 0)
         }
@@ -271,7 +282,7 @@ class DetectorView: NSView {
         
         let context = NSGraphicsContext.current?.cgContext
     
-        if isHidden == false{
+        if selectionIsHidden == false{
             
             let whiteColor = NSColor.white.withAlphaComponent(0.5)
            
@@ -292,8 +303,6 @@ class DetectorView: NSView {
             drawCrosshairs(context!)
                 drawControls(context!)
         
-            
-
         }
         
         
