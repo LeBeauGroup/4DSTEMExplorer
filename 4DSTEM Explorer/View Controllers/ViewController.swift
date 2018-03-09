@@ -35,6 +35,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     var selectedDetector:Detector?
     
+    let zoomTable = [0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.75, 1.00, 1.50, 2.00, 3.00, 4.00, 6.00, 8.00, 10.00, 15.00, 20.00, 30.00 ];
+    
     
     @IBOutlet weak var patternSelectionLabel:NSTextField?
     
@@ -49,7 +51,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             }
             
             scrollView.magnification = zoomFactor
-//            print(zoomFactor)
+            
+            let winController = self.view.window?.windowController as! WindowController
+            winController.updateScale(zoomFactor)
             
             
         }
@@ -78,6 +82,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         nc.addObserver(self, selector: #selector(detectorIsMoving(note:)), name: Notification.Name("detectorIsMoving"), object: nil)
         nc.addObserver(self, selector: #selector(detectorFinishedMoving(note:)), name: Notification.Name("detectorFinishedMoving"), object: nil)
+        
+        nc.addObserver(self, selector: #selector(self.pinchZoom(note:)), name: NSScrollView.didEndLiveMagnifyNotification, object: scrollView)
+
         
                 
     }
@@ -320,6 +327,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     // Input tuple for (i,j)
     func selectPatternAt(_ i: Int, _ j:Int) {
+        
+        
         
 //        patternRect = NSRect(x: j, y: i, width: 1, height: 1)
         var patternMatrix:Matrix? = dataController.pattern(i, j)
@@ -635,35 +644,82 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
     }
     
-    @IBAction func zoomIn(_ sender: NSMenuItem?) {
+    func nearestZoom() -> Int{
         
-        if zoomFactor + 0.1 > 10 {
+        var minIndex = 0
+        
+        var zoomDiff = fabs(Double(zoomFactor)-zoomTable[0])
+        
+        for (i,_) in zoomTable.enumerated(){
             
-            zoomFactor = 10
+            let tempDiff = fabs(Double(zoomFactor)-zoomTable[i])
             
-        } else if zoomFactor == 0.05 {
-            
-            zoomFactor = 0.1
-            
-        } else {
-            
-            zoomFactor += 0.1
-            
+            if zoomDiff > tempDiff {
+                minIndex += 1
+            }else if zoomDiff < tempDiff{
+                break
+            }
+
+            zoomDiff = tempDiff
+
         }
+        
+        return minIndex
+        
+        
         
     }
     
+    @IBAction func zoomIn(_ sender: NSMenuItem?) {
+        
+        let newZoomIndex = nearestZoom()+1;
+        
+        if newZoomIndex <= zoomTable.count - 1{
+            zoomFactor = CGFloat(zoomTable[newZoomIndex])
+        }
+        
+        
+    }
+    
+    @objc func pinchZoom(note:Notification){
+       
+        zoomFactor = scrollView.magnification
+
+    }
+    
+    @IBAction func zoomInOut(_ sender: Any) {
+        
+        
+        if sender is NSSegmentedControl{
+            
+            let zoomButton = sender as! NSSegmentedControl
+            
+            if zoomButton.selectedSegment == 0{
+                self.zoomOut(nil)
+            }else if zoomButton.selectedSegment == 1{
+                self.zoomIn(nil)
+            }
+        } else if sender is NSTextField{
+            
+            let scaleField = sender as! NSTextField
+            
+            zoomFactor = CGFloat(scaleField.floatValue)
+        }
+        
+
+    }
+
+    
     @IBAction func zoomOut(_ sender: NSMenuItem?) {
         
-        if zoomFactor - 0.1 < 0.05 {
-            
-            zoomFactor = 0.05
-            
-        } else {
-            
-            zoomFactor -= 0.1
-            
+        
+        let newZoomIndex = nearestZoom()-1;
+        
+        if newZoomIndex >= 0{
+            zoomFactor = CGFloat(zoomTable[newZoomIndex])
         }
+        
+
         
     }
     
@@ -718,6 +774,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         zoomFactor = scrollView.magnification
         
     }
+    
+    
 
 
 

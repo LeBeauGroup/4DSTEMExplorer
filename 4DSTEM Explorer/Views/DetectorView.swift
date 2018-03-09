@@ -184,9 +184,50 @@ class DetectorView: NSView {
         return itemHit
         
     }
+    
+    override func keyDown(with event: NSEvent) {
+        
+        let ch = event.charactersIgnoringModifiers! as NSString
+        var rate:CGFloat = 1.0
+        // TODO: Also check for shift modifier, add multiplier
+        
+        if ch.length == 1{
+            let keyChar: Int = Int(ch.character(at: 0))
+            
+            if event.modifierFlags.contains(.shift){
+                rate = 5.0
+            }
+            
+            switch keyChar {
+            case NSUpArrowFunctionKey:
+                center.y -= rate
+            case NSDownArrowFunctionKey:
+                center.y += rate
+            case NSLeftArrowFunctionKey:
+                center.x -= rate
+            case NSRightArrowFunctionKey:
+                center.x += rate
+            default:
+                print("not arrow")
+                super.keyDown(with: event)
+                
+            }
+            
+        NotificationCenter.default.post(name: Notification.Name("detectorFinishedMoving"), object: 0)
+            self.needsDisplay = true
+            
+            
+        }
+        
+        
+    }
+    
 
     
     override func mouseDown(with event: NSEvent) {
+        
+        self.window?.makeFirstResponder(self)
+        
         
         if selectionIsHidden {
             return
@@ -335,7 +376,6 @@ class DetectorView: NSView {
         let rectWidth = 2*(radius) + 2*strokeSize
         
         let rect = NSRect(origin: apertureOrigin(ioAngle), size: NSSize(width: rectWidth, height: rectWidth))
-        
         
         return rect
 

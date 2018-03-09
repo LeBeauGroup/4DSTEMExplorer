@@ -28,6 +28,17 @@ class ImageViewer: NSImageView {
         
     }
     
+    
+//    lazy var popover: NSPopover! = {
+//        let popover = NSPopover()
+////        popover.appearance = NSAppearance.
+//        popover.animates = true
+//        popover.behavior = .transient
+//        return popover
+//    }()
+    
+    
+    
     weak var delegate:ImageViewerDelegate?
     
     var matrixStorage:Matrix?
@@ -104,6 +115,7 @@ class ImageViewer: NSImageView {
     
     override func mouseDown(with event: NSEvent) {
         
+        self.window?.makeFirstResponder(self)
         
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
@@ -124,9 +136,7 @@ class ImageViewer: NSImageView {
             pointRect.size.width = 4
             pointRect.size.height = 4
             
-            
-
-            
+    
             if !pointRect.contains(testPoint){
                 isSelectionNew = true
                 selectionRect = nil
@@ -164,6 +174,56 @@ class ImageViewer: NSImageView {
         
         
         self.needsDisplay = true
+        
+        
+    }
+    
+    
+    
+    
+    override func keyDown(with event: NSEvent) {
+        
+        let ch = event.charactersIgnoringModifiers! as NSString
+        var rate:CGFloat = 1.0
+        // TODO: Also check for shift modifier, add multiplier
+        
+        if ch.length == 1{
+            let keyChar: Int = Int(ch.character(at: 0))
+            
+            if event.modifierFlags.contains(.shift){
+                rate = 5.0
+            }
+            
+            var originy:CGFloat = (selectionRect?.origin.y)!
+            var originx:CGFloat = (selectionRect?.origin.x)!
+
+            switch keyChar {
+            case NSUpArrowFunctionKey:
+                originy -= rate
+            case NSDownArrowFunctionKey:
+               originy += rate
+            case NSLeftArrowFunctionKey:
+                originx -= rate
+            case NSRightArrowFunctionKey:
+                originx += rate
+            default:
+                print("not arrow")
+                super.keyDown(with: event)
+                
+            }
+            
+            if originx > {
+                
+            }
+            
+           selectionRect?.origin.y = originy
+        selectionRect?.origin.x = originx
+            
+            delegate?.averagePatternInRect(scaledRect)
+            self.needsDisplay = true
+            
+            
+        }
         
         
     }
@@ -278,6 +338,35 @@ class ImageViewer: NSImageView {
         }
         
     }
+    
+    @objc func stuff(){
+        
+    }
+    
+    override func rightMouseDown(with event: NSEvent) {
+        
+        let story =  NSStoryboard(name: NSStoryboard.Name(rawValue: "Main"), bundle: nil)
+        
+        let homeViewController:NSViewController = story.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ImageRightClickController")) as! NSViewController
+        
+        let popover = NSPopover.init()
+        
+        popover.contentViewController = homeViewController
+        
+
+        popover.show(relativeTo: self.bounds, of: self, preferredEdge: .minX)
+        
+        
+        //        let pop = NSPopover.init()
+//        var menu = NSMenu.init()
+//
+//        let item = NSMenuItem
+//        menu.insertItem(withTitle: "Beep", action: #selector(stuff), keyEquivalent: "", at: 0)
+//
+//        menu.popUp(positioning: nil, at: self.convert(event.locationInWindow, from:nil), in: self)
+//
+       // popover.show(relativeTo: self.bounds, of: self, preferredEdge: NSRectEdge.maxY)
+    }
     override func mouseUp(with event: NSEvent) {
     
         let testPoint = (self.convert(event.locationInWindow, from:nil))
@@ -383,14 +472,8 @@ class ImageViewer: NSImageView {
                 context.addLines(between: line)
                 context.drawPath(using: .stroke)
 
-            }
-            
-
-            
-        }
-        
-            
-            
+            } // end for
+        } // end if
         
     }
     
