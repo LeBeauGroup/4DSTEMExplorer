@@ -9,6 +9,9 @@
 import Cocoa
 
 class WindowController : NSWindowController, NSWindowDelegate {
+    
+    @IBOutlet  weak var scaleField:NSTextField?
+    
     required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -33,6 +36,13 @@ class WindowController : NSWindowController, NSWindowDelegate {
         
         self.window?.orderOut(self)
         return false
+    }
+    
+    func updateScale(_ zoom: CGFloat){
+        
+        scaleField?.takeFloatValueFrom(Float(zoom))
+        
+        
     }
     
 

@@ -364,21 +364,12 @@ class STEMDataController: NSObject {
                 for j in stride(from: 0, to: self.imageSize.width, by: 1){
                                         
                     let curImagePixel = (i*self.imageSize.width+j)
-                    
                     let patternOffset = curImagePixel*detectorBitCount
-                    
                     self.fh?.seek(toFileOffset: UInt64(patternOffset))
                     
                     newData = (self.fh?.readData(ofLength: patternBitCount))!
                     
-                
-//                    rawBuffer = (newData as NSData).bytes
-//
-//                    floatBuffer =  rawBuffer.bindMemory(to: Float32.self, capacity: patternPixels)
-//
                     let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
-//
-//                    newPointer.assign(from: floatBuffer, count: patternPixels)
                     
                     newData.withUnsafeMutableBytes{(ptr: UnsafeMutablePointer<Float32>) in
                         
