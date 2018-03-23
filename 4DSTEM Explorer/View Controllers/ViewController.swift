@@ -35,6 +35,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     var selectedDetector:Detector?
     
+    let zoomTable = [0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.75, 1.00, 1.50, 2.00, 3.00, 4.00, 6.00, 8.00, 10.00, 15.00, 20.00, 30.00 ];
+    
     
     @IBOutlet weak var patternSelectionLabel:NSTextField?
     
@@ -49,7 +51,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             }
             
             scrollView.magnification = zoomFactor
-//            print(zoomFactor)
+            
+            let winController = self.view.window?.windowController as! WindowController
+            winController.updateScale(zoomFactor)
             
             
         }
@@ -61,6 +65,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
         imageView.delegate = self
         dataController.delegate = self
+        
+        self.view.window?.makeFirstResponder(patternViewer.detectorView)
+
         
         selectDetectorType(0)
         
@@ -78,6 +85,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         nc.addObserver(self, selector: #selector(detectorIsMoving(note:)), name: Notification.Name("detectorIsMoving"), object: nil)
         nc.addObserver(self, selector: #selector(detectorFinishedMoving(note:)), name: Notification.Name("detectorFinishedMoving"), object: nil)
+        
+        nc.addObserver(self, selector: #selector(self.pinchZoom(note:)), name: NSScrollView.didEndLiveMagnifyNotification, object: scrollView)
+
         
                 
     }
@@ -100,7 +110,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
             do{
-                try dataController.openTIFF(url: dataController.filePath!)
+                try dataController.openFile(url: dataController.filePath!)
                 return
             }catch{
                 throw FileReadError.invalidTiff
@@ -109,7 +119,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
         
         do{
-            try dataController.formatMatrixData()
+            try dataController.openFile(url: dataController.filePath!)
         }catch{
             
             throw FileReadError.invalidTiff
@@ -321,6 +331,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     // Input tuple for (i,j)
     func selectPatternAt(_ i: Int, _ j:Int) {
         
+        
+        
 //        patternRect = NSRect(x: j, y: i, width: 1, height: 1)
         var patternMatrix:Matrix? = dataController.pattern(i, j)
         patternSelectionLabel?.stringValue = "(\(j), \(i))"
@@ -396,6 +408,17 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
     }
     
+    @IBAction func showHideDetector(_ sender:Any){
+        patternViewer.detectorView?.selectionIsHidden = !(patternViewer.detectorView?.selectionIsHidden)!
+        patternViewer.detectorView?.needsDisplay = true
+    }
+    
+    @IBAction func showHideImageSelection(_ sender:Any){
+        imageView.selectionIsHidden  = !(imageView.selectionIsHidden)
+        imageView.needsDisplay = true
+        
+    }
+    
     @IBAction func selectDetectorShape(_ sender:Any){
     
         var selectedTag:Int
@@ -461,6 +484,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
             if selectedURL != nil{
                 dataController.filePath = selectedURL
+                
+                
+                // add to recents menu
+                let dc = NSDocumentController.shared
+                dc.noteNewRecentDocumentURL(selectedURL!)
+                
                 self.displayProbePositionsSelection(openPanel.url!)
             }
         }
@@ -468,6 +497,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     }
     
     @objc func didFinishLoadingData() {
+        
+        self.view.window?.title = dataController.filePath!.deletingPathExtension().lastPathComponent
+
         
         if patternViewer.detectorView?.isHidden == true{
             
@@ -501,7 +533,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
 //        zoomToActual(nil)
         zoomToFit(nil)
 
-
     }
     
     @IBAction func displayProbePositionsSelection(_ sender: Any){
@@ -511,13 +542,15 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         self.presentViewControllerAsSheet(sizeSelectionController)
         
+        sizeSelectionController.view.window?.makeFirstResponder(sizeSelectionController.loadButton)
+
+        
         sizeSelectionController.dataController = dataController
         sizeSelectionController.parentController = self
         sizeSelectionController.selectSizeFromURL(sender as! URL)
         
         dataController.progressdelegate =  sizeSelectionController
         
-        self.view.window?.title = (sender as! URL).deletingPathExtension().lastPathComponent
         
         let ext = (sender as! URL).pathExtension
         
@@ -539,8 +572,19 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
 
     @IBAction func export(_ sender:Any){
         
+        var tag = 0
+        if sender is NSMenuItem{
+            let menuItem = sender as! NSMenuItem
+            tag = menuItem.tag
+
+        }else if sender is NSPopUpButton{
+            let popup = sender as! NSPopUpButton
+            
+            tag = popup.indexOfSelectedItem - 1
+        }
         
-        let menuItem = sender as! NSMenuItem
+        
+        
         
         let savePanel = NSSavePanel()
         
@@ -549,7 +593,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         savePanel.isExtensionHidden = false
         savePanel.allowedFileTypes = ["tif"]
         
-        if menuItem.tag == 0{
+        if tag == 0{
             var lrud_xyLabel = ""
             
             let detector =  self.patternViewer.detectorView?.detector
@@ -563,7 +607,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
                 savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeLabel  + lrud_xyLabel
             
-        }else if menuItem.tag == 1{
+        }else if tag == 1{
             savePanel.nameFieldStringValue = (self.view.window?.title)!+"_"+(patternSelectionLabel?.stringValue)!
 
         }
@@ -580,10 +624,10 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
                 var bitmapRep:NSBitmapImageRep?
                
           
-                if(menuItem.tag == 0){
+                if(tag == 0){
                     bitmapRep = self.imageView.matrix.floatImageRep()
                     
-                }else if menuItem.tag == 1{
+                }else if tag == 1{
                     bitmapRep = self.patternViewer.matrix.floatImageRep()
 
                 }
@@ -630,35 +674,82 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
     }
     
-    @IBAction func zoomIn(_ sender: NSMenuItem?) {
+    func nearestZoom() -> Int{
         
-        if zoomFactor + 0.1 > 10 {
+        var minIndex = 0
+        
+        var zoomDiff = fabs(Double(zoomFactor)-zoomTable[0])
+        
+        for (i,_) in zoomTable.enumerated(){
             
-            zoomFactor = 10
+            let tempDiff = fabs(Double(zoomFactor)-zoomTable[i])
             
-        } else if zoomFactor == 0.05 {
-            
-            zoomFactor = 0.1
-            
-        } else {
-            
-            zoomFactor += 0.1
-            
+            if zoomDiff > tempDiff {
+                minIndex += 1
+            }else if zoomDiff < tempDiff{
+                break
+            }
+
+            zoomDiff = tempDiff
+
         }
+        
+        return minIndex
+        
+        
         
     }
     
+    @IBAction func zoomIn(_ sender: NSMenuItem?) {
+        
+        let newZoomIndex = nearestZoom()+1;
+        
+        if newZoomIndex <= zoomTable.count - 1{
+            zoomFactor = CGFloat(zoomTable[newZoomIndex])
+        }
+        
+        
+    }
+    
+    @objc func pinchZoom(note:Notification){
+       
+        zoomFactor = scrollView.magnification
+
+    }
+    
+    @IBAction func zoomInOut(_ sender: Any) {
+        
+        
+        if sender is NSSegmentedControl{
+            
+            let zoomButton = sender as! NSSegmentedControl
+            
+            if zoomButton.selectedSegment == 0{
+                self.zoomOut(nil)
+            }else if zoomButton.selectedSegment == 1{
+                self.zoomIn(nil)
+            }
+        } else if sender is NSTextField{
+            
+            let scaleField = sender as! NSTextField
+            
+            zoomFactor = CGFloat(scaleField.floatValue)
+        }
+        
+
+    }
+
+    
     @IBAction func zoomOut(_ sender: NSMenuItem?) {
         
-        if zoomFactor - 0.1 < 0.05 {
-            
-            zoomFactor = 0.05
-            
-        } else {
-            
-            zoomFactor -= 0.1
-            
+        
+        let newZoomIndex = nearestZoom()-1;
+        
+        if newZoomIndex >= 0{
+            zoomFactor = CGFloat(zoomTable[newZoomIndex])
         }
+        
+
         
     }
     
@@ -713,6 +804,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         zoomFactor = scrollView.magnification
         
     }
+    
+    
 
 
 

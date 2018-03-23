@@ -28,10 +28,21 @@ class ImageViewer: NSImageView {
         
     }
     
+    
+//    lazy var popover: NSPopover! = {
+//        let popover = NSPopover()
+////        popover.appearance = NSAppearance.
+//        popover.animates = true
+//        popover.behavior = .transient
+//        return popover
+//    }()
+    
+    
+    
     weak var delegate:ImageViewerDelegate?
     
     var matrixStorage:Matrix?
-    var selectMode:SelectMode = .marquee
+    var selectMode:SelectMode = .point
     var scaledRect:NSRect?{
         get{
             var scaledRect = selectionRect
@@ -50,6 +61,8 @@ class ImageViewer: NSImageView {
     private var lastDragLocation:NSPoint?
     private var isSelectionMoving:Bool = false
     private var isSelectionNew:Bool = true
+    var selectionIsHidden:Bool = false
+
 
     let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
@@ -104,18 +117,41 @@ class ImageViewer: NSImageView {
     
     override func mouseDown(with event: NSEvent) {
         
+        self.window?.makeFirstResponder(self)
+        
+        if selectionIsHidden {
+            return
+        }
         
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
         if selectionRect == nil {
             isSelectionNew = true
-            selectionRect = nil
-            selectMode = .point
+//            selectMode = .point
             selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
         }
         
         switch selectMode{
         case .point:
+            
+            // setup a test area for point (do not want to have a 1 pixel sensitivity )
+            var pointRect = selectionRect!
+            pointRect.origin.x -= 2
+            pointRect.origin.y -= 2
+            
+            pointRect.size.width = 4
+            pointRect.size.height = 4
+            
+            // check if test point is hit
+            if !pointRect.contains(testPoint){
+                isSelectionNew = true
+//                selectMode = .point
+                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
+
+            }
+            
+            delegate?.averagePatternInRect(scaledRect)
+        case .marquee:
             
             var pointRect = selectionRect!
             pointRect.origin.x -= 2
@@ -124,37 +160,42 @@ class ImageViewer: NSImageView {
             pointRect.size.width = 4
             pointRect.size.height = 4
             
-            
-            if !pointRect.contains(testPoint){
-                isSelectionNew = true
-                selectionRect = nil
-                selectMode = .point
-                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
-
-            }
-            
-            delegate?.averagePatternInRect(scaledRect)
-
-        default:
             if !isPointInSelectionRect(testPoint){
-                
                 isSelectionNew = true
-                selectionRect = nil
-                selectMode = .point
-                
-                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
-
-                
-                lastDragLocation = testPoint
                 isSelectionMoving = false
-
-            }else {
+                selectionRect = nil
+                //                selectMode = .point
+                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 1, height: 1))
+                
+            }else{
                 lastDragLocation = testPoint
                 isSelectionMoving = true
-                
             }
+
             
             delegate?.averagePatternInRect(scaledRect)
+        case .none:
+            return
+//        default:
+//            if !isPointInSelectionRect(testPoint){
+//
+//                isSelectionNew = true
+//                selectionRect = nil
+////                selectMode = .point
+//
+//                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
+//
+//
+//                lastDragLocation = testPoint
+//                isSelectionMoving = false
+//
+//            }else {
+//                lastDragLocation = testPoint
+//                isSelectionMoving = true
+//
+//            }
+//
+//            delegate?.averagePatternInRect(scaledRect)
 
             
         }
@@ -166,17 +207,104 @@ class ImageViewer: NSImageView {
         
     }
     
+    
+    
+    func moveOriginInBounds(_ point:NSPoint){
+        // checks to see if the point is in bounds, if not bring it back (testing for origin of selectrion rect
+        
+        var origin = point
+        
+        if origin.x < 0{
+            origin.x = 0
+        }else if origin.x+(selectionRect?.width)! > CGFloat(matrix.columns-1){
+            origin.x = CGFloat(matrix.columns-1) - (selectionRect?.width)!
+            if selectMode == .marquee{
+                origin.x += 1
+            }
+        }
+        
+        if origin.y < 0{
+            origin.y = 0
+        }else if origin.y+(selectionRect?.height)! > CGFloat(matrix.rows-1){
+            origin.y = CGFloat(matrix.rows-1) - (selectionRect?.height)!
+            if selectMode == .marquee{
+                origin.y += 1
+            }
+        }
+        
+        selectionRect?.origin.x = origin.x
+        selectionRect?.origin.y = origin.y
+        
+    }
+    
+    
+    override func keyDown(with event: NSEvent) {
+        
+        let ch = event.charactersIgnoringModifiers! as NSString
+        var rate:CGFloat = 1.0
+        
+        if selectMode == .none{
+            return
+        }
+        
+        if selectionRect == nil{
+            return
+        }
+        
+        if ch.length == 1{
+            let keyChar: Int = Int(ch.character(at: 0))
+            
+            if event.modifierFlags.contains(.shift){
+                rate = 5.0
+            }
+            
+        
+            
+            var origin:NSPoint = (selectionRect?.origin)!
+
+
+            switch keyChar {
+            case NSUpArrowFunctionKey:
+                origin.y -= rate
+            case NSDownArrowFunctionKey:
+               origin.y += rate
+            case NSLeftArrowFunctionKey:
+                origin.x -= rate
+            case NSRightArrowFunctionKey:
+                origin.x += rate
+            default:
+                super.keyDown(with: event)
+                
+            }
+            
+            moveOriginInBounds(origin)
+            
+            
+            delegate?.averagePatternInRect(scaledRect)
+            self.needsDisplay = true
+            
+            
+        }
+        
+        
+    }
+    
     override func mouseDragged(with event: NSEvent) {
        
+        if selectionIsHidden {
+            return
+        }
+        
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         let scaleFactor = (self.image?.size.width)!/frame.width
 
-        if self.visibleRect.contains(testPoint)
+    
+        if true
         {
             
-            if testPoint.distanceTo(selectionRect!.origin) > 2 && isSelectionNew{
-                selectMode = .marquee
-            }
+//            if testPoint.distanceTo(selectionRect!.origin) > 2 && isSelectionNew{
+//                selectMode = .marquee
+//            }
             
             switch selectMode{
             case .marquee:
@@ -186,31 +314,25 @@ class ImageViewer: NSImageView {
                 
                 if isSelectionMoving{
                 
-                    newRect.origin.x += testPoint.x-(lastDragLocation?.x)!
-                    newRect.origin.y += testPoint.y-(lastDragLocation?.y)!
+                    var newOrigin = (selectionRect?.origin)!
                     
-//                    selectionRect?.origin = newRect
-
+                    newOrigin.x += testPoint.x-(lastDragLocation?.x)!
+                    newOrigin.y += testPoint.y-(lastDragLocation?.y)!
+                    
+                    moveOriginInBounds(newOrigin)
+                    
                 }else{
                     newRect.size.width = testPoint.x-(selectionRect?.origin.x)!
                     newRect.size.height = testPoint.y-(selectionRect?.origin.y)!
-                    
-                    
-                }
-                
-                if visibleRect.contains(newRect){
-                    
                     selectionRect = newRect
-                    lastDragLocation = testPoint
 
+                    
                 }
-            
                 
-//                if scaledRect!.width <= 1 && scaledRect!.height <= 1{
-//                    delegate?.selectPatternAt(Int(scaledRect!.origin.y), Int(scaledRect!.origin.x))
-//                }else{
+                
+                lastDragLocation = testPoint
+
                 delegate?.averagePatternInRect(scaledRect)
-//                }
                 
             case .point:
                 
@@ -219,11 +341,9 @@ class ImageViewer: NSImageView {
                 newOrigin.x += testPoint.x-(selectionRect?.origin.x)!
                 newOrigin.y += testPoint.y-(selectionRect?.origin.y)!
 
-                
-                selectionRect?.origin = newOrigin
+                moveOriginInBounds(newOrigin)
 
-                var selectedPattern = newOrigin
-
+                var selectedPattern = (selectionRect?.origin)!
                 
                 // Check on the x position
                 selectedPattern.x *= scaleFactor
@@ -268,8 +388,40 @@ class ImageViewer: NSImageView {
         }
         
     }
+    
+
+//    override func rightMouseDown(with event: NSEvent) {
+//
+//        let story =  NSStoryboard(name: NSStoryboard.Name(rawValue: "Main"), bundle: nil)
+//
+//        let homeViewController:NSViewController = story.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ImageRightClickController")) as! NSViewController
+//
+//        let popover = NSPopover.init()
+//
+//        popover.contentViewController = homeViewController
+//
+//
+//        popover.show(relativeTo: self.bounds, of: self, preferredEdge: .minX)
+//
+//
+//        //        let pop = NSPopover.init()
+////        var menu = NSMenu.init()
+////
+////        let item = NSMenuItem
+////        menu.insertItem(withTitle: "Beep", action: #selector(stuff), keyEquivalent: "", at: 0)
+////
+////        menu.popUp(positioning: nil, at: self.convert(event.locationInWindow, from:nil), in: self)
+////
+//       // popover.show(relativeTo: self.bounds, of: self, preferredEdge: NSRectEdge.maxY)
+//    }
+    
+    
     override func mouseUp(with event: NSEvent) {
     
+        if selectionIsHidden {
+            return
+        }
+        
         let testPoint = (self.convert(event.locationInWindow, from:nil))
         
         
@@ -278,9 +430,9 @@ class ImageViewer: NSImageView {
             isSelectionNew = false
 
             
-            if testPoint.distanceTo(selectionRect!.origin) < 1.5{
-                selectMode = .point
-            }
+//            if testPoint.distanceTo(selectionRect!.origin) < 1.5{
+//                selectMode = .point
+//            }
             
 
         }
@@ -292,12 +444,17 @@ class ImageViewer: NSImageView {
     
     override func draw(_ dirtyRect: NSRect) {
 
+
         let context = NSGraphicsContext.current?.cgContext
 
         NSColor.darkGray.set()
         NSBezierPath(rect: dirtyRect).fill()
         
         super.draw(dirtyRect)
+        
+        if selectionIsHidden {
+            return
+        }
 
         switch selectMode {
         case .marquee:
@@ -305,6 +462,7 @@ class ImageViewer: NSImageView {
             if selectionRect != nil{
                 
                 selectionFillColor.set()
+                
                 let pathSelectionRect = NSBezierPath(rect: selectionRect!)
             
                 pathSelectionRect.fill()
@@ -314,11 +472,13 @@ class ImageViewer: NSImageView {
                 
             }
         case .point:
+            if selectionRect != nil{
+
             drawPointSelection(point: selectionRect?.origin, context: context!)
+            }
         case .none:
-            break
-        default:
-            break
+            return
+
         }
         
  
@@ -357,8 +517,8 @@ class ImageViewer: NSImageView {
         if point != nil{
             var crossCenter:NSPoint = point!
             
-            crossCenter.x -= CGFloat(strokeWidth/2.0)
-            crossCenter.y -= CGFloat(strokeWidth/2.0)
+            crossCenter.x -= CGFloat(strokeWidth/2.0)-1
+            crossCenter.y -= CGFloat(strokeWidth/2.0)-1
             
             for i in [(-1.0,0.0), (1.0,0.0), (0.0,-1.0), (0.0,1.0)]{
             
@@ -373,14 +533,8 @@ class ImageViewer: NSImageView {
                 context.addLines(between: line)
                 context.drawPath(using: .stroke)
 
-            }
-            
-
-            
-        }
-        
-            
-            
+            } // end for
+        } // end if
         
     }
     

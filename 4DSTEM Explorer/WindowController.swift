@@ -9,6 +9,10 @@
 import Cocoa
 
 class WindowController : NSWindowController, NSWindowDelegate {
+    
+    @IBOutlet  weak var scaleField:NSTextField?
+    var lastSelectionTag:Int?
+    
     required init?(coder: NSCoder) {
         super.init(coder: coder)
     }
@@ -33,6 +37,47 @@ class WindowController : NSWindowController, NSWindowDelegate {
         
         self.window?.orderOut(self)
         return false
+    }
+    
+    func updateScale(_ zoom: CGFloat){
+        
+        scaleField?.takeFloatValueFrom(Float(zoom))
+        
+    }
+    
+    @IBAction func export(_ sender:Any){
+        
+        if sender is NSPopUpButton{
+            
+            let popup = sender as! NSPopUpButton
+            
+            let cvc = self.contentViewController as! ViewController
+                        
+                cvc.export(popup)
+        }
+    }
+    
+    @IBAction func changeSelectionMode(_ sender:Any){
+        
+        if sender is NSSegmentedControl{
+            
+            let segmented = sender as! NSSegmentedControl
+            
+            let cvc = self.contentViewController as! ViewController
+            
+            switch segmented.selectedSegment{
+            case 0:
+                 cvc.imageView.selectMode  = .point
+            case 1:
+                 cvc.imageView.selectMode  = .marquee
+//            case 2:
+//                 cvc.imageView.selectMode  = .marquee
+            default:
+                 cvc.imageView.selectMode  = .point
+            }
+            
+            
+        }
     }
     
 
