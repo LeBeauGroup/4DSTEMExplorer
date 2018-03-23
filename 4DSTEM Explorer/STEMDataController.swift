@@ -22,6 +22,7 @@ protocol STEMDataControllerDelegate:class {
 }
 protocol STEMDataControllerProgressDelegate:class {
     func didFinishLoadingData()
+    func cancel(_ sender:Any)
 }
 
 class STEMDataController: NSObject {
@@ -57,6 +58,9 @@ class STEMDataController: NSObject {
     var fileStream:InputStream?
     
     var patternPointer:UnsafeMutablePointer<Float32>?
+    
+    var dwi: DispatchWorkItem?
+
 
     
     override init() {
@@ -113,7 +117,6 @@ class STEMDataController: NSObject {
         
         if let imageDescription = props["ImageDescription"] as? String{
             
-            
             detectorSize = IntSize(width: pixelWidth, height: pixelHeight)
             patternSize = detectorSize
             
@@ -159,85 +162,128 @@ class STEMDataController: NSObject {
         
     }
     
-    func openTIFF(url:URL) throws {
-        
-        let options:NSDictionary = NSDictionary.init(object: kCFBooleanTrue, forKey: kCGImageSourceShouldAllowFloat as! NSCopying)
-
     
-        let myImageSource = CGImageSourceCreateWithURL(url as CFURL, options);
+    func openFile(url:URL) throws{
+        
+        let ext = url.pathExtension
 
-        // Read the header info to get the width, height, image properties
+        let uti = UTTypeCreatePreferredIdentifierForTag(
+            kUTTagClassFilenameExtension,
+            ext as CFString,
+            nil)
         
-        let props:[String:Any]
         
-        do{
-            try props =  TIFFheader(url)
+        var firstImageOffset:UInt64
+        
+        let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
+        
+        if  isTIFF{
+        
+            let props:[String:Any]
             
-        } catch{
-            throw FileReadError.invalidTiff
+            do{
+                try props =  TIFFheader(url)
+                try readTiffInfo(props)
+                firstImageOffset = props["FirstImageOffset"] as! UInt64
+
+            }catch{
+                
+                throw FileReadError.invalidTiff
+                
+            }
+        }else{
+            
+            firstImageOffset = 0
+            self.detectorSize = empadSize
+            self.patternSize = detectorSize
+            patternSize.height -= 2
+            
+    
             
         }
         
-        do{
-            try self.readTiffInfo(props)
-        }catch{
-            
-            throw FileReadError.invalidTiff
-
-        }
-
+        var fileSize = 0
+        let detectorPixels = self.detectorPixels
         let patternPixels = self.patternPixels
-        let floatSize = MemoryLayout<Float32>.size
         let imagePixels = self.imagePixels
+        let floatSize = MemoryLayout<Float32>.size
+        
+        let detectorBitCount = detectorPixels*floatSize
+        
+        
+        if !isTIFF{
+            do{
+                let attrib = try FileManager.default.attributesOfItem(atPath: url.path)
+                fileSize = attrib[.size] as! Int
+                
+            }catch{
+                throw FileReadError.invalidRaw
+            }
+            if  fileSize != detectorPixels*imagePixels*floatSize {
+                throw FileReadError.invalidDimensions
+            }
+            
+
+        }
         
         let patternBitCount = patternPixels*floatSize
-        
-        let firstImageOffset = props["FirstImageOffset"] as! UInt64
+        let dataPixels = patternPixels*imagePixels*floatSize
         
         let nc = NotificationCenter.default
+
+        dwi  = DispatchWorkItem {
         
-        DispatchQueue.global(qos: .userInteractive).async {
             self.openFileHandle(url: url)
-
-        if self.patternPointer != nil{
-            self.patternPointer?.deallocate(capacity: patternPixels*imagePixels*floatSize)
-        }
-        
-        self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels*imagePixels*floatSize)
-        
-        let fracComplete = Int(Double(imagePixels)*0.05)
-
+            
+            if self.patternPointer != nil{
+                self.patternPointer?.deallocate(capacity: patternPixels*imagePixels*floatSize)
+            }
+            
+            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: dataPixels)
+            
+            let fracComplete = Int(Double(imagePixels)*0.05)
             
             self.fh?.seek(toFileOffset: firstImageOffset)
-
+            
             for i in stride(from: 0, to: self.imageSize.height, by: 1){
+                
+                if (self.dwi?.isCancelled)!{
+                    break
+                }
                 
                 autoreleasepool{
                     
                     for j in stride(from: 0, to: self.imageSize.width, by: 1){
                         
-                        let curImagePixel = (i*self.imageSize.width+j)
-//                      let patternOffset = UInt64(curImagePixel*detectorBitCount)
+                        if (self.dwi?.isCancelled)!{
+                            break
+                        }
                         
+                        let curImagePixel = (i*self.imageSize.width+j)
+                        let patternOffset = curImagePixel*detectorBitCount
+
                         
                         let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
-                    
                         
+                        if !isTIFF{
+                            self.fh?.seek(toFileOffset: UInt64(patternOffset))
+                        }
                         var imageData = self.fh?.readData(ofLength: patternBitCount)
                         
+                        //                    let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
+
                         
-                        imageData?.withUnsafeMutableBytes { (i32ptr: UnsafeMutablePointer<UInt32>) in
-                            for i in 0..<patternPixels {
-                                i32ptr[i] =  i32ptr[i].byteSwapped
+                        if isTIFF{
+                            imageData?.withUnsafeMutableBytes { (i32ptr: UnsafeMutablePointer<UInt32>) in
+                                for i in 0..<patternPixels {
+                                    i32ptr[i] =  i32ptr[i].byteSwapped
+                                }
                             }
                         }
                         
-
-                        
                         imageData?.withUnsafeMutableBytes{(ptr: UnsafeMutablePointer<Float32>) in
                             
-                           newPointer.assign(from: ptr, count: patternPixels)
-                            
+                            newPointer.assign(from: ptr, count: patternPixels)
                         }
                         
                         
@@ -251,46 +297,30 @@ class STEMDataController: NSObject {
                 
             } //fori
             
-//            for i in 0..<imagePixels{
-//                    autoreleasepool{
-//
-//                        let newImage = CGImageSourceCreateImageAtIndex(myImageSource!, i, options)
-//                    
-//                    
-//                        let newDataProvider = newImage?.dataProvider
-//                        
-//                        let newData = newDataProvider!.data! as NSData
-//                        
-//                        let rawBuffer = newData.bytes//(newData as NSData).bytes
-//                        
-//                        let floatBuffer =  rawBuffer.bindMemory(to: Float32.self, capacity: patternPixels)
-//                        
-//                        
-//                        let newPointer = self.patternPointer! + i*patternPixels
-//                        
-//                        newPointer.assign(from: floatBuffer, count: patternPixels)
-//                        
-//                        
-//                        
-//                        if(i % fracComplete == 0 ){
-//                            DispatchQueue.main.async {
-//                                nc.post(name: Notification.Name("updateProgress"), object:i)
-//                            }
-//                        }
-//                    }// autoreleasepool
-//                }// for
-            
-            
-            
-            DispatchQueue.main.sync {
+            DispatchQueue.main.async {
                 self.delegate?.didFinishLoadingData()
                 self.progressdelegate?.didFinishLoadingData()
             }
-        }
             
+//            if (self.dwi?.isCancelled)!{
+//                DispatchQueue.main.async {
+//                    self.progressdelegate?.cancel(self)
+//                }
+//            }else{
+//                
+//                DispatchQueue.main.async {
+//                    self.delegate?.didFinishLoadingData()
+//                    self.progressdelegate?.didFinishLoadingData()
+//                }
+//            }
+        }
+        
+        
+         DispatchQueue.global().async(execute: dwi!)
 
-//        nc.post(name: Notification.Name("finishedLoadingData"), object: 0)
+        
     }
+    
     
     func openFileHandle(url:URL){
        
@@ -306,96 +336,7 @@ class STEMDataController: NSObject {
     }
 
     
-    func formatMatrixData() throws {
-        
-        self.openFileHandle(url: self.filePath!)
-        
-        self.detectorSize = empadSize
-        self.patternSize = detectorSize
-        patternSize.height -= 2
-        
-        let detectorPixels = self.detectorPixels
-        let patternPixels = self.patternPixels
-        let floatSize = MemoryLayout<Float32>.size
-        let imagePixels = self.imagePixels
-        
-        let dataPixels = patternPixels*imagePixels*floatSize
-        
-        let detectorBitCount = detectorPixels*floatSize
-        let patternBitCount = patternPixels*floatSize
-        
-        var fileSize = 0
-        
-        do{
-            let attrib = try FileManager.default.attributesOfItem(atPath: (filePath?.path)!)
-            fileSize = attrib[.size] as! Int
 
-        }catch{
-            throw FileReadError.invalidRaw
-        }
-        if  fileSize != detectorPixels*imagePixels*floatSize {
-                throw FileReadError.invalidDimensions
-        }
-        
-        DispatchQueue.global(qos: .background).async {
-
-            let nc = NotificationCenter.default
-            
-            if self.patternPointer != nil{
-                self.patternPointer?.deallocate(capacity: dataPixels)
-            }
-            
-            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: dataPixels)
-            
-            let fracComplete = Int(Double(imagePixels)*0.05)
-
-
-        
-            //
-            
-            for i in stride(from: 0, to: self.imageSize.height, by: 1){
-                
-                autoreleasepool{
-                    
-                var newData:Data
-                var rawBuffer:UnsafeRawPointer
-                var floatBuffer:UnsafePointer<Float32>
-
-                for j in stride(from: 0, to: self.imageSize.width, by: 1){
-                                        
-                    let curImagePixel = (i*self.imageSize.width+j)
-                    let patternOffset = curImagePixel*detectorBitCount
-                    self.fh?.seek(toFileOffset: UInt64(patternOffset))
-                    
-                    newData = (self.fh?.readData(ofLength: patternBitCount))!
-                    
-                    let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
-                    
-                    newData.withUnsafeMutableBytes{(ptr: UnsafeMutablePointer<Float32>) in
-                        
-                        newPointer.assign(from: ptr, count: patternPixels)
-                        
-                    }
-                    
-                    if(curImagePixel % fracComplete == 0 ){
-                        DispatchQueue.main.async {
-                            nc.post(name: Notification.Name("updateProgress"), object:curImagePixel)
-                        }
-                    }
-                    }// forj
-                } //autorelease
-                    
-            } //fori
-            
-            
-            DispatchQueue.main.async {
-                self.delegate?.didFinishLoadingData()
-                self.progressdelegate?.didFinishLoadingData()
-            }
-        } // async queue
-        
-        
-    }
     
 
     func averagePattern(rect:NSRect)->Matrix{
@@ -431,7 +372,6 @@ class STEMDataController: NSObject {
                 
                 let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
                 
-
                 vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, UInt(patternPixels))
                 
                 patternCount += 1

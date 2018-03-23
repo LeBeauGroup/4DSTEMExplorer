@@ -19,12 +19,14 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
     @IBOutlet weak var progressIndicator: NSProgressIndicator!
     
     @IBOutlet weak var loadButton:NSButton!
-    
+    @IBOutlet weak var cancelButton:NSButton!
+
     override func viewDidLoad() {
         super.viewDidLoad()
         
         sizeCombo.delegate = self
-        self.view.window?.initialFirstResponder = loadButton
+        
+
 
         
         //        progressIndicator.usesThreadedAnimation = true
@@ -48,14 +50,16 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
         
         sizeCombo.isHidden = true
         loadButton.isEnabled = false
+        
         progressIndicator.isHidden = false
         
         self.title = "Data loading..."
         
         self.view.needsDisplay = true
         
+        
         do{
-            try dataController.openTIFF(url: dataController.filePath!)
+            try dataController.openFile(url: dataController.filePath!)
         }catch FileReadError.invalidTiff{
             
             let alert = NSAlert.init()
@@ -99,7 +103,7 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
         }
         
         do{
-            try dataController.formatMatrixData()
+            try dataController.openFile(url: dataController.filePath!)
         }catch FileReadError.invalidDimensions{
             sizeCombo.isHidden = false
             loadButton.isEnabled = true
@@ -205,8 +209,23 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
     }
     
     func didFinishLoadingData(){
-    
+        
+        parentController.view.window?.title = (dataController.filePath?.deletingPathExtension().lastPathComponent)!
+
         self.dismiss(nil)
+    }
+    
+    
+//    func cancelLoadingData() {
+//        self.dismiss(nil)
+//    }
+//
+    @IBAction func cancel(_ sender:Any){
+        
+        dataController.dwi?.cancel()
+        
+        self.dismiss(nil)
+
     }
 
 

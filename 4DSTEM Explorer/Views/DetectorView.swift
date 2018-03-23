@@ -84,7 +84,6 @@ class DetectorView: NSView {
     
     
     override init(frame frameRect: NSRect) {
-    
         
         super.init(frame: frameRect)
         
@@ -144,6 +143,8 @@ class DetectorView: NSView {
         
     }
     
+    
+    
     func isPointInControl(_ point:NSPoint)->Bool{
         
         var itemHit = false
@@ -189,40 +190,51 @@ class DetectorView: NSView {
         
         let ch = event.charactersIgnoringModifiers! as NSString
         var rate:CGFloat = 1.0
-        // TODO: Also check for shift modifier, add multiplier
         
         if ch.length == 1{
             let keyChar: Int = Int(ch.character(at: 0))
             
             if event.modifierFlags.contains(.shift){
-                rate = 5.0
+                rate = 10.0
             }
+            
+            var newCenter = center
             
             switch keyChar {
             case NSUpArrowFunctionKey:
-                center.y -= rate
+                newCenter.y -= rate
             case NSDownArrowFunctionKey:
-                center.y += rate
+                newCenter.y += rate
             case NSLeftArrowFunctionKey:
-                center.x -= rate
+                newCenter.x -= rate
             case NSRightArrowFunctionKey:
-                center.x += rate
+                newCenter.x += rate
             default:
-                print("not arrow")
                 super.keyDown(with: event)
                 
             }
             
+            if newCenter.x < 0{
+                newCenter.x = 0
+            }else if newCenter.x > visibleRect.maxX-2{
+                newCenter.x =  visibleRect.maxX-2
+                
+            }
+            
+            if newCenter.y < 0{
+                newCenter.y = 0
+            }else if newCenter.y > visibleRect.maxY-2{
+                newCenter.y =  visibleRect.maxY-2
+                
+            }
+            
+            center = newCenter
+            
         NotificationCenter.default.post(name: Notification.Name("detectorFinishedMoving"), object: 0)
             self.needsDisplay = true
             
-            
         }
-        
-        
     }
-    
-
     
     override func mouseDown(with event: NSEvent) {
         
@@ -291,23 +303,31 @@ class DetectorView: NSView {
             
             NotificationCenter.default.post(name: Notification.Name("detectorIsMoving"), object: 0)
             
-//        }else if(isPointInItem(lastDragLocation)){
         }else if locationType == "detector"{
             
             var newCenter = self.center
             newCenter.x += (-self.lastDragLocation.x + (newDragLocation?.x)!)
             newCenter.y += (-self.lastDragLocation.y + (newDragLocation?.y)!)
         
-            if visibleRect.minX > newCenter.x || visibleRect.maxX-1 < newCenter.x{
-                center.y = newCenter.y
-            }else if visibleRect.minY > newCenter.y || visibleRect.maxY-1 < newCenter.y{
-                center.x = newCenter.x
-            }else{
-                center = newCenter
+            
+            if newCenter.x < 0{
+                newCenter.x = 0
+            }else if newCenter.x > visibleRect.maxX-2{
+                newCenter.x =  visibleRect.maxX-2
+                
             }
             
+            if newCenter.y < 0{
+                newCenter.y = 0
+            }else if newCenter.y > visibleRect.maxY-2{
+                newCenter.y =  visibleRect.maxY-2
+                
+            }
+            
+            
+            center = newCenter
+            
             self.lastDragLocation = newDragLocation!
-
         
             NotificationCenter.default.post(name: Notification.Name("detectorIsMoving"), object: 0)
         }
@@ -318,6 +338,9 @@ class DetectorView: NSView {
         NotificationCenter.default.post(name: Notification.Name("detectorFinishedMoving"), object: 0)
 
     }
+    
+    
+    
     
     override func draw(_ dirtyRect: NSRect) {
         

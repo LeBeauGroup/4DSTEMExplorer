@@ -66,6 +66,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         imageView.delegate = self
         dataController.delegate = self
         
+        self.view.window?.makeFirstResponder(patternViewer.detectorView)
+
+        
         selectDetectorType(0)
         
 
@@ -107,7 +110,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
             do{
-                try dataController.openTIFF(url: dataController.filePath!)
+                try dataController.openFile(url: dataController.filePath!)
                 return
             }catch{
                 throw FileReadError.invalidTiff
@@ -116,7 +119,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
         
         do{
-            try dataController.formatMatrixData()
+            try dataController.openFile(url: dataController.filePath!)
         }catch{
             
             throw FileReadError.invalidTiff
@@ -410,6 +413,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         patternViewer.detectorView?.needsDisplay = true
     }
     
+    @IBAction func showHideImageSelection(_ sender:Any){
+        imageView.selectionIsHidden  = !(imageView.selectionIsHidden)
+        imageView.needsDisplay = true
+        
+    }
+    
     @IBAction func selectDetectorShape(_ sender:Any){
     
         var selectedTag:Int
@@ -475,6 +484,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
             if selectedURL != nil{
                 dataController.filePath = selectedURL
+                
+                
+                // add to recents menu
+                let dc = NSDocumentController.shared
+                dc.noteNewRecentDocumentURL(selectedURL!)
+                
                 self.displayProbePositionsSelection(openPanel.url!)
             }
         }
@@ -482,6 +497,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     }
     
     @objc func didFinishLoadingData() {
+        
+        self.view.window?.title = dataController.filePath!.deletingPathExtension().lastPathComponent
+
         
         if patternViewer.detectorView?.isHidden == true{
             
@@ -515,7 +533,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
 //        zoomToActual(nil)
         zoomToFit(nil)
 
-
     }
     
     @IBAction func displayProbePositionsSelection(_ sender: Any){
@@ -525,13 +542,15 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         self.presentViewControllerAsSheet(sizeSelectionController)
         
+        sizeSelectionController.view.window?.makeFirstResponder(sizeSelectionController.loadButton)
+
+        
         sizeSelectionController.dataController = dataController
         sizeSelectionController.parentController = self
         sizeSelectionController.selectSizeFromURL(sender as! URL)
         
         dataController.progressdelegate =  sizeSelectionController
         
-        self.view.window?.title = (sender as! URL).deletingPathExtension().lastPathComponent
         
         let ext = (sender as! URL).pathExtension
         
@@ -553,8 +572,19 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
 
     @IBAction func export(_ sender:Any){
         
+        var tag = 0
+        if sender is NSMenuItem{
+            let menuItem = sender as! NSMenuItem
+            tag = menuItem.tag
+
+        }else if sender is NSPopUpButton{
+            let popup = sender as! NSPopUpButton
+            
+            tag = popup.indexOfSelectedItem - 1
+        }
         
-        let menuItem = sender as! NSMenuItem
+        
+        
         
         let savePanel = NSSavePanel()
         
@@ -563,7 +593,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         savePanel.isExtensionHidden = false
         savePanel.allowedFileTypes = ["tif"]
         
-        if menuItem.tag == 0{
+        if tag == 0{
             var lrud_xyLabel = ""
             
             let detector =  self.patternViewer.detectorView?.detector
@@ -577,7 +607,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
                 savePanel.nameFieldStringValue = (self.view.window?.title)! + "_" + detectorTypeLabel  + lrud_xyLabel
             
-        }else if menuItem.tag == 1{
+        }else if tag == 1{
             savePanel.nameFieldStringValue = (self.view.window?.title)!+"_"+(patternSelectionLabel?.stringValue)!
 
         }
@@ -594,10 +624,10 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
                 var bitmapRep:NSBitmapImageRep?
                
           
-                if(menuItem.tag == 0){
+                if(tag == 0){
                     bitmapRep = self.imageView.matrix.floatImageRep()
                     
-                }else if menuItem.tag == 1{
+                }else if tag == 1{
                     bitmapRep = self.patternViewer.matrix.floatImageRep()
 
                 }

@@ -92,16 +92,10 @@
                                                             <action selector="export:" target="Ady-hI-5gd" id="aMD-cE-lHq"/>
                                                         </connections>
                                                     </menuItem>
-                                                    <menuItem title="Image with annotations..." alternate="YES" keyEquivalent="I" id="8e9-hF-sG1">
-                                                        <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
-                                                    </menuItem>
                                                     <menuItem title="Pattern" tag="1" keyEquivalent="P" id="h9t-IC-dOU">
                                                         <connections>
                                                             <action selector="export:" target="Ady-hI-5gd" id="dK7-r9-YbK"/>
                                                         </connections>
-                                                    </menuItem>
-                                                    <menuItem title="Pattern with annotations..." alternate="YES" keyEquivalent="P" id="dEc-60-NiU">
-                                                        <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                                     </menuItem>
                                                 </items>
                                             </menu>
@@ -230,10 +224,6 @@
                                                 <action selector="zoomToActual:" target="Ady-hI-5gd" id="mYt-zl-zjE"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem isSeparatorItem="YES" id="iQD-HD-SAJ"/>
-                                        <menuItem title="Show/hide selection" keyEquivalent="/" id="Xph-lh-Uow">
-                                            <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
-                                        </menuItem>
                                     </items>
                                 </menu>
                             </menuItem>
@@ -290,34 +280,34 @@
                 <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
                 <customObject id="Ady-hI-5gd" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="75" y="0.0"/>
+            <point key="canvasLocation" x="136" y="-122"/>
         </scene>
         <!--Window Controller-->
         <scene sceneID="R2V-B0-nI4">
             <objects>
                 <windowController showSeguePresentationStyle="single" id="B8D-0N-5wS" customClass="WindowController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
-                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" id="IQv-IB-iLA">
+                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" tabbingMode="disallowed" id="IQv-IB-iLA">
                         <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="632" height="368"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
                         <value key="minSize" type="size" width="624" height="378"/>
-                        <toolbar key="toolbar" implicitIdentifier="80BD8C4F-3176-4826-B4FA-C2E7983177F0" autosavesConfiguration="NO" displayMode="iconAndLabel" sizeMode="regular" id="j3l-gq-hi9">
+                        <toolbar key="toolbar" implicitIdentifier="80BD8C4F-3176-4826-B4FA-C2E7983177F0" autosavesConfiguration="NO" displayMode="iconOnly" sizeMode="regular" id="j3l-gq-hi9">
                             <allowedToolbarItems>
                                 <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="hNR-kT-Ut2"/>
                                 <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="PnO-OF-hoM"/>
                                 <toolbarItem implicitItemIdentifier="1E13F056-A791-4648-B17F-8974F18220E4" label="Scale" paletteLabel="Scale" tag="1" id="5hy-xn-GKI">
                                     <nil key="toolTip"/>
-                                    <size key="minSize" width="50" height="22"/>
-                                    <size key="maxSize" width="96" height="22"/>
+                                    <size key="minSize" width="55" height="22"/>
+                                    <size key="maxSize" width="70" height="27"/>
                                     <textField key="view" verticalHuggingPriority="750" tag="1" id="wgz-pS-AtU">
-                                        <rect key="frame" x="0.0" y="14" width="96" height="22"/>
+                                        <rect key="frame" x="0.0" y="14" width="55" height="22"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="Kgu-9C-A9A">
+                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" refusesFirstResponder="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" bezelStyle="round" id="Kgu-9C-A9A">
                                             <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="7Tw-dT-Ezf">
                                                 <integer key="multiplier" value="100"/>
                                             </numberFormatter>
-                                            <font key="font" metaFont="system"/>
+                                            <font key="font" metaFont="system" size="11"/>
                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
@@ -336,8 +326,8 @@
                                         <segmentedCell key="cell" borderStyle="border" alignment="left" style="separated" trackingMode="momentary" id="c2m-pD-kNM">
                                             <font key="font" metaFont="system"/>
                                             <segments>
-                                                <segment image="NSRemoveTemplate" width="32"/>
-                                                <segment image="NSAddTemplate" width="32" tag="1"/>
+                                                <segment image="ZoomOut" width="32"/>
+                                                <segment image="ZoomIn" width="32" tag="1"/>
                                             </segments>
                                         </segmentedCell>
                                         <connections>
@@ -347,38 +337,65 @@
                                 </toolbarItem>
                                 <toolbarItem implicitItemIdentifier="132F407B-EC77-4CCF-A6BC-6C046BA29F54" label="Selection" paletteLabel="Selection" id="w8H-Sz-fPd">
                                     <nil key="toolTip"/>
-                                    <size key="minSize" width="42" height="24"/>
-                                    <size key="maxSize" width="66" height="27"/>
+                                    <size key="minSize" width="42" height="21"/>
+                                    <size key="maxSize" width="75" height="27"/>
                                     <segmentedControl key="view" verticalHuggingPriority="750" springLoaded="YES" id="4T9-rf-RxN">
-                                        <rect key="frame" x="0.0" y="14" width="66" height="27"/>
+                                        <rect key="frame" x="0.0" y="14" width="75" height="27"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <segmentedCell key="cell" borderStyle="border" alignment="left" style="separated" trackingMode="selectOne" id="azK-Nh-VfB">
                                             <font key="font" metaFont="system"/>
                                             <segments>
-                                                <segment image="NSActionTemplate" width="32"/>
-                                                <segment image="NSBluetoothTemplate">
-                                                    <nil key="label"/>
-                                                </segment>
+                                                <segment image="PointSelection" width="32" selected="YES" tag="2"/>
+                                                <segment image="MarqueeSelection" width="32"/>
                                             </segments>
                                         </segmentedCell>
+                                        <connections>
+                                            <action selector="changeSelectionMode:" target="B8D-0N-5wS" id="36l-Yn-h4M"/>
+                                        </connections>
                                     </segmentedControl>
                                 </toolbarItem>
-                                <toolbarItem implicitItemIdentifier="B488A801-1C75-405B-ADD6-B25EB47A88F6" label="Export" paletteLabel="Export" image="NSShareTemplate" id="EST-iI-ueC">
+                                <toolbarItem implicitItemIdentifier="B664D938-6DB9-4D27-A974-25AE3C87F372" label="Zoom to Fit" paletteLabel="Zoom to Fit" image="ZoomToFit" id="Obk-xu-yuo">
                                     <nil key="toolTip"/>
-                                    <size key="minSize" width="40" height="32"/>
-                                    <size key="maxSize" width="43" height="32"/>
-                                    <button key="view" verticalHuggingPriority="750" id="klj-sV-yI1">
-                                        <rect key="frame" x="0.0" y="14" width="43" height="32"/>
+                                    <size key="minSize" width="32" height="27"/>
+                                    <size key="maxSize" width="45" height="32"/>
+                                    <button key="view" verticalHuggingPriority="750" id="Bpt-Qn-tCK">
+                                        <rect key="frame" x="13" y="14" width="43" height="32"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                        <buttonCell key="cell" type="push" bezelStyle="rounded" image="NSShareTemplate" imagePosition="overlaps" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="0de-NP-hEx">
+                                        <buttonCell key="cell" type="push" bezelStyle="rounded" image="ZoomToFit" imagePosition="overlaps" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="Hn3-Zh-av4">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
                                         </buttonCell>
                                     </button>
+                                    <connections>
+                                        <action selector="zoomToFit:" target="Oky-zY-oP4" id="tkk-m0-kqV"/>
+                                    </connections>
+                                </toolbarItem>
+                                <toolbarItem implicitItemIdentifier="3A225144-FF78-4BA8-9204-493A72297E8C" label="Export" paletteLabel="Export" tag="-1" image="NSShareTemplate" id="cuw-ND-hhW">
+                                    <nil key="toolTip"/>
+                                    <size key="minSize" width="43" height="27"/>
+                                    <size key="maxSize" width="43" height="32"/>
+                                    <popUpButton key="view" verticalHuggingPriority="750" tag="-1" id="4i0-SR-hLi">
+                                        <rect key="frame" x="0.0" y="14" width="43" height="31"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                        <popUpButtonCell key="cell" type="push" bezelStyle="rounded" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" arrowPosition="noArrow" autoenablesItems="NO" selectedItem="IXR-fg-WJA" id="Iyg-zA-YiR">
+                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                            <font key="font" metaFont="system"/>
+                                            <menu key="menu" autoenablesItems="NO" id="jHd-HD-V6b">
+                                                <items>
+                                                    <menuItem state="on" image="NSShareTemplate" hidden="YES" id="dla-eF-SRw"/>
+                                                    <menuItem title="Image" id="1Cl-PZ-CJg"/>
+                                                    <menuItem title="Pattern" id="IXR-fg-WJA"/>
+                                                </items>
+                                            </menu>
+                                        </popUpButtonCell>
+                                    </popUpButton>
+                                    <connections>
+                                        <action selector="export:" target="B8D-0N-5wS" id="BSH-q3-bVe"/>
+                                    </connections>
                                 </toolbarItem>
                             </allowedToolbarItems>
                             <defaultToolbarItems>
-                                <toolbarItem reference="EST-iI-ueC"/>
+                                <toolbarItem reference="cuw-ND-hhW"/>
                                 <toolbarItem reference="PnO-OF-hoM"/>
                                 <toolbarItem reference="w8H-Sz-fPd"/>
                                 <toolbarItem reference="0Sf-c6-hli"/>
@@ -544,11 +561,11 @@
                                     <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                 </clipView>
                                 <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
-                                    <rect key="frame" x="1" y="470" width="409" height="16"/>
+                                    <rect key="frame" x="1" y="-15" width="0.0" height="16"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                                 <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
-                                    <rect key="frame" x="394" y="1" width="16" height="485"/>
+                                    <rect key="frame" x="-15" y="1" width="16" height="0.0"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
@@ -606,7 +623,7 @@
             <objects>
                 <viewController title="Image sampling (width x height)" storyboardIdentifier="ProbeSelectViewController" id="f4g-Sk-a0m" customClass="ProbeSelectViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="yFC-Lg-qQf">
-                        <rect key="frame" x="0.0" y="0.0" width="317" height="58"/>
+                        <rect key="frame" x="0.0" y="0.0" width="392" height="58"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <comboBox verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="YbR-4u-6Ud">
@@ -630,19 +647,37 @@
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                             </progressIndicator>
                             <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XrM-d5-ziP">
-                                <rect key="frame" x="233" y="11" width="70" height="32"/>
+                                <rect key="frame" x="308" y="12" width="70" height="32"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <buttonCell key="cell" type="push" title="Load" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="Tac-cL-yvu">
+                                <buttonCell key="cell" type="push" title="Load" bezelStyle="rounded" alignment="center" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="Tac-cL-yvu">
                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                     <font key="font" metaFont="system"/>
+                                    <string key="keyEquivalent" base64-UTF8="YES">
+DQ
+</string>
                                 </buttonCell>
                                 <connections>
                                     <action selector="acceptSize:" target="f4g-Sk-a0m" id="k96-NB-r0t"/>
                                 </connections>
                             </button>
+                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sdj-cf-nEB">
+                                <rect key="frame" x="233" y="11" width="82" height="32"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="Bdn-jh-iIg">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                    <string key="keyEquivalent" base64-UTF8="YES">
+Gw
+</string>
+                                </buttonCell>
+                                <connections>
+                                    <action selector="cancel:" target="f4g-Sk-a0m" id="nAH-jZ-cHy"/>
+                                </connections>
+                            </button>
                         </subviews>
                     </view>
                     <connections>
+                        <outlet property="cancelButton" destination="sdj-cf-nEB" id="GWx-Aj-cWY"/>
                         <outlet property="loadButton" destination="XrM-d5-ziP" id="SGf-aX-6UU"/>
                         <outlet property="progressIndicator" destination="cVM-vR-GJj" id="xkt-VQ-gOL"/>
                         <outlet property="sizeCombo" destination="YbR-4u-6Ud" id="9ZH-hp-NVT"/>
@@ -650,7 +685,7 @@
                 </viewController>
                 <customObject id="9Db-6i-OxB" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="723.5" y="914"/>
+            <point key="canvasLocation" x="747" y="914"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="HnF-TG-5LW">
@@ -687,10 +722,11 @@
         </scene>
     </scenes>
     <resources>
-        <image name="NSActionTemplate" width="14" height="14"/>
-        <image name="NSAddTemplate" width="11" height="11"/>
-        <image name="NSBluetoothTemplate" width="7" height="14"/>
-        <image name="NSRemoveTemplate" width="11" height="11"/>
+        <image name="MarqueeSelection" width="1024" height="1024"/>
         <image name="NSShareTemplate" width="11" height="16"/>
+        <image name="PointSelection" width="1024" height="1024"/>
+        <image name="ZoomIn" width="1024" height="1024"/>
+        <image name="ZoomOut" width="1024" height="1024"/>
+        <image name="ZoomToFit" width="1024" height="1024"/>
     </resources>
 </document>
