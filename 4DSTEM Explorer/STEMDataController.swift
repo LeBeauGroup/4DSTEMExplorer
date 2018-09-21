@@ -386,28 +386,41 @@ class STEMDataController: NSObject {
         
         return Matrix.init(array: adder, patternSize.height, patternSize.width)
 
-        
     }
     
     func dpc(_ detector:Detector,strideLength:Int = 1, lrud:Int = 0)->Matrix{
         
         let mask = detector.detectorMask()
 
-        let indices = Matrix.init(meshIndicesAlong: lrud, patternSize.height, patternSize.width)
+//        let indices = Matrix.init(meshIndicesAlong: lrud, patternSize.height, patternSize.width)
         
+        let lrInd = Matrix.init(meshIndicesAlong: 1, patternSize.height, patternSize.width)
+        let udInd = Matrix.init(meshIndicesAlong: 0, patternSize.height, patternSize.width)
+
+        let luMask:Matrix?
         let ldMask:Matrix?
+        
         let ruMask:Matrix?
+        let rdMask:Matrix?
+        
+        let l = lrInd < Float(detector.center.x)
+        let r = lrInd > Float(detector.center.x)
+        let u = udInd > Float(detector.center.y)
+        let d = udInd < Float(detector.center.y)
+        
 
-        if lrud == 1{
-             ldMask = indices < Float(detector.center.x)
-             ruMask = indices > Float(detector.center.x)
-            
+//        if lrud == 1{
 
-        }else{
-             ldMask = indices > Float(detector.center.y)
-            ruMask = indices < Float(detector.center.y)
+        luMask = (l - d)! > 0;
+        rdMask = (r - u)! > 0;
+        ldMask = (l - u)! > 0;
+        ruMask = (r - d)! > 0;
 
-        }
+//        }else{
+//            ldMask = indices < Float(detector.center.y)
+//            ruMask = indices > Float(detector.center.y)
+//
+//        }
         
         let strideWidth = imageSize.width/strideLength
         let strideHeight = imageSize.height/strideLength
@@ -424,8 +437,14 @@ class STEMDataController: NSObject {
         let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
         let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
-        vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
-        vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
+        if lrud == 0{
+            vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
+        }else{
+            vDSP_vmul(mask.real, 1, luMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, rdMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
+        }
+        
         
         let ldPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
         let ruPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
@@ -453,10 +472,90 @@ class STEMDataController: NSObject {
             }
             // need to deallocate
             
-            
         }
         
         return Matrix.init(array: outArray, strideHeight, strideWidth)
+    }
+        
+        func dpc_both(_ detector:Detector,strideLength:Int = 1, lrud:Int = 0)->(Matrix,Matrix){
+            
+            let mask = detector.detectorMask()
+            
+            let indices = Matrix.init(meshIndicesAlong: lrud, patternSize.height, patternSize.width)
+            let lrInd = Matrix.init(meshIndicesAlong: 1, patternSize.height, patternSize.width)
+            let udInd = Matrix.init(meshIndicesAlong: 0, patternSize.height, patternSize.width)
+
+            
+            
+            let lMask = indices < Float(detector.center.x);
+            let rMask = indices > Float(detector.center.x);
+            let dMask = indices < Float(detector.center.y);
+            let uMask = indices > Float(detector.center.y);
+            
+            let strideWidth = imageSize.width/strideLength
+            let strideHeight = imageSize.height/strideLength
+            
+            //        let imageInts = self.integrating(mask, strideLength)
+            
+            var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
+            
+            let patternPixels = self.patternPixels
+            
+            let lMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let rMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let uMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let dMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            
+            let rProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let lProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            
+            let uProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            let dProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+            
+            vDSP_vmul(mask.real, 1, lMask.real, 1, lMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, rMask.real, 1, rMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, dMask.real, 1, dMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, uMask.real, 1, uMaskProduct, 1, UInt(patternPixels))
+            
+            let lPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+            let rPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+            let uPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+            let dPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+            
+            var pos = 0
+            
+            for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
+                for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
+                    
+                    let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
+                    
+                    vDSP_vmul(lMaskProduct, 1, nextPatternPointer, 1, lProduct, 1, UInt(patternPixels))
+                    vDSP_vmul(rMaskProduct, 1, nextPatternPointer, 1, rProduct, 1, UInt(patternPixels))
+                    vDSP_vmul(uMaskProduct, 1, nextPatternPointer, 1, uProduct, 1, UInt(patternPixels))
+                    vDSP_vmul(dMaskProduct, 1, nextPatternPointer, 1, dProduct, 1, UInt(patternPixels))
+                    
+                    vDSP_sve(lProduct, 1, lPixelSum, UInt(patternPixels))
+                    vDSP_sve(rProduct, 1, rPixelSum, UInt(patternPixels))
+                    
+                    vDSP_sve(uProduct, 1, uPixelSum, UInt(patternPixels))
+                    vDSP_sve(dProduct, 1, dPixelSum, UInt(patternPixels))
+                    
+                    
+                    let lrDpcSignal = lPixelSum.pointee-rPixelSum.pointee
+                    let udDpcSignal = uPixelSum.pointee-dPixelSum.pointee
+
+                    outArray[pos] = lrDpcSignal
+                    pos += 1
+                }
+                // need to deallocate
+                
+                
+            }
+        
+            let lrMatrix = Matrix.init(array: outArray, strideHeight, strideWidth)
+            let udMatrix = Matrix.init(array: outArray, strideHeight, strideWidth)
+        
+            return (lrMatrix, udMatrix)
     }
     
     func com(_ detector:Detector,strideLength:Int = 1, xy:Int = 0)->Matrix{
