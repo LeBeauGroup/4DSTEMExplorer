@@ -14,6 +14,7 @@ enum FileReadError: Error {
     case invalidTiff
     case invalidRaw
     case invalidDimensions
+    case invalidFrms6
 }
 
 
@@ -397,11 +398,7 @@ class STEMDataController: NSObject {
         let lrInd = Matrix.init(meshIndicesAlong: 1, patternSize.height, patternSize.width)
         let udInd = Matrix.init(meshIndicesAlong: 0, patternSize.height, patternSize.width)
 
-        let luMask:Matrix?
-        let ldMask:Matrix?
-        
-        let ruMask:Matrix?
-        let rdMask:Matrix?
+
         
         let l = lrInd < Float(detector.center.x)
         let r = lrInd > Float(detector.center.x)
@@ -411,10 +408,10 @@ class STEMDataController: NSObject {
 
 //        if lrud == 1{
 
-        luMask = (l - d)! > 0;
-        rdMask = (r - u)! > 0;
-        ldMask = (l - u)! > 0;
-        ruMask = (r - d)! > 0;
+        let luMask = (l - d)! > 0;
+        let rdMask = (r - u)! > 0;
+        let ldMask = (l - u)! > 0;
+        let ruMask = (r - d)! > 0;
 
 //        }else{
 //            ldMask = indices < Float(detector.center.y)
@@ -438,11 +435,11 @@ class STEMDataController: NSObject {
         let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
         if lrud == 0{
-            vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
-            vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, ldMask.real, 1, ldMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, ruMask.real, 1, ruMaskProduct, 1, UInt(patternPixels))
         }else{
-            vDSP_vmul(mask.real, 1, luMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
-            vDSP_vmul(mask.real, 1, rdMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, luMask.real, 1, ldMaskProduct, 1, UInt(patternPixels))
+            vDSP_vmul(mask.real, 1, rdMask.real, 1, ruMaskProduct, 1, UInt(patternPixels))
         }
         
         

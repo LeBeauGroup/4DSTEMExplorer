@@ -23,6 +23,9 @@
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
+		A5E53C7A215C27A900CA6833 /* TIFF Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E53C79215C27A900CA6833 /* TIFF Format.swift */; };
+		A5E53C7C215C27CE00CA6833 /* Merlin Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E53C7B215C27CE00CA6833 /* Merlin Format.swift */; };
+		A5E53C7E215C27DD00CA6833 /* PN Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E53C7D215C27DD00CA6833 /* PN Format.swift */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
 		A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */; };
 /* End PBXBuildFile section */
@@ -48,6 +51,9 @@
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
+		A5E53C79215C27A900CA6833 /* TIFF Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TIFF Format.swift"; sourceTree = "<group>"; };
+		A5E53C7B215C27CE00CA6833 /* Merlin Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Merlin Format.swift"; sourceTree = "<group>"; };
+		A5E53C7D215C27DD00CA6833 /* PN Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PN Format.swift"; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -122,11 +128,14 @@
 		A51FF4F51FF5431200BDC87E /* Objects */ = {
 			isa = PBXGroup;
 			children = (
-				A51DAD1E1FF6866B00D36AB0 /* Detector.swift */,
-				A5219B101FF3E618006D4044 /* Constants.swift */,
 				A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */,
 				A56918EC1FEDB32E00C0EF70 /* Complex.swift */,
+				A5219B101FF3E618006D4044 /* Constants.swift */,
+				A51DAD1E1FF6866B00D36AB0 /* Detector.swift */,
 				A56918EA1FEDB2B000C0EF70 /* Matrix.swift */,
+				A5E53C79215C27A900CA6833 /* TIFF Format.swift */,
+				A5E53C7B215C27CE00CA6833 /* Merlin Format.swift */,
+				A5E53C7D215C27DD00CA6833 /* PN Format.swift */,
 			);
 			path = Objects;
 			sourceTree = "<group>";
@@ -226,17 +235,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */,
+				A5E53C7A215C27A900CA6833 /* TIFF Format.swift in Sources */,
 				A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
 				A551530F2006892100C89F5D /* Functions.swift in Sources */,
 				A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */,
 				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
+				A5E53C7C215C27CE00CA6833 /* Merlin Format.swift in Sources */,
 				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
 				A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */,
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
+				A5E53C7E215C27DD00CA6833 /* PN Format.swift in Sources */,
 				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,
 				A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
