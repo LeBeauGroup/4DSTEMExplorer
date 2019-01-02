@@ -139,7 +139,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             }
         }
         
-        
     }
     
     init(array:[Float], _ rows:Int, _ columns:Int) {

@@ -409,8 +409,7 @@ class STEMDataController: NSObject {
 
         }
         
-        let strideWidth = imageSize.width/strideLength
-        let strideHeight = imageSize.height/strideLength
+        let (strideWidth, strideHeight) = strideSize(imageSize, strideLength)
         
         //        let imageInts = self.integrating(mask, strideLength)
         
@@ -467,10 +466,9 @@ class STEMDataController: NSObject {
         let group = DispatchGroup()
         group.enter()
     
-        let strideWidth = imageSize.width/strideLength
-        let strideHeight = imageSize.height/strideLength
+        let (strideWidth, strideHeight) = strideSize(imageSize, strideLength)
         
-        var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
+        var outArray = [Float].init(repeating: 0.0, count: Int(strideWidth*strideHeight))
 
         let indices = Matrix.init(meshIndicesAlong: xy, patternSize.height, patternSize.width)
 
@@ -523,8 +521,7 @@ class STEMDataController: NSObject {
 //        let group = DispatchGroup()
 //        group.enter()
         
-        let strideWidth = imageSize.width/strideLength
-        let strideHeight = imageSize.height/strideLength
+        let (strideWidth, strideHeight) = strideSize(imageSize, strideLength)
         
         var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
         
@@ -536,10 +533,10 @@ class STEMDataController: NSObject {
             let pixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
             
             var pos = 0
-        
+
             for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
                 for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
-                    
+                   
                     let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternSize.width*patternSize.height
                     
                     vDSP_vmul(mask.real, 1, nextPatternPointer, 1, c, 1, UInt(patternPixels))
@@ -547,12 +544,11 @@ class STEMDataController: NSObject {
                     vDSP_sve(c, 1, pixelSum, UInt(patternPixels))
                     
                     outArray[pos] = pixelSum[0]
-                    
                     pos += 1
                 }
             }
             
-            c.deallocate(capacity: patternPixels)
+            c.deallocate()
             
 //            group.leave()
 //        }
@@ -560,7 +556,7 @@ class STEMDataController: NSObject {
 //        group.wait()
 //        
         
-        return Matrix.init(array: outArray, strideHeight, strideWidth)
+        return Matrix.init(array: outArray, Int(strideHeight), Int(strideWidth))
         
     }
     
@@ -570,12 +566,15 @@ class STEMDataController: NSObject {
         fh?.closeFile()
         patternPointer?.deinitialize()
     }
-        
-        
-        
 
-        
-        
+}
+
+// Needed to ceil the stride size to avoid stride overruns
+
+func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
-
+    let strideWidth = Int(ceil(Double(imageSize.width)/Double(strideLength)))
+    let strideHeight = Int(ceil(Double(imageSize.height)/Double(strideLength)))
+    
+    return (strideWidth, strideHeight)
 }
