@@ -73,35 +73,29 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         var maxValue = Complex(0,0)
         let length = vDSP_Length(count)
-        
-        if type == "real"{
-            vDSP_maxv(real, 1, &maxValue.a, length)
-        }else {
-            
-            vDSP_maxv(real, 1, &maxValue.a, length)
-            vDSP_maxv(imag!, 1, &maxValue.b, length)
-            
-            
+
+        let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
+
+        vDSP_maxv(clipped.real, 1, &maxValue.a, length)
+        if type != "real" {
+            vDSP_maxv(clipped.imag!, 1, &maxValue.b, length)
         }
-        
+
         return maxValue
     }
-    
+
     var min:Complex {
         
         var minValue = Complex(0,0)
         let length = vDSP_Length(count)
         
-        if type == "real"{
-            vDSP_minv(real, 1, &minValue.a, length)
-        }else {
-            
-            vDSP_minv(real, 1, &minValue.a, length)
-            vDSP_minv(imag!, 1, &minValue.b, length)
-            
-            
+        let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
+
+        vDSP_minv(clipped.real, 1, &minValue.a, length)
+        if type != "real" {
+            vDSP_minv(clipped.imag!, 1, &minValue.b, length)
         }
-        
+
         return minValue
     }
     
@@ -345,6 +339,17 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         return sumValue
     }
+
+    func clip(min: Float, max: Float) -> Matrix {
+        let out = self.copy() as! Matrix
+        var min = min
+        var max = max
+        vDSP_vclip(&self.real, 1, &min, &max, &out.real, 1, vDSP_Length(self.count))
+        if self.type != "real" {
+            vDSP_vclip(&self.imag!, 1, &min, &max, &out.imag!, 1, vDSP_Length(self.count))
+        }
+        return out
+    }
     
     
     func subMatrix(_ iRange:CountableRange<Int>, _ jRange:CountableRange<Int>)->Matrix{
@@ -580,9 +585,8 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     
     func uInt8ImageRep()->NSBitmapImageRep?{
         
-        let maximum = self.max.a
-        let minimum = self.min.a
-        
+        let maximum = Swift.min(self.max.a, 1e10)
+        let minimum = Swift.max(self.min.a, -1e10)
         
         let uInt8Size = MemoryLayout<UInt8>.size
         
@@ -590,12 +594,17 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         if maximum != minimum {
             for (i, element) in real.enumerated() {
-                
-                if element.isNaN || element.isInfinite{
+                let mag = (element-minimum)/(maximum-minimum)
+
+                if mag.isNaN || mag.isInfinite || mag < 0.0 {
                     continue
                 }
-                
-                out[i] = UInt8((element-minimum)/(maximum-minimum)*255)
+
+                if mag >= 1.0 {
+                    out[i] = 255
+                } else {
+                    out[i] = UInt8(floor(mag * 256.0))
+                }
             }
         }
 
