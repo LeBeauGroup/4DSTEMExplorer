@@ -280,10 +280,14 @@ class STEMDataController: NSObject {
                                 }
                             }
                         }
-                        
-                        imageData?.withUnsafeMutableBytes{(ptr: UnsafeMutablePointer<Float32>) in
-                            
-                            newPointer.assign(from: ptr, count: patternPixels)
+
+                        // store rows in reversed order
+                        imageData?.withUnsafeBytes{(ptr: UnsafePointer<Float32>) in
+                            let width = self.patternSize.width
+                            for row in 0..<self.patternSize.height {
+                                let destRow = self.patternSize.height - row - 1
+                                (newPointer + destRow*width).assign(from: ptr + row*width, count: width)
+                            }
                         }
                         
                         
