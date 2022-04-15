@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="13771" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="13771"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -66,7 +66,7 @@
                                         </menuItem>
                                         <menuItem title="Open…" keyEquivalent="o" id="IAo-SY-fd9">
                                             <connections>
-                                                <action selector="open:" target="Ady-hI-5gd" id="bTL-NA-J1D"/>
+                                                <action selector="open:" target="Voe-Tx-rLC" id="7LY-K5-HyF"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Open Recent" id="tXI-mr-wws">
@@ -273,11 +273,11 @@
                         </items>
                     </menu>
                     <connections>
-                        <outlet property="delegate" destination="Voe-Tx-rLC" id="PrD-fu-P6m"/>
+                        <outlet property="delegate" destination="Voe-Tx-rLC" id="u7k-Qk-DgS"/>
                     </connections>
                 </application>
-                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
                 <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
+                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
                 <customObject id="Ady-hI-5gd" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="136" y="-122"/>
@@ -286,7 +286,7 @@
         <scene sceneID="R2V-B0-nI4">
             <objects>
                 <windowController showSeguePresentationStyle="single" id="B8D-0N-5wS" customClass="WindowController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
-                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" tabbingMode="disallowed" id="IQv-IB-iLA">
+                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" tabbingMode="disallowed" id="IQv-IB-iLA">
                         <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="632" height="368"/>
@@ -307,8 +307,8 @@
                                             <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="7Tw-dT-Ezf">
                                                 <integer key="multiplier" value="100"/>
                                             </numberFormatter>
-                                            <font key="font" metaFont="system" size="11"/>
-                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                            <font key="font" metaFont="smallSystem"/>
+                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                         <connections>
@@ -379,7 +379,7 @@
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <popUpButtonCell key="cell" type="push" bezelStyle="rounded" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" arrowPosition="noArrow" autoenablesItems="NO" selectedItem="IXR-fg-WJA" id="Iyg-zA-YiR">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                            <font key="font" metaFont="system"/>
+                                            <font key="font" metaFont="menu"/>
                                             <menu key="menu" autoenablesItems="NO" id="jHd-HD-V6b">
                                                 <items>
                                                     <menuItem state="on" image="NSShareTemplate" hidden="YES" id="dla-eF-SRw"/>
@@ -402,9 +402,6 @@
                                 <toolbarItem reference="5hy-xn-GKI"/>
                             </defaultToolbarItems>
                         </toolbar>
-                        <connections>
-                            <outlet property="delegate" destination="B8D-0N-5wS" id="pcu-i3-dtq"/>
-                        </connections>
                     </window>
                     <connections>
                         <outlet property="scaleField" destination="wgz-pS-AtU" id="GGz-ur-RdD"/>
@@ -413,14 +410,13 @@
                     </connections>
                 </windowController>
                 <customObject id="Oky-zY-oP4" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
-                <userDefaultsController representsSharedInstance="YES" id="P2e-bB-Hve"/>
             </objects>
             <point key="canvasLocation" x="198" y="280"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="hIz-AP-VOD">
             <objects>
-                <viewController storyboardIdentifier="ImageRightClickController" id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="ViewController" id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl">
                         <rect key="frame" x="0.0" y="0.0" width="708" height="487"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -457,7 +453,7 @@
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="5" drawsBackground="YES" id="Sgr-8K-uMH">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="feM-Vg-Ha0"/>
                                     <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                                 <connections>
@@ -488,7 +484,7 @@
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="10" drawsBackground="YES" id="hyg-C0-ERG">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" usesGroupingSeparator="NO" groupingSize="0" minimumIntegerDigits="0" maximumIntegerDigits="42" id="N42-u8-Yi6"/>
                                     <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                                 <connections>
@@ -514,6 +510,9 @@
                                 <rect key="frame" x="20" y="211" width="256" height="256"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" id="UYP-wE-asd"/>
+                                <connections>
+                                    <outlet property="patternValue" destination="efJ-bw-Yl6" id="ZQQ-ib-ZtD"/>
+                                </connections>
                             </imageView>
                             <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
                                 <rect key="frame" x="194" y="123" width="84" height="24"/>
@@ -529,14 +528,14 @@
                                     </connections>
                                 </segmentedCell>
                             </segmentedControl>
-                            <scrollView canDrawConcurrently="YES" fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
+                            <scrollView fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
                                 <rect key="frame" x="297" y="0.0" width="411" height="487"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                <clipView key="contentView" autoresizesSubviews="NO" ambiguous="YES" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                <clipView key="contentView" autoresizesSubviews="NO" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                     <rect key="frame" x="1" y="1" width="409" height="485"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
-                                        <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
+                                        <view translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
                                             <rect key="frame" x="0.0" y="0.0" width="394" height="470"/>
                                             <subviews>
                                                 <imageView hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="WRv-TO-IWj" customClass="ImageViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
@@ -560,11 +559,11 @@
                                     </constraints>
                                     <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                 </clipView>
-                                <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
+                                <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
                                     <rect key="frame" x="1" y="-15" width="0.0" height="16"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
-                                <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
+                                <scroller key="verticalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
                                     <rect key="frame" x="-15" y="1" width="16" height="0.0"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
@@ -578,6 +577,15 @@
                                     <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
+                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="efJ-bw-Yl6">
+                                <rect key="frame" x="25" y="213" width="211" height="17"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Value Label" placeholderString="value" id="Vri-Kc-Zza">
+                                    <font key="font" metaFont="system"/>
+                                    <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                </textFieldCell>
+                            </textField>
                         </subviews>
                     </view>
                     <connections>
@@ -585,13 +593,9 @@
                         <outlet property="detectorShapeSegmented" destination="OF5-up-YWX" id="7hp-Ox-xzk"/>
                         <outlet property="detectorTypeSegmented" destination="FvP-LK-bqC" id="xf6-kj-42q"/>
                         <outlet property="displayLogCheckbox" destination="osA-bR-xWW" id="NPc-Pv-oaD"/>
-                        <outlet property="docHeight" destination="xog-Ze-6Y7" id="Jtn-F7-jxE"/>
-                        <outlet property="docWidth" destination="bRz-Iy-oBT" id="dWi-xp-SAw"/>
                         <outlet property="imageView" destination="WRv-TO-IWj" id="1wl-m9-PHa"/>
                         <outlet property="innerAngleTextField" destination="aMy-NF-9gR" id="nUB-v4-Hnr"/>
-                        <outlet property="isDisplayLog" destination="APx-ft-7EN" id="d48-hY-tvP"/>
                         <outlet property="lrud_xySegmented" destination="ezS-aJ-Jxe" id="Ekv-2k-dV1"/>
-                        <outlet property="lrup_xdSegmented" destination="ezS-aJ-Jxe" id="Smm-xb-t4T"/>
                         <outlet property="outerAngleTextField" destination="AN5-dg-408" id="3gI-ac-Vl0"/>
                         <outlet property="patternSelectionLabel" destination="3E5-YH-H5V" id="avF-cU-pgP"/>
                         <outlet property="patternViewer" destination="oQa-mo-g57" id="ech-I8-bGF"/>
@@ -642,7 +646,7 @@
                                     </objectValues>
                                 </comboBoxCell>
                             </comboBox>
-                            <progressIndicator hidden="YES" wantsLayer="YES" canDrawConcurrently="YES" fixedFrame="YES" maxValue="100" style="bar" translatesAutoresizingMaskIntoConstraints="NO" id="cVM-vR-GJj">
+                            <progressIndicator hidden="YES" wantsLayer="YES" fixedFrame="YES" maxValue="100" style="bar" translatesAutoresizingMaskIntoConstraints="NO" id="cVM-vR-GJj">
                                 <rect key="frame" x="20" y="19" width="211" height="20"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                             </progressIndicator>
@@ -722,10 +726,10 @@ Gw
         </scene>
     </scenes>
     <resources>
-        <image name="MarqueeSelection" width="1024" height="1024"/>
-        <image name="NSShareTemplate" width="11" height="16"/>
-        <image name="PointSelection" width="1024" height="1024"/>
-        <image name="ZoomIn" width="1024" height="1024"/>
+        <image name="MarqueeSelection" width="512" height="512"/>
+        <image name="NSShareTemplate" width="15" height="17"/>
+        <image name="PointSelection" width="512" height="512"/>
+        <image name="ZoomIn" width="512" height="512"/>
         <image name="ZoomOut" width="1024" height="1024"/>
         <image name="ZoomToFit" width="1024" height="1024"/>
     </resources>

@@ -14,12 +14,52 @@ class PatternViewer: NSImageView {
         return true
         
     }
-    
+
     var backgroundColor:NSColor
     let detectorView:DetectorView?
     
+    var trackingArea : NSTrackingArea?
     
+    @IBOutlet weak var patternValue : NSTextField?
     
+    override func updateTrackingAreas() {
+        if trackingArea != nil {
+            self.removeTrackingArea(trackingArea!)
+        }
+        trackingArea = NSTrackingArea(rect: self.bounds, options: [.mouseMoved, .mouseEnteredAndExited, .enabledDuringMouseDrag, .activeInKeyWindow], owner: self, userInfo: nil)
+        self.addTrackingArea(trackingArea!)
+    }
+
+    func getImageCoordinate(_ image: NSImage?, _ loc: NSPoint) -> (Int, Int)? {
+        image.flatMap{$0.representations.first.map{ imageRep in
+            var loc = self.convert(loc, from: nil)
+            loc.x = loc.x * CGFloat(imageRep.pixelsWide) / self.bounds.width - 0.5
+            loc.y = loc.y * CGFloat(imageRep.pixelsHigh) / self.bounds.height - 0.5
+            let x = max(0, min(imageRep.pixelsWide-1, Int(loc.x.rounded())))
+            let y = max(0, min(imageRep.pixelsHigh-1, Int(loc.y.rounded())))
+            return (x, y)
+        }}
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if let (x, y) = getImageCoordinate(self.image, event.locationInWindow) {
+            //patternValue?.textColor = NSColor.white
+            if let val = self.matrixStorage?.get(y, x) {
+                patternValue?.stringValue = "(\(x), \(y)): \(val)"
+            } else {
+                patternValue?.stringValue = "(\(x), \(y))"
+            }
+        }
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        patternValue?.isHidden = false
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        patternValue?.isHidden = true
+    }
+
     override init(frame frameRect: NSRect) {
         
         backgroundColor = NSColor.lightGray
