@@ -27,6 +27,15 @@ struct MatrixOutput {
 infix operator .*
 
 
+class ValueError: Error, CustomStringConvertible {
+    let description: String
+    
+    init(_ description: String) {
+        self.description = description
+    }
+}
+
+
 class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     
     
@@ -73,35 +82,29 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         var maxValue = Complex(0,0)
         let length = vDSP_Length(count)
-        
-        if type == "real"{
-            vDSP_maxv(real, 1, &maxValue.a, length)
-        }else {
-            
-            vDSP_maxv(real, 1, &maxValue.a, length)
-            vDSP_maxv(imag!, 1, &maxValue.b, length)
-            
-            
+
+        let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
+
+        vDSP_maxv(clipped.real, 1, &maxValue.a, length)
+        if type != "real" {
+            vDSP_maxv(clipped.imag!, 1, &maxValue.b, length)
         }
-        
+
         return maxValue
     }
-    
+
     var min:Complex {
         
         var minValue = Complex(0,0)
         let length = vDSP_Length(count)
         
-        if type == "real"{
-            vDSP_minv(real, 1, &minValue.a, length)
-        }else {
-            
-            vDSP_minv(real, 1, &minValue.a, length)
-            vDSP_minv(imag!, 1, &minValue.b, length)
-            
-            
+        let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
+
+        vDSP_minv(clipped.real, 1, &minValue.a, length)
+        if type != "real" {
+            vDSP_minv(clipped.imag!, 1, &minValue.b, length)
         }
-        
+
         return minValue
     }
     
@@ -138,7 +141,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 
             }
         }
-        
         
     }
     
@@ -260,8 +262,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     
     }
     
-
-    
     // TODO: Add capability to set a range with an array
      func set(array:[Float], type:String ){
         
@@ -270,7 +270,32 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         }
         
     }
+
+    func quantiles(_ quantiles: Array<Float>) throws -> Array<Float> {
+        guard self.type == "real" else {
+            throw ValueError("'quantiles' only works on real-valued data.")
+        }
+        var sorted = self.real
+        vDSP.sort(&sorted, sortOrder: .ascending)
+        sorted = sorted.filter { !$0.isNaN && !$0.isInfinite }
+        
+        guard sorted.count > 0 else {
+            throw ValueError("No valid values in matrix.")
+        }
+
+        let rough_indices = vDSP.multiply(Float(sorted.count - 1), quantiles)
+        var lower_indices = Array<Int32>(repeating: 0, count: quantiles.count)
+        vDSP.convertElements(of: rough_indices, to: &lower_indices, rounding: .towardZero)
     
+        return zip(lower_indices, rough_indices).map { lower_i, rough_i in
+            if lower_i + 1 >= sorted.count {
+                return sorted[Int(lower_i)]
+            }
+            let t = rough_i - Float(lower_i)
+            return t * sorted[Int(lower_i)] + (1-t) * sorted[Int(lower_i) + 1]
+        }
+    }
+
     func log()->Matrix{
         
         let loggedMatrix = self.copy() as! Matrix
@@ -345,6 +370,17 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         vDSP_sve(self.real, 1, &sumValue, length)
         
         return sumValue
+    }
+
+    func clip(min: Float, max: Float) -> Matrix {
+        let out = self.copy() as! Matrix
+        var min = min
+        var max = max
+        vDSP_vclip(&self.real, 1, &min, &max, &out.real, 1, vDSP_Length(self.count))
+        if self.type != "real" {
+            vDSP_vclip(&self.imag!, 1, &min, &max, &out.imag!, 1, vDSP_Length(self.count))
+        }
+        return out
     }
     
     
@@ -581,45 +617,33 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     
     func uInt8ImageRep()->NSBitmapImageRep?{
         
-        let maximum = self.max.a
-        let minimum = self.min.a
+        var out = [UInt8].init()
+        if self.count > 0 {
+            let bounds = try! self.quantiles([0.02, 0.98])
+            
+            out = [UInt8].init(repeating: 0, count: real.count)
         
-        
-        let uInt8Size = MemoryLayout<UInt8>.size
-        
-        var out = [UInt8].init(repeating: 0, count: real.count)
-        
-        if maximum != minimum {
-            for (i, element) in real.enumerated() {
-                
-                if element.isNaN || element.isInfinite{
-                    continue
+            if bounds[0] != bounds[1] {
+                for (i, element) in real.enumerated() {
+                    let mag = (element-bounds[0])/(bounds[1]-bounds[0])
+
+                    if mag.isNaN || mag.isInfinite || mag < 0.0 {
+                        continue
+                    }
+
+                    if mag >= 1.0 {
+                        out[i] = 255
+                    } else {
+                        out[i] = UInt8(floor(mag * 255.0))
+                    }
                 }
-                
-                out[i] = UInt8((element-minimum)/(maximum-minimum)*255)
             }
         }
+        
+        let bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns*1, bitsPerPixel: 8)
+        
+        memmove(bitmapRep?.bitmapData, &out, out.count)
 
-        
-        let imageData = NSData(bytes: UnsafePointer(out), length: real.count*uInt8Size)
-        
-        let uint8Pointer = imageData.bytes.bindMemory(to: UInt8.self, capacity: rows*columns*uInt8Size)
-        
-        
-        let bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns*uInt8Size, bitsPerPixel: 8)
-        
-        let imagePointer = bitmapRep?.bitmapData
-        
-        for i in 0..<rows*columns*uInt8Size{
-            
-            imagePointer![i] = uint8Pointer[i]
-            
-        }
-        //
-        //        let image = NSImage.init(size: NSSize(width: columns, height: rows))
-        //
-        //        image.addRepresentation(bitmapRep)
-        
         return bitmapRep
     }
     
