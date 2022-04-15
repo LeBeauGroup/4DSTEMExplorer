@@ -39,7 +39,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     
     @IBOutlet weak var patternSelectionLabel:NSTextField?
-    
+
     var zoomFactor:CGFloat = 1.0 {
         
         didSet {
@@ -142,7 +142,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             averagePatternInRect(patternRect)
         }
     }
-    
+
     @IBAction func changeImageViewSelectionMode(_ sender: Any){
         
         if let segmented = sender as? NSSegmentedControl{
