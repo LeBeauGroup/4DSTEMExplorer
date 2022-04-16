@@ -59,25 +59,17 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         }
         
     }
+
+    override func viewDidLoad() {
         
-    override func awakeFromNib() {
-        super.awakeFromNib()
-    
         imageView.delegate = self
         dataController.delegate = self
-        
         self.view.window?.makeFirstResponder(patternViewer.detectorView)
-
         
         selectDetectorType(0)
         
-
-    }
-    
-    override func viewDidLoad() {
-        
-        patternViewer.imageScaling = NSImageScaling.scaleProportionallyUpOrDown
-        patternViewer.bounds = NSRect(x: 0, y: 0, width: 256, height: 256)
+        //patternViewer.imageScaling = NSImageScaling.scaleProportionallyUpOrDown
+        //patternViewer.bounds = NSRect(x: 0, y: 0, width: 256, height: 256)
         
         let nc = NotificationCenter.default
         
