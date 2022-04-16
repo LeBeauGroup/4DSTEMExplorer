@@ -6,4 +6,7 @@ To cite:
 
 J. M. LeBeau, "4D STEM Explorer” (2018): doi:10.5281/zenodo.1325482
 
+
+Privacy policy: No user data is collected.
+
 [![DOI](https://zenodo.org/badge/116034666.svg)](https://zenodo.org/badge/latestdoi/116034666)
