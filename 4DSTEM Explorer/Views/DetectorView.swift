@@ -36,26 +36,21 @@ class DetectorView: NSView {
     let apFact = ApertureFactory()
     
     var center = NSPoint(x:0, y:0)
+    var centerFrameCoords:NSPoint {
+        get {
+            return convertPointToFrameCoordinates(center)
+        }
+        set(frameCenter) {
+            center = convertPointToImageCoordinates(frameCenter)
+        }
+    }
+
     var frameCenter:NSPoint{
         get{
             return  NSPoint(x: frame.origin.x + frame.width/2, y: frame.origin.y+frame.height/2)
         }
-        
     }
     
-    var detectorCenter:NSPoint{
-        get{
-            let convertedCenter = convertPointToImageCoordinates(center)
-
-
-            
-            print(convertedCenter)
-//            convertedCenter.x += radii!.outer-strokeSize/(2/self.scaleFactor())
-//            convertedCenter.y += radii!.outer-strokeSize/(2/self.scaleFactor())
-
-            return convertedCenter
-        }
-    }
     var detector:Detector {
         get{
                     
@@ -63,7 +58,7 @@ class DetectorView: NSView {
             let imageView = (self.superview as! NSImageView)
 
             
-            return Detector(shape: detectorShape, type: detectorType, center: convertPointToImageCoordinates(center), radii: radii!, size:imageView.image!.size)
+            return Detector(shape: detectorShape, type: detectorType, center: center, radii: radii!, size:imageView.image!.size)
         }
         set(newDetector){
             
@@ -74,7 +69,7 @@ class DetectorView: NSView {
             frame.origin = NSPoint(x: 0, y: 0)
             frame.size = (self.superview?.frame.size)!
                 
-            center = convertPointToFrameCoordinates(newDetector.center)
+            center = newDetector.center
             
             self.needsDisplay = true
             
@@ -84,9 +79,9 @@ class DetectorView: NSView {
     
     
     override init(frame frameRect: NSRect) {
-        
         super.init(frame: frameRect)
-        
+
+        self.autoresizingMask = [.width, .height]
     }
     
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
@@ -127,8 +122,8 @@ class DetectorView: NSView {
         //fine tuning
         if itemHit{
             
-            let xdist2 = (point.x-center.x)*(point.x-center.x)
-            let ydist2 = (point.y-center.y)*(point.y-center.y)
+            let xdist2 = (point.x-centerFrameCoords.x)*(point.x-centerFrameCoords.x)
+            let ydist2 = (point.y-centerFrameCoords.y)*(point.y-centerFrameCoords.y)
             
             let dist2 = xdist2+ydist2
             
@@ -198,7 +193,7 @@ class DetectorView: NSView {
                 rate = 10.0
             }
             
-            var newCenter = center
+            var newCenter = centerFrameCoords
             
             switch keyChar {
             case NSUpArrowFunctionKey:
@@ -228,7 +223,7 @@ class DetectorView: NSView {
                 
             }
             
-            center = newCenter
+            centerFrameCoords = newCenter
             
         NotificationCenter.default.post(name: Notification.Name("detectorFinishedMoving"), object: 0)
             self.needsDisplay = true
@@ -305,7 +300,7 @@ class DetectorView: NSView {
             
         }else if locationType == "detector"{
             
-            var newCenter = self.center
+            var newCenter = self.centerFrameCoords
             newCenter.x += (-self.lastDragLocation.x + (newDragLocation?.x)!)
             newCenter.y += (-self.lastDragLocation.y + (newDragLocation?.y)!)
         
@@ -325,7 +320,7 @@ class DetectorView: NSView {
             }
             
             
-            center = newCenter
+            centerFrameCoords = newCenter
             
             self.lastDragLocation = newDragLocation!
         
@@ -375,7 +370,7 @@ class DetectorView: NSView {
     func controlRect(_ ioAngle:String = "outer") -> NSRect {
         
         let radius = scaledRadius(ioAngle)
-        var controlOrigin = center
+        var controlOrigin = centerFrameCoords
         
 
         switch ioAngle {
@@ -409,7 +404,7 @@ class DetectorView: NSView {
         let radius:CGFloat = scaledRadius(ioAngle)
 
         
-        let apOrigin = NSPoint(x:center.x-radius-strokeSize*scaleFactor(), y:center.y-radius-strokeSize*scaleFactor())
+        let apOrigin = NSPoint(x:centerFrameCoords.x-radius-strokeSize*scaleFactor(), y:centerFrameCoords.y-radius-strokeSize*scaleFactor())
         
         return apOrigin
         
@@ -433,7 +428,7 @@ class DetectorView: NSView {
     func drawCrosshairs(_ context: CGContext){
         let redColor = NSColor.red
         
-        var crossCenter = center
+        var crossCenter = centerFrameCoords
         crossCenter.x += strokeSize/2
         crossCenter.y += strokeSize/2
         

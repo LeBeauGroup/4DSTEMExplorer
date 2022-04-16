@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="13771" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="13771"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -66,7 +66,7 @@
                                         </menuItem>
                                         <menuItem title="Open…" keyEquivalent="o" id="IAo-SY-fd9">
                                             <connections>
-                                                <action selector="open:" target="Ady-hI-5gd" id="bTL-NA-J1D"/>
+                                                <action selector="open:" target="Voe-Tx-rLC" id="7LY-K5-HyF"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Open Recent" id="tXI-mr-wws">
@@ -273,11 +273,11 @@
                         </items>
                     </menu>
                     <connections>
-                        <outlet property="delegate" destination="Voe-Tx-rLC" id="PrD-fu-P6m"/>
+                        <outlet property="delegate" destination="Voe-Tx-rLC" id="u7k-Qk-DgS"/>
                     </connections>
                 </application>
-                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
                 <customObject id="YLy-65-1bz" customClass="NSFontManager"/>
+                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
                 <customObject id="Ady-hI-5gd" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="136" y="-122"/>
@@ -286,12 +286,12 @@
         <scene sceneID="R2V-B0-nI4">
             <objects>
                 <windowController showSeguePresentationStyle="single" id="B8D-0N-5wS" customClass="WindowController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
-                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" tabbingMode="disallowed" id="IQv-IB-iLA">
+                    <window key="window" title="4D STEM Explorer" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" tabbingMode="disallowed" id="IQv-IB-iLA">
                         <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-                        <rect key="contentRect" x="196" y="240" width="632" height="368"/>
+                        <rect key="contentRect" x="16" y="240" width="785" height="410"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
-                        <value key="minSize" type="size" width="624" height="378"/>
+                        <value key="minSize" type="size" width="500" height="400"/>
                         <toolbar key="toolbar" implicitIdentifier="80BD8C4F-3176-4826-B4FA-C2E7983177F0" autosavesConfiguration="NO" displayMode="iconOnly" sizeMode="regular" id="j3l-gq-hi9">
                             <allowedToolbarItems>
                                 <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="hNR-kT-Ut2"/>
@@ -307,8 +307,8 @@
                                             <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="7Tw-dT-Ezf">
                                                 <integer key="multiplier" value="100"/>
                                             </numberFormatter>
-                                            <font key="font" metaFont="system" size="11"/>
-                                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                            <font key="font" metaFont="smallSystem"/>
+                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                         <connections>
@@ -379,7 +379,7 @@
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <popUpButtonCell key="cell" type="push" bezelStyle="rounded" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" arrowPosition="noArrow" autoenablesItems="NO" selectedItem="IXR-fg-WJA" id="Iyg-zA-YiR">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                            <font key="font" metaFont="system"/>
+                                            <font key="font" metaFont="menu"/>
                                             <menu key="menu" autoenablesItems="NO" id="jHd-HD-V6b">
                                                 <items>
                                                     <menuItem state="on" image="NSShareTemplate" hidden="YES" id="dla-eF-SRw"/>
@@ -402,9 +402,6 @@
                                 <toolbarItem reference="5hy-xn-GKI"/>
                             </defaultToolbarItems>
                         </toolbar>
-                        <connections>
-                            <outlet property="delegate" destination="B8D-0N-5wS" id="pcu-i3-dtq"/>
-                        </connections>
                     </window>
                     <connections>
                         <outlet property="scaleField" destination="wgz-pS-AtU" id="GGz-ur-RdD"/>
@@ -413,131 +410,204 @@
                     </connections>
                 </windowController>
                 <customObject id="Oky-zY-oP4" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
-                <userDefaultsController representsSharedInstance="YES" id="P2e-bB-Hve"/>
             </objects>
-            <point key="canvasLocation" x="198" y="280"/>
+            <point key="canvasLocation" x="94.5" y="301"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="hIz-AP-VOD">
             <objects>
-                <viewController storyboardIdentifier="ImageRightClickController" id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
-                    <view key="view" wantsLayer="YES" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="708" height="487"/>
-                        <autoresizingMask key="autoresizingMask"/>
+                <viewController storyboardIdentifier="ViewController" id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
+                    <splitView key="view" arrangesAllSubviews="NO" dividerStyle="paneSplitter" vertical="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Xc6-V9-GTY">
+                        <rect key="frame" x="0.0" y="0.0" width="795" height="485"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                         <subviews>
-                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="APx-ft-7EN">
-                                <rect key="frame" x="18" y="187" width="45" height="18"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <buttonCell key="cell" type="check" title="Log" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="osA-bR-xWW">
-                                    <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                    <font key="font" metaFont="system"/>
-                                </buttonCell>
-                                <connections>
-                                    <action selector="changeLog:" target="XfG-lQ-9wD" id="Dyk-y8-1jh"/>
-                                </connections>
-                            </button>
-                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="OF5-up-YWX">
-                                <rect key="frame" x="140" y="181" width="138" height="24"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="z8n-nt-XH2">
-                                    <font key="font" metaFont="system"/>
-                                    <segments>
-                                        <segment label="BF" selected="YES"/>
-                                        <segment label="ADF" tag="1"/>
-                                        <segment label="AF" tag="2"/>
-                                    </segments>
-                                </segmentedCell>
-                                <connections>
-                                    <action selector="selectDetectorShape:" target="XfG-lQ-9wD" id="haP-Uk-p6f"/>
-                                </connections>
-                            </segmentedControl>
-                            <textField verticalHuggingPriority="750" fixedFrame="YES" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="aMy-NF-9gR">
-                                <rect key="frame" x="63" y="132" width="54" height="22"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="5" drawsBackground="YES" id="Sgr-8K-uMH">
-                                    <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="feM-Vg-Ha0"/>
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                                <connections>
-                                    <action selector="detectorRadiusChanged:" target="XfG-lQ-9wD" id="gKv-i8-cPj"/>
-                                </connections>
-                            </textField>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="l4m-vg-bpK">
-                                <rect key="frame" x="18" y="162" width="39" height="17"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Outer" id="7AO-k1-DRk">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="5wp-Q9-Mwy">
-                                <rect key="frame" x="18" y="134" width="35" height="17"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Inner" id="5ME-pu-Xqe">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
-                            <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="AN5-dg-408">
-                                <rect key="frame" x="63" y="160" width="54" height="22"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="10" drawsBackground="YES" id="hyg-C0-ERG">
-                                    <numberFormatter key="formatter" formatterBehavior="default10_4" usesGroupingSeparator="NO" groupingSize="0" minimumIntegerDigits="0" maximumIntegerDigits="42" id="N42-u8-Yi6"/>
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                                <connections>
-                                    <action selector="detectorRadiusChanged:" target="XfG-lQ-9wD" id="toI-Ch-Ox8"/>
-                                </connections>
-                            </textField>
-                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FvP-LK-bqC">
-                                <rect key="frame" x="140" y="152" width="138" height="24"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="qmr-Mw-sVy">
-                                    <font key="font" metaFont="system"/>
-                                    <segments>
-                                        <segment label="Int" width="44" selected="YES"/>
-                                        <segment label="DPC" width="44" tag="1"/>
-                                        <segment label="COM" width="43" tag="2"/>
-                                    </segments>
-                                </segmentedCell>
-                                <connections>
-                                    <action selector="selectDetectorType:" target="XfG-lQ-9wD" id="J9j-yV-yuH"/>
-                                </connections>
-                            </segmentedControl>
-                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                <rect key="frame" x="20" y="211" width="256" height="256"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" id="UYP-wE-asd"/>
-                            </imageView>
-                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
-                                <rect key="frame" x="194" y="123" width="84" height="24"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="grT-Cc-ea8">
-                                    <font key="font" metaFont="system"/>
-                                    <segments>
-                                        <segment label="x" width="39" selected="YES" tag="1"/>
-                                        <segment label="y" width="38"/>
-                                    </segments>
-                                    <connections>
-                                        <action selector="changeLrup_xy:" target="XfG-lQ-9wD" id="Afe-Vf-q7T"/>
-                                    </connections>
-                                </segmentedCell>
-                            </segmentedControl>
-                            <scrollView canDrawConcurrently="YES" fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="LG6-QM-bRM">
-                                <rect key="frame" x="297" y="0.0" width="411" height="487"/>
+                            <scrollView fixedFrame="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DY0-PG-jtd" userLabel="Sidebar">
+                                <rect key="frame" x="0.0" y="0.0" width="367" height="485"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                                <clipView key="contentView" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="KBZ-oA-Dpm">
+                                    <rect key="frame" x="1" y="1" width="365" height="483"/>
+                                    <subviews>
+                                        <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sLZ-qB-aXg">
+                                            <rect key="frame" x="0.0" y="0.0" width="256" height="480"/>
+                                            <subviews>
+                                                <imageView horizontalCompressionResistancePriority="1000" verticalCompressionResistancePriority="1000" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                                    <rect key="frame" x="0.0" y="214" width="256" height="256"/>
+                                                    <constraints>
+                                                        <constraint firstAttribute="width" secondItem="oQa-mo-g57" secondAttribute="height" multiplier="1:1" id="XlX-JW-1DV"/>
+                                                    </constraints>
+                                                    <imageCell key="cell" refusesFirstResponder="YES" alignment="left" animates="YES" imageScaling="proportionallyUpOrDown" id="UYP-wE-asd"/>
+                                                    <connections>
+                                                        <outlet property="patternValue" destination="efJ-bw-Yl6" id="ZQQ-ib-ZtD"/>
+                                                    </connections>
+                                                </imageView>
+                                                <box ambiguous="YES" boxType="custom" cornerRadius="4" title="Box" transparent="YES" translatesAutoresizingMaskIntoConstraints="NO" id="leq-te-jO2" userLabel="Controls">
+                                                    <rect key="frame" x="0.0" y="86" width="269" height="120"/>
+                                                    <view key="contentView" ambiguous="YES" id="6vJ-a6-VuK">
+                                                        <rect key="frame" x="1" y="1" width="267" height="118"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <subviews>
+                                                            <textField verticalHuggingPriority="750" fixedFrame="YES" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="aMy-NF-9gR">
+                                                                <rect key="frame" x="52" y="48" width="54" height="22"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="left" title="5" drawsBackground="YES" id="Sgr-8K-uMH">
+                                                                    <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="feM-Vg-Ha0"/>
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                                <connections>
+                                                                    <action selector="detectorRadiusChanged:" target="XfG-lQ-9wD" id="gKv-i8-cPj"/>
+                                                                </connections>
+                                                            </textField>
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="l4m-vg-bpK">
+                                                                <rect key="frame" x="7" y="23" width="39" height="16"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" alignment="right" title="Outer" id="7AO-k1-DRk">
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                            </textField>
+                                                            <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="AN5-dg-408">
+                                                                <rect key="frame" x="52" y="20" width="54" height="22"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="left" title="10" drawsBackground="YES" id="hyg-C0-ERG">
+                                                                    <numberFormatter key="formatter" formatterBehavior="default10_4" usesGroupingSeparator="NO" groupingSize="0" minimumIntegerDigits="0" maximumIntegerDigits="42" id="N42-u8-Yi6"/>
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                                <connections>
+                                                                    <action selector="detectorRadiusChanged:" target="XfG-lQ-9wD" id="toI-Ch-Ox8"/>
+                                                                </connections>
+                                                            </textField>
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" id="5wp-Q9-Mwy">
+                                                                <rect key="frame" x="11" y="51" width="35" height="16"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" alignment="right" title="Inner" id="5ME-pu-Xqe">
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                            </textField>
+                                                            <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="APx-ft-7EN">
+                                                                <rect key="frame" x="29" y="84" width="45" height="18"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                                <buttonCell key="cell" type="check" title="Log" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="osA-bR-xWW">
+                                                                    <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                                                                    <font key="font" metaFont="system"/>
+                                                                </buttonCell>
+                                                                <connections>
+                                                                    <action selector="changeLog:" target="XfG-lQ-9wD" id="Dyk-y8-1jh"/>
+                                                                </connections>
+                                                            </button>
+                                                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="OF5-up-YWX">
+                                                                <rect key="frame" x="150" y="52" width="138" height="24"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                                                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="z8n-nt-XH2">
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <segments>
+                                                                        <segment label="BF" selected="YES"/>
+                                                                        <segment label="ADF" tag="1"/>
+                                                                        <segment label="AF" tag="2"/>
+                                                                    </segments>
+                                                                </segmentedCell>
+                                                                <connections>
+                                                                    <action selector="selectDetectorShape:" target="XfG-lQ-9wD" id="haP-Uk-p6f"/>
+                                                                </connections>
+                                                            </segmentedControl>
+                                                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FvP-LK-bqC">
+                                                                <rect key="frame" x="112" y="82" width="138" height="24"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                                                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="qmr-Mw-sVy">
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <segments>
+                                                                        <segment label="Int" width="44" selected="YES"/>
+                                                                        <segment label="DPC" width="44" tag="1"/>
+                                                                        <segment label="COM" width="43" tag="2"/>
+                                                                    </segments>
+                                                                </segmentedCell>
+                                                                <connections>
+                                                                    <action selector="selectDetectorType:" target="XfG-lQ-9wD" id="J9j-yV-yuH"/>
+                                                                </connections>
+                                                            </segmentedControl>
+                                                            <segmentedControl verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ezS-aJ-Jxe">
+                                                                <rect key="frame" x="166" y="22" width="84" height="24"/>
+                                                                <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                                                                <segmentedCell key="cell" borderStyle="border" alignment="left" style="rounded" trackingMode="selectOne" id="grT-Cc-ea8">
+                                                                    <font key="font" metaFont="system"/>
+                                                                    <segments>
+                                                                        <segment label="x" width="39" selected="YES" tag="1"/>
+                                                                        <segment label="y" width="38"/>
+                                                                    </segments>
+                                                                    <connections>
+                                                                        <action selector="changeLrup_xy:" target="XfG-lQ-9wD" id="Afe-Vf-q7T"/>
+                                                                    </connections>
+                                                                </segmentedCell>
+                                                            </segmentedControl>
+                                                        </subviews>
+                                                    </view>
+                                                    <constraints>
+                                                        <constraint firstAttribute="width" relation="lessThanOrEqual" constant="350" id="Bgv-5u-e6T"/>
+                                                        <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="115" id="cFe-Vx-VtG"/>
+                                                    </constraints>
+                                                </box>
+                                                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3E5-YH-H5V">
+                                                    <rect key="frame" x="13" y="454" width="35" height="16"/>
+                                                    <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="(x, y)" placeholderString="(x, y)" id="Yfi-gJ-0oU">
+                                                        <font key="font" metaFont="system"/>
+                                                        <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                    </textFieldCell>
+                                                </textField>
+                                                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="efJ-bw-Yl6">
+                                                    <rect key="frame" x="13" y="214" width="74" height="16"/>
+                                                    <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Value Label" placeholderString="value" id="Vri-Kc-Zza">
+                                                        <font key="font" metaFont="system"/>
+                                                        <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                    </textFieldCell>
+                                                </textField>
+                                            </subviews>
+                                            <constraints>
+                                                <constraint firstItem="3E5-YH-H5V" firstAttribute="top" secondItem="oQa-mo-g57" secondAttribute="top" constant="3" id="0Bg-d4-aIg"/>
+                                                <constraint firstItem="leq-te-jO2" firstAttribute="top" secondItem="oQa-mo-g57" secondAttribute="bottom" priority="750" id="1qW-C4-j8Z"/>
+                                                <constraint firstItem="leq-te-jO2" firstAttribute="width" secondItem="sLZ-qB-aXg" secondAttribute="width" priority="250" id="2r1-Rd-xDP"/>
+                                                <constraint firstItem="efJ-bw-Yl6" firstAttribute="bottom" secondItem="oQa-mo-g57" secondAttribute="bottom" constant="-5" id="330-fz-Dwy"/>
+                                                <constraint firstAttribute="bottom" relation="greaterThanOrEqual" secondItem="leq-te-jO2" secondAttribute="bottom" id="6cr-g8-h1d"/>
+                                                <constraint firstItem="oQa-mo-g57" firstAttribute="width" secondItem="sLZ-qB-aXg" secondAttribute="width" id="CzK-Nz-BX1"/>
+                                                <constraint firstItem="efJ-bw-Yl6" firstAttribute="leading" secondItem="oQa-mo-g57" secondAttribute="leading" constant="5" id="R94-bf-qHA"/>
+                                                <constraint firstItem="3E5-YH-H5V" firstAttribute="leading" secondItem="oQa-mo-g57" secondAttribute="leading" constant="3" id="Vz1-Nw-XMJ"/>
+                                                <constraint firstItem="oQa-mo-g57" firstAttribute="top" secondItem="sLZ-qB-aXg" secondAttribute="top" constant="5" id="a4p-06-hnl"/>
+                                                <constraint firstAttribute="width" relation="greaterThanOrEqual" priority="750" constant="256" id="rfe-d9-1Yk"/>
+                                            </constraints>
+                                        </view>
+                                    </subviews>
+                                    <constraints>
+                                        <constraint firstItem="sLZ-qB-aXg" firstAttribute="top" secondItem="KBZ-oA-Dpm" secondAttribute="top" constant="3" id="ILU-Rp-8DP"/>
+                                        <constraint firstAttribute="bottom" secondItem="sLZ-qB-aXg" secondAttribute="bottom" id="UMD-kk-nZ2"/>
+                                        <constraint firstItem="sLZ-qB-aXg" firstAttribute="leading" secondItem="KBZ-oA-Dpm" secondAttribute="leading" id="VvN-0T-kmx"/>
+                                        <constraint firstAttribute="trailing" secondItem="sLZ-qB-aXg" secondAttribute="trailing" constant="2" id="a2P-DD-Xac"/>
+                                    </constraints>
+                                </clipView>
+                                <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="2w6-wZ-NSN">
+                                    <rect key="frame" x="1" y="468" width="365" height="16"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                </scroller>
+                                <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="wEs-IC-vZx">
+                                    <rect key="frame" x="350" y="1" width="16" height="483"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                </scroller>
+                            </scrollView>
+                            <scrollView fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" id="LG6-QM-bRM" userLabel="Main">
+                                <rect key="frame" x="377" y="0.0" width="418" height="485"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                <clipView key="contentView" autoresizesSubviews="NO" ambiguous="YES" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                    <rect key="frame" x="1" y="1" width="409" height="485"/>
+                                <clipView key="contentView" autoresizesSubviews="NO" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                    <rect key="frame" x="1" y="1" width="416" height="483"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
-                                        <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
-                                            <rect key="frame" x="0.0" y="0.0" width="394" height="470"/>
+                                        <view translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
+                                            <rect key="frame" x="0.0" y="-2" width="394" height="470"/>
                                             <subviews>
                                                 <imageView hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="WRv-TO-IWj" customClass="ImageViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                                     <rect key="frame" x="0.0" y="0.0" width="394" height="470"/>
@@ -560,38 +630,29 @@
                                     </constraints>
                                     <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                 </clipView>
-                                <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
-                                    <rect key="frame" x="1" y="-15" width="0.0" height="16"/>
+                                <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="YC2-gV-1f1">
+                                    <rect key="frame" x="1" y="468" width="390" height="16"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
-                                <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
-                                    <rect key="frame" x="-15" y="1" width="16" height="0.0"/>
+                                <scroller key="verticalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="m9b-H1-NYG">
+                                    <rect key="frame" x="296" y="1" width="16" height="467"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3E5-YH-H5V">
-                                <rect key="frame" x="25" y="449" width="211" height="17"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="(x, y)" placeholderString="(x, y)" id="Yfi-gJ-0oU">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
                         </subviews>
-                    </view>
+                        <holdingPriorities>
+                            <real value="250"/>
+                            <real value="250"/>
+                        </holdingPriorities>
+                    </splitView>
                     <connections>
                         <outlet property="clipView" destination="uLd-GI-Ws8" id="bEO-D7-WZz"/>
                         <outlet property="detectorShapeSegmented" destination="OF5-up-YWX" id="7hp-Ox-xzk"/>
                         <outlet property="detectorTypeSegmented" destination="FvP-LK-bqC" id="xf6-kj-42q"/>
                         <outlet property="displayLogCheckbox" destination="osA-bR-xWW" id="NPc-Pv-oaD"/>
-                        <outlet property="docHeight" destination="xog-Ze-6Y7" id="Jtn-F7-jxE"/>
-                        <outlet property="docWidth" destination="bRz-Iy-oBT" id="dWi-xp-SAw"/>
-                        <outlet property="imageView" destination="WRv-TO-IWj" id="1wl-m9-PHa"/>
+                        <outlet property="imageView" destination="WRv-TO-IWj" id="fZb-Br-MWN"/>
                         <outlet property="innerAngleTextField" destination="aMy-NF-9gR" id="nUB-v4-Hnr"/>
-                        <outlet property="isDisplayLog" destination="APx-ft-7EN" id="d48-hY-tvP"/>
                         <outlet property="lrud_xySegmented" destination="ezS-aJ-Jxe" id="Ekv-2k-dV1"/>
-                        <outlet property="lrup_xdSegmented" destination="ezS-aJ-Jxe" id="Smm-xb-t4T"/>
                         <outlet property="outerAngleTextField" destination="AN5-dg-408" id="3gI-ac-Vl0"/>
                         <outlet property="patternSelectionLabel" destination="3E5-YH-H5V" id="avF-cU-pgP"/>
                         <outlet property="patternViewer" destination="oQa-mo-g57" id="ech-I8-bGF"/>
@@ -601,9 +662,13 @@
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
-                <customObject id="hOw-MY-DIZ" customClass="ImageViewerController" customModule="_DSTEM_Explorer" customModuleProvider="target"/>
+                <customObject id="hOw-MY-DIZ" customClass="ImageViewerController" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                    <connections>
+                        <outlet property="imageViewer" destination="WRv-TO-IWj" id="Qh0-zY-OG3"/>
+                    </connections>
+                </customObject>
             </objects>
-            <point key="canvasLocation" x="189" y="763.5"/>
+            <point key="canvasLocation" x="95.5" y="850.5"/>
         </scene>
         <!--File Loading...-->
         <scene sceneID="sAe-im-dvj">
@@ -642,7 +707,7 @@
                                     </objectValues>
                                 </comboBoxCell>
                             </comboBox>
-                            <progressIndicator hidden="YES" wantsLayer="YES" canDrawConcurrently="YES" fixedFrame="YES" maxValue="100" style="bar" translatesAutoresizingMaskIntoConstraints="NO" id="cVM-vR-GJj">
+                            <progressIndicator hidden="YES" wantsLayer="YES" fixedFrame="YES" maxValue="100" style="bar" translatesAutoresizingMaskIntoConstraints="NO" id="cVM-vR-GJj">
                                 <rect key="frame" x="20" y="19" width="211" height="20"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                             </progressIndicator>
@@ -723,7 +788,7 @@ Gw
     </scenes>
     <resources>
         <image name="MarqueeSelection" width="1024" height="1024"/>
-        <image name="NSShareTemplate" width="11" height="16"/>
+        <image name="NSShareTemplate" width="15" height="17"/>
         <image name="PointSelection" width="1024" height="1024"/>
         <image name="ZoomIn" width="1024" height="1024"/>
         <image name="ZoomOut" width="1024" height="1024"/>
