@@ -12,7 +12,6 @@ class PatternViewer: NSImageView {
     
     override var isFlipped:Bool {
         return true
-        
     }
 
     var backgroundColor:NSColor
@@ -58,20 +57,6 @@ class PatternViewer: NSImageView {
 
     override func mouseExited(with event: NSEvent) {
         patternValue?.isHidden = true
-    }
-
-    override init(frame frameRect: NSRect) {
-        
-        backgroundColor = NSColor.lightGray
-        detectorView = DetectorView.init()
-
-//        detectorView.isHidden = true
-        super.init(frame: frameRect)
-
-        
-        self.addSubview(detectorView!)
-        
-
     }
     
     private var matrixStorage:Matrix?
