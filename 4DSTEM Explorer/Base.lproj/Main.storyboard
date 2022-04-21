@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -417,15 +418,15 @@
         <scene sceneID="hIz-AP-VOD">
             <objects>
                 <viewController storyboardIdentifier="ViewController" id="XfG-lQ-9wD" customClass="ViewController" customModule="_DSTEM_Explorer" customModuleProvider="target" sceneMemberID="viewController">
-                    <splitView key="view" arrangesAllSubviews="NO" dividerStyle="paneSplitter" vertical="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Xc6-V9-GTY">
+                    <splitView key="view" arrangesAllSubviews="NO" dividerStyle="thin" vertical="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Xc6-V9-GTY">
                         <rect key="frame" x="0.0" y="0.0" width="795" height="485"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                         <subviews>
                             <scrollView fixedFrame="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DY0-PG-jtd" userLabel="Sidebar">
-                                <rect key="frame" x="0.0" y="0.0" width="367" height="485"/>
+                                <rect key="frame" x="0.0" y="0.0" width="371" height="485"/>
                                 <autoresizingMask key="autoresizingMask"/>
                                 <clipView key="contentView" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="KBZ-oA-Dpm">
-                                    <rect key="frame" x="1" y="1" width="365" height="483"/>
+                                    <rect key="frame" x="1" y="1" width="369" height="483"/>
                                     <subviews>
                                         <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sLZ-qB-aXg">
                                             <rect key="frame" x="0.0" y="0.0" width="256" height="480"/>
@@ -552,11 +553,11 @@
                                                         <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="115" id="cFe-Vx-VtG"/>
                                                     </constraints>
                                                 </box>
-                                                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3E5-YH-H5V">
+                                                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3E5-YH-H5V">
                                                     <rect key="frame" x="13" y="454" width="35" height="16"/>
                                                     <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="(x, y)" placeholderString="(x, y)" id="Yfi-gJ-0oU">
                                                         <font key="font" metaFont="system"/>
-                                                        <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                        <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                                         <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                                     </textFieldCell>
                                                 </textField>
@@ -564,7 +565,7 @@
                                                     <rect key="frame" x="13" y="214" width="74" height="16"/>
                                                     <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Value Label" placeholderString="value" id="Vri-Kc-Zza">
                                                         <font key="font" metaFont="system"/>
-                                                        <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                                                        <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                                                         <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                                     </textFieldCell>
                                                 </textField>
@@ -591,19 +592,19 @@
                                     </constraints>
                                 </clipView>
                                 <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="2w6-wZ-NSN">
-                                    <rect key="frame" x="1" y="468" width="365" height="16"/>
+                                    <rect key="frame" x="1" y="468" width="369" height="16"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                                 <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="wEs-IC-vZx">
-                                    <rect key="frame" x="350" y="1" width="16" height="483"/>
+                                    <rect key="frame" x="354" y="1" width="16" height="483"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
                             <scrollView fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" id="LG6-QM-bRM" userLabel="Main">
-                                <rect key="frame" x="377" y="0.0" width="418" height="485"/>
+                                <rect key="frame" x="372" y="0.0" width="423" height="485"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <clipView key="contentView" autoresizesSubviews="NO" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                    <rect key="frame" x="1" y="1" width="416" height="483"/>
+                                    <rect key="frame" x="1" y="1" width="421" height="483"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <view translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
@@ -787,10 +788,10 @@ Gw
         </scene>
     </scenes>
     <resources>
-        <image name="MarqueeSelection" width="1024" height="1024"/>
+        <image name="MarqueeSelection" width="512" height="512"/>
         <image name="NSShareTemplate" width="15" height="17"/>
-        <image name="PointSelection" width="1024" height="1024"/>
-        <image name="ZoomIn" width="1024" height="1024"/>
+        <image name="PointSelection" width="512" height="512"/>
+        <image name="ZoomIn" width="512" height="512"/>
         <image name="ZoomOut" width="1024" height="1024"/>
         <image name="ZoomToFit" width="1024" height="1024"/>
     </resources>
