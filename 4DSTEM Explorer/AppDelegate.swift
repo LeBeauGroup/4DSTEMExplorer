@@ -11,21 +11,25 @@ import Cocoa
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
 
+    var mainWindow: NSWindow {
+        get {
+            if let win = NSApp.mainWindow {
+                return win
+            }
+            self.restoreMainWindow(self)
+            return NSApp.mainWindow!
+        }
+    }
+    var viewController: ViewController {
+        get {
+            self.mainWindow.contentViewController as! ViewController
+        }
+    }
 
     @IBAction func open(_ sender:Any){
-//        NSApp.mainWindow?.makeKeyAndOrderFront(nil)
-        
-        
-        if NSApp.mainWindow == nil{
-            self.restoreMainWindow(self)
-        }
-        
-        
-        let viewController =  NSApp.mainWindow?.contentViewController as! ViewController
-       viewController.openPanel()
-        
+        viewController.openPanel()
     }
-    
+
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Insert code here to initialize your application
     }
@@ -39,18 +43,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func application(_ application: NSApplication, open urls: [URL]) {
-        
-        let viewController =  NSApp.mainWindow?.contentViewController as! ViewController
 //        viewController.openPanel()
         viewController.dataController.filePath = urls[0]
         viewController.displayProbePositionsSelection(urls[0])
     }
-    
-    
-    
+
     func applicationWillUnhide(_ notification: Notification) {
         NSApp.mainWindow?.makeKeyAndOrderFront(nil)
-
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -70,13 +69,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let windows = NSApp.windows
         windows[0].makeKeyAndOrderFront(self)
     }
-    
-    
-
-    
-    
-
-
 
 }
 
