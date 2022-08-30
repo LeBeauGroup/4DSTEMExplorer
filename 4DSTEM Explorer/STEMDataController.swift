@@ -339,58 +339,50 @@ class STEMDataController: NSObject {
         }
     }
 
-    
-
-    
-
     func averagePattern(rect:NSRect)->Matrix{
         
         let patternPixels = self.patternPixels
         
-        let adder = [Float].init(repeating: 0.0, count: patternPixels)
-        let adderPointer =  UnsafeMutablePointer(mutating: adder)
+        var adder = [Float].init(repeating: 0.0, count: patternPixels)
+        //let adderPointer =  UnsafeMutablePointer(mutating: adder)
         
-        let starti = Int(rect.origin.y)
-        let startj = Int(rect.origin.x)
+        var starti = Int(rect.origin.y)
+        var startj = Int(rect.origin.x)
+        var endi = starti + Int(rect.size.height)
+        var endj = startj + Int(rect.size.width)
         
-        let endi = starti + Int(rect.size.height)
-        let endj = startj + Int(rect.size.width)
-        
-        var strideDirectioni = 1
-        var strideDirectionj = 1
-        
-        if starti > endi{
-            strideDirectioni = -1
+        if starti > endi {
+            swap(&starti, &endi)
         }
 
-        if startj > endj{
-            strideDirectionj = -1
+        if startj > endj {
+            swap(&startj, &endj)
         }
         
+        starti = max(starti, 0)
+        startj = max(startj, 0)
+        endi = min(endi, self.imageSize.height);
+        endj = min(endj, self.imageSize.width);
         
         var patternCount = 0
         
-        for i in stride(from: starti, through: endi, by: strideDirectioni){
-            
-            for j in stride(from: startj, through: endj, by: strideDirectionj){
-                
-                let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
-                
-                vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, UInt(patternPixels))
-                
-                patternCount += 1
+        adder.withUnsafeMutableBufferPointer { adderPointer in
+            let adderPointer = adderPointer.baseAddress!
+
+            for i in starti...endi {
+                for j in startj...endj {
+                    let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
+                    vDSP_vadd(adderPointer, 1, nextPatternPointer, 1, adderPointer, 1, UInt(patternPixels))
+                    patternCount += 1
                 }
+            }
+
+            // +1 may be needed for correct average to be inclusive
+            var avgScaleFactor = 1.0/Float(patternCount)
+            vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
         }
         
-        
-        // +1 may be needed for correct average to be inclusive
-        var avgScaleFactor = 1.0/Float(patternCount)
-        
-        vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
-        
         return Matrix.init(array: adder, patternSize.height, patternSize.width)
-
-        
     }
     
     func dpc(_ detector:Detector,strideLength:Int = 1, lrud:Int = 0)->Matrix{
