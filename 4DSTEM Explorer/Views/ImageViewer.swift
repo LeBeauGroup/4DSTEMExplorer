@@ -23,12 +23,16 @@ enum SelectMode {
 
 class ImageViewer: NSImageView {
 
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+
+        self.imageScaling = .scaleNone
+    }
+
     override var isFlipped:Bool {
         return true
         
     }
-    
-    
 //    lazy var popover: NSPopover! = {
 //        let popover = NSPopover()
 ////        popover.appearance = NSAppearance.
@@ -36,11 +40,8 @@ class ImageViewer: NSImageView {
 //        popover.behavior = .transient
 //        return popover
 //    }()
-    
-    
-    
     weak var delegate:ImageViewerDelegate?
-    
+
     var matrixStorage:Matrix?
     var selectMode:SelectMode = .point
     var scaledRect:NSRect?{
@@ -62,7 +63,6 @@ class ImageViewer: NSImageView {
     private var isSelectionMoving:Bool = false
     private var isSelectionNew:Bool = true
     var selectionIsHidden:Bool = false
-
 
     let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
@@ -310,7 +310,6 @@ class ImageViewer: NSImageView {
             case .marquee:
                 
                 var newRect = selectionRect!
-                var newSize = selectionRect?.size
                 
                 if isSelectionMoving{
                 
@@ -417,39 +416,23 @@ class ImageViewer: NSImageView {
     
     
     override func mouseUp(with event: NSEvent) {
-    
         if selectionIsHidden {
             return
         }
-        
-        let testPoint = (self.convert(event.locationInWindow, from:nil))
-        
-        
-        if selectionRect != nil{
-            
+        if selectionRect != nil {
             isSelectionNew = false
-
-            
-//            if testPoint.distanceTo(selectionRect!.origin) < 1.5{
-//                selectMode = .point
-//            }
-            
-
         }
-        
-        
         self.needsDisplay = true
-
     }
     
     override func draw(_ dirtyRect: NSRect) {
-
-
         let context = NSGraphicsContext.current?.cgContext
 
         NSColor.darkGray.set()
         NSBezierPath(rect: dirtyRect).fill()
-        
+
+        // draw image with no interpolation (which works poorly for upsampling very pixelated data)
+        context?.interpolationQuality = .none
         super.draw(dirtyRect)
         
         if selectionIsHidden {
@@ -458,48 +441,24 @@ class ImageViewer: NSImageView {
 
         switch selectMode {
         case .marquee:
-            
-            if selectionRect != nil{
-                
+            if let rect = selectionRect {
                 selectionFillColor.set()
-                
-                let pathSelectionRect = NSBezierPath(rect: selectionRect!)
-            
+                let pathSelectionRect = NSBezierPath(rect: rect)
                 pathSelectionRect.fill()
+
                 NSColor.red.set()
                 pathSelectionRect.lineWidth = 0.5
                 pathSelectionRect.stroke()
-                
             }
         case .point:
-            if selectionRect != nil{
-
             drawPointSelection(point: selectionRect?.origin, context: context!)
-            }
         case .none:
             return
-
         }
-        
- 
-    
     }
     
-    func scaleFactor()->CGFloat{
-        
-//        let imageView = (self.superview as! NSImageView)
-        let imageViewSize = self.frame.size
-        
-        let scaleFactor:CGFloat
-        
-        if let imageSize = self.image?.size{
-            scaleFactor   = (imageSize.width)/imageViewSize.width
-        }else{
-            scaleFactor = 1.0
-        }
-        
-        return scaleFactor
-        
+    func scaleFactor() -> CGFloat {
+        return 1.0
     }
     
     func changeSelectionRect(){
@@ -514,15 +473,8 @@ class ImageViewer: NSImageView {
 
         let redColor = NSColor.red
         
-        if point != nil{
-            var crossCenter:NSPoint = point!
-            
-            crossCenter.x -= CGFloat(strokeWidth/2.0)-1
-            crossCenter.y -= CGFloat(strokeWidth/2.0)-1
-            
-            for i in [(-1.0,0.0), (1.0,0.0), (0.0,-1.0), (0.0,1.0)]{
-            
-                
+        if let crossCenter = point {
+            for i in [(-1.0,0.0), (1.0,0.0), (0.0,-1.0), (0.0,1.0)] {
                 let outerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*longOffset, y: crossCenter.y+CGFloat(i.1)*longOffset)
                 let innerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*shortOffset, y: crossCenter.y+CGFloat(i.1)*shortOffset)
                 
@@ -535,7 +487,5 @@ class ImageViewer: NSImageView {
 
             } // end for
         } // end if
-        
     }
-    
 }

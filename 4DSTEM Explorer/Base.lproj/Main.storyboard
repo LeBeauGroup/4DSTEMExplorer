@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21507"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -220,11 +220,7 @@
                                                 <action selector="zoomToFit:" target="Ady-hI-5gd" id="qvp-zf-Gkg"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Actual size" keyEquivalent="'" id="2bc-A9-7RP">
-                                            <connections>
-                                                <action selector="zoomToActual:" target="Ady-hI-5gd" id="mYt-zl-zjE"/>
-                                            </connections>
-                                        </menuItem>
+                                        <menuItem title="Actual size" keyEquivalent="'" id="2bc-A9-7RP"/>
                                     </items>
                                 </menu>
                             </menuItem>
@@ -297,38 +293,19 @@
                             <allowedToolbarItems>
                                 <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="hNR-kT-Ut2"/>
                                 <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="PnO-OF-hoM"/>
-                                <toolbarItem implicitItemIdentifier="1E13F056-A791-4648-B17F-8974F18220E4" label="Scale" paletteLabel="Scale" tag="1" id="5hy-xn-GKI">
-                                    <nil key="toolTip"/>
-                                    <size key="minSize" width="55" height="22"/>
-                                    <size key="maxSize" width="70" height="27"/>
-                                    <textField key="view" verticalHuggingPriority="750" tag="1" id="wgz-pS-AtU">
-                                        <rect key="frame" x="0.0" y="14" width="55" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" refusesFirstResponder="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" alignment="center" bezelStyle="round" id="Kgu-9C-A9A">
-                                            <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="7Tw-dT-Ezf">
-                                                <integer key="multiplier" value="100"/>
-                                            </numberFormatter>
-                                            <font key="font" metaFont="smallSystem"/>
-                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                        </textFieldCell>
-                                        <connections>
-                                            <action selector="zoomInOut:" target="Oky-zY-oP4" id="v8V-vh-fD7"/>
-                                        </connections>
-                                    </textField>
-                                </toolbarItem>
                                 <toolbarItem implicitItemIdentifier="20B98623-F45E-4539-82AF-EE031FFABBF0" label="Zoom" paletteLabel="Zoom" id="0Sf-c6-hli">
                                     <nil key="toolTip"/>
                                     <size key="minSize" width="67" height="24"/>
-                                    <size key="maxSize" width="75" height="27"/>
+                                    <size key="maxSize" width="178" height="28"/>
                                     <segmentedControl key="view" verticalHuggingPriority="750" id="KPk-J2-Smd">
-                                        <rect key="frame" x="0.0" y="14" width="75" height="27"/>
+                                        <rect key="frame" x="0.0" y="14" width="101" height="24"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <segmentedCell key="cell" borderStyle="border" alignment="left" style="separated" trackingMode="momentary" id="c2m-pD-kNM">
                                             <font key="font" metaFont="system"/>
                                             <segments>
-                                                <segment image="ZoomOut" width="32"/>
-                                                <segment image="ZoomIn" width="32" tag="1"/>
+                                                <segment image="ZoomOut" width="31"/>
+                                                <segment image="ZoomIn" width="31" tag="1"/>
+                                                <segment image="ZoomToFit" width="31" tag="2"/>
                                             </segments>
                                         </segmentedCell>
                                         <connections>
@@ -354,22 +331,6 @@
                                             <action selector="changeSelectionMode:" target="B8D-0N-5wS" id="36l-Yn-h4M"/>
                                         </connections>
                                     </segmentedControl>
-                                </toolbarItem>
-                                <toolbarItem implicitItemIdentifier="B664D938-6DB9-4D27-A974-25AE3C87F372" label="Zoom to Fit" paletteLabel="Zoom to Fit" image="ZoomToFit" id="Obk-xu-yuo">
-                                    <nil key="toolTip"/>
-                                    <size key="minSize" width="32" height="27"/>
-                                    <size key="maxSize" width="45" height="32"/>
-                                    <button key="view" verticalHuggingPriority="750" id="Bpt-Qn-tCK">
-                                        <rect key="frame" x="13" y="14" width="43" height="32"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                        <buttonCell key="cell" type="push" bezelStyle="rounded" image="ZoomToFit" imagePosition="overlaps" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="Hn3-Zh-av4">
-                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                            <font key="font" metaFont="system"/>
-                                        </buttonCell>
-                                    </button>
-                                    <connections>
-                                        <action selector="zoomToFit:" target="Oky-zY-oP4" id="tkk-m0-kqV"/>
-                                    </connections>
                                 </toolbarItem>
                                 <toolbarItem implicitItemIdentifier="3A225144-FF78-4BA8-9204-493A72297E8C" label="Export" paletteLabel="Export" tag="-1" image="NSShareTemplate" id="cuw-ND-hhW">
                                     <nil key="toolTip"/>
@@ -400,12 +361,10 @@
                                 <toolbarItem reference="PnO-OF-hoM"/>
                                 <toolbarItem reference="w8H-Sz-fPd"/>
                                 <toolbarItem reference="0Sf-c6-hli"/>
-                                <toolbarItem reference="5hy-xn-GKI"/>
                             </defaultToolbarItems>
                         </toolbar>
                     </window>
                     <connections>
-                        <outlet property="scaleField" destination="wgz-pS-AtU" id="GGz-ur-RdD"/>
                         <outlet property="window" destination="IQv-IB-iLA" id="00i-Ce-527"/>
                         <segue destination="XfG-lQ-9wD" kind="relationship" relationship="window.shadowedContentViewController" id="cq2-FE-JQM"/>
                     </connections>
@@ -600,33 +559,32 @@
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>
-                            <scrollView fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="20" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" id="LG6-QM-bRM" userLabel="Main">
+                            <scrollView fixedFrame="YES" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" allowsMagnification="YES" maxMagnification="400" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" id="LG6-QM-bRM" userLabel="Main">
                                 <rect key="frame" x="372" y="0.0" width="423" height="485"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                <clipView key="contentView" autoresizesSubviews="NO" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
+                                <clipView key="contentView" autoresizesSubviews="NO" horizontalCompressionResistancePriority="100" verticalCompressionResistancePriority="100" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="uLd-GI-Ws8" customClass="CenteringClipView" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                     <rect key="frame" x="1" y="1" width="421" height="483"/>
-                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
-                                        <view translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
-                                            <rect key="frame" x="0.0" y="-2" width="394" height="470"/>
+                                        <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="mpL-NG-57o">
+                                            <rect key="frame" x="0.0" y="13" width="100" height="470"/>
                                             <subviews>
                                                 <imageView hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="WRv-TO-IWj" customClass="ImageViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
-                                                    <rect key="frame" x="0.0" y="0.0" width="394" height="470"/>
-                                                    <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="axesIndependently" id="yMq-6h-O8J"/>
+                                                    <rect key="frame" x="0.0" y="0.0" width="100" height="100"/>
+                                                    <imageCell key="cell" refusesFirstResponder="YES" alignment="left" id="yMq-6h-O8J"/>
                                                 </imageView>
                                             </subviews>
                                             <constraints>
-                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="centerY" secondItem="mpL-NG-57o" secondAttribute="centerY" id="2Iu-Qi-Fre"/>
-                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="height" secondItem="mpL-NG-57o" secondAttribute="height" id="PYf-7a-WOw"/>
-                                                <constraint firstAttribute="width" constant="394" id="bRz-Iy-oBT"/>
-                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="centerX" secondItem="mpL-NG-57o" secondAttribute="centerX" id="geg-cv-PhY"/>
-                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="width" secondItem="mpL-NG-57o" secondAttribute="width" id="l58-J2-tSP"/>
-                                                <constraint firstAttribute="height" constant="470" id="xog-Ze-6Y7"/>
+                                                <constraint firstAttribute="trailing" secondItem="WRv-TO-IWj" secondAttribute="trailing" id="9Ud-S9-n3Z"/>
+                                                <constraint firstAttribute="bottom" secondItem="WRv-TO-IWj" secondAttribute="bottom" id="Uie-Xv-VwM"/>
+                                                <constraint firstAttribute="width" constant="100" id="bRz-Iy-oBT"/>
+                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="leading" secondItem="mpL-NG-57o" secondAttribute="leading" placeholder="YES" id="spQ-jR-igJ"/>
+                                                <constraint firstItem="WRv-TO-IWj" firstAttribute="top" secondItem="mpL-NG-57o" secondAttribute="top" placeholder="YES" id="v4K-Hg-BQo"/>
+                                                <constraint firstAttribute="height" constant="100" id="xog-Ze-6Y7"/>
                                             </constraints>
                                         </view>
                                     </subviews>
                                     <constraints>
-                                        <constraint firstItem="mpL-NG-57o" firstAttribute="top" secondItem="uLd-GI-Ws8" secondAttribute="top" constant="15" id="BIx-eb-VNW"/>
+                                        <constraint firstItem="mpL-NG-57o" firstAttribute="top" secondItem="uLd-GI-Ws8" secondAttribute="top" id="BIx-eb-VNW"/>
                                         <constraint firstItem="mpL-NG-57o" firstAttribute="leading" secondItem="uLd-GI-Ws8" secondAttribute="leading" id="ehR-t7-eUE"/>
                                     </constraints>
                                     <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
@@ -657,7 +615,6 @@
                         <outlet property="outerAngleTextField" destination="AN5-dg-408" id="3gI-ac-Vl0"/>
                         <outlet property="patternSelectionLabel" destination="3E5-YH-H5V" id="avF-cU-pgP"/>
                         <outlet property="patternViewer" destination="oQa-mo-g57" id="ech-I8-bGF"/>
-                        <outlet property="scrollView" destination="LG6-QM-bRM" id="HLg-yK-2PH"/>
                         <outlet property="viewHeightConstraint" destination="xog-Ze-6Y7" id="FYS-7c-0Tf"/>
                         <outlet property="viewWidthConstraint" destination="bRz-Iy-oBT" id="1TS-nZ-31Y"/>
                     </connections>
@@ -789,7 +746,7 @@ Gw
     </scenes>
     <resources>
         <image name="MarqueeSelection" width="512" height="512"/>
-        <image name="NSShareTemplate" width="15" height="17"/>
+        <image name="NSShareTemplate" width="19" height="22"/>
         <image name="PointSelection" width="512" height="512"/>
         <image name="ZoomIn" width="512" height="512"/>
         <image name="ZoomOut" width="1024" height="1024"/>

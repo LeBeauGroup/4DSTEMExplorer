@@ -26,7 +26,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBOutlet weak var viewHeightConstraint: NSLayoutConstraint!
     @IBOutlet weak var viewWidthConstraint: NSLayoutConstraint!
     
-    @IBOutlet weak var scrollView: NSScrollView!
+    //@IBOutlet weak var scrollView: NSScrollView!
     @IBOutlet weak var clipView: CenteringClipView!
     @IBOutlet weak var displayLogCheckbox: NSButtonCell!
 
@@ -35,30 +35,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
     var selectedDetector:Detector?
     
-    let zoomTable = [0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.75, 1.00, 1.50, 2.00, 3.00, 4.00, 6.00, 8.00, 10.00, 15.00, 20.00, 30.00 ];
-    
+    //let zoomTable = [0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.75, 1.00, 1.50, 2.00, 3.00, 4.00, 6.00, 8.00, 10.00, 15.00, 20.00, 30.00 ];
     
     @IBOutlet weak var patternSelectionLabel:NSTextField?
-
-    var zoomFactor:CGFloat = 1.0 {
-        
-        didSet {
-            
-            guard imageView.image != nil else {
-                
-                return
-                
-            }
-            
-            scrollView.magnification = zoomFactor
-            
-            let winController = self.view.window?.windowController as! WindowController
-            winController.updateScale(zoomFactor)
-            
-            
-        }
-        
-    }
 
     override func viewDidLoad() {
         
@@ -68,20 +47,14 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         selectDetectorType(0)
         
-        //patternViewer.imageScaling = NSImageScaling.scaleProportionallyUpOrDown
-        //patternViewer.bounds = NSRect(x: 0, y: 0, width: 256, height: 256)
-        
         let nc = NotificationCenter.default
         
 //        nc.addObserver(self, selector: #selector(didFinishLoadingData(note:)), name: Notification.Name("finishedLoadingData"), object: nil)
         
         nc.addObserver(self, selector: #selector(detectorIsMoving(note:)), name: Notification.Name("detectorIsMoving"), object: nil)
         nc.addObserver(self, selector: #selector(detectorFinishedMoving(note:)), name: Notification.Name("detectorFinishedMoving"), object: nil)
-        
-        nc.addObserver(self, selector: #selector(self.pinchZoom(note:)), name: NSScrollView.didEndLiveMagnifyNotification, object: scrollView)
 
-        
-                
+        //nc.addObserver(self, selector: #selector(self.pinchZoom(note:)), name: NSScrollView.didEndLiveMagnifyNotification, object: scrollView)
     }
     
     @IBAction func open(_sender: Any){
@@ -307,17 +280,15 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         patternSelectionLabel?.stringValue = labelString
 
-        if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
+        if(displayLogCheckbox.state == .on){
             avgMatrix = avgMatrix.log()
             
         }
-        
+
         patternViewer.matrix = avgMatrix
 //        patternViewer.matrix = patternViewer.detectorView!.detector.detectorMask()
 
 //        patternViewer.needsDisplay = true
-        
-        
     }
     
     // Input tuple for (i,j)
@@ -330,12 +301,11 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         patternSelectionLabel?.stringValue = "(\(j), \(i))"
         
         if patternMatrix != nil{
-            if(displayLogCheckbox.state == NSButtonCell.StateValue.on){
+            if(displayLogCheckbox.state == .on){
                     patternMatrix = patternMatrix!.log()
             }
             
             patternViewer.matrix = patternMatrix!
-            
         }
     }
     
@@ -411,7 +381,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
     }
     
-    @IBAction func selectDetectorShape(_ sender:Any){
+    @IBAction func selectDetectorShape(_ sender:Any) {
     
         var selectedTag:Int
         
@@ -424,43 +394,41 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
             selectedTag = segControl.selectedSegment
             
-        }
-        else{
+        } else {
             print("detector not sent by segmented control")
             return
         }
-        
-            
-            let newShape:DetectorShape
-            
-            switch selectedTag{
-            case 0:
-                newShape = DetectorShape.bf
-                innerAngleTextField.isEnabled = false
-                outerAngleTextField.isEnabled = true
-            case 1:
-                newShape = DetectorShape.adf
-                innerAngleTextField.isEnabled = true
-                outerAngleTextField.isEnabled = false
-            case 2:
-                newShape = DetectorShape.af
-                innerAngleTextField.isEnabled = true
-                outerAngleTextField.isEnabled = true
-            default:
-                newShape = DetectorShape.bf
-                innerAngleTextField.isEnabled = false
-                outerAngleTextField.isEnabled = true
-            }
-            
-            patternViewer.detectorView?.radii = DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer:CGFloat(outerAngleTextField.floatValue))
-            
-            patternViewer.detectorView?.detectorShape = newShape
-            patternViewer.detectorView?.needsDisplay = true
 
-            selectedDetector = patternViewer.detectorView!.detector
-            self.detectImage(stride: 1)
-            
+        let newShape:DetectorShape
+        
+        switch selectedTag{
+        case 0:
+            newShape = DetectorShape.bf
+            innerAngleTextField.isEnabled = false
+            outerAngleTextField.isEnabled = true
+        case 1:
+            newShape = DetectorShape.adf
+            innerAngleTextField.isEnabled = true
+            outerAngleTextField.isEnabled = false
+        case 2:
+            newShape = DetectorShape.af
+            innerAngleTextField.isEnabled = true
+            outerAngleTextField.isEnabled = true
+        default:
+            newShape = DetectorShape.bf
+            innerAngleTextField.isEnabled = false
+            outerAngleTextField.isEnabled = true
         }
+
+        patternViewer.detectorView?.radii = DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer:CGFloat(outerAngleTextField.floatValue))
+
+        patternViewer.detectorView?.detectorShape = newShape
+        patternViewer.detectorView?.needsDisplay = true
+
+        selectedDetector = patternViewer.detectorView!.detector
+        self.detectImage(stride: 1)
+    }
+
     func openPanel(){
     
         let openPanel = NSOpenPanel()
@@ -499,11 +467,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
             patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)),size:size)
         }
-        
-    
-        patternViewer.detectorView?.isHidden = false
-        
 
+        patternViewer.detectorView?.isHidden = false
         
         imageView.isHidden = false
         imageView.selectionRect = nil
@@ -513,18 +478,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         self.averagePatternInRect(patternRect)
         
         self.detectImage()
-        
+        //imageView.setFrameSize(imageView.image!.size)
 
-    
-
-        imageView.setFrameSize(imageView.image!.size)
-        
-        viewHeightConstraint.constant = imageView.image!.size.height //* zoomFactor
-        viewWidthConstraint.constant = imageView.image!.size.width //* zoomFactor
-        
-//        zoomToActual(nil)
-        zoomToFit(nil)
-
+        viewHeightConstraint.constant = imageView.image!.size.height
+        viewWidthConstraint.constant = imageView.image!.size.width
+        self.clipView.documentView!.setFrameSize(imageView.image!.size)
+        self.clipView.zoomToFit(shrink: true)
     }
     
     @IBAction func displayProbePositionsSelection(_ sender: Any){
@@ -665,7 +624,8 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         // Update the view, if already loaded.
         }
     }
-    
+
+    /*
     func nearestZoom() -> Int{
         
         var minIndex = 0
@@ -691,115 +651,33 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         
     }
+     */
     
     @IBAction func zoomIn(_ sender: NSMenuItem?) {
-        
-        let newZoomIndex = nearestZoom()+1;
-        
-        if newZoomIndex <= zoomTable.count - 1{
-            zoomFactor = CGFloat(zoomTable[newZoomIndex])
-        }
-        
-        
+        self.clipView.zoomIn(grow: false)
+    }
+
+    @IBAction func zoomOut(_ sender: NSMenuItem?) {
+        self.clipView.zoomOut(shrink: false)
+    }
+
+    @IBAction func zoomToFit(_ sender: NSMenuItem?) {
+        self.clipView.zoomToFit(shrink: true)
     }
     
     @objc func pinchZoom(note:Notification){
-       
-        zoomFactor = scrollView.magnification
-
+        //zoomFactor = scrollView.magnification
     }
     
     @IBAction func zoomInOut(_ sender: Any) {
-        
-        
-        if sender is NSSegmentedControl{
-            
-            let zoomButton = sender as! NSSegmentedControl
-            
-            if zoomButton.selectedSegment == 0{
-                self.zoomOut(nil)
-            }else if zoomButton.selectedSegment == 1{
-                self.zoomIn(nil)
-            }
-        } else if sender is NSTextField{
-            
-            let scaleField = sender as! NSTextField
-            
-            zoomFactor = CGFloat(scaleField.floatValue)
+        guard let control = sender as? NSSegmentedControl else { return }
+        switch control.selectedSegment {
+        case 0: self.clipView.zoomOut(shrink: false)
+        case 1: self.clipView.zoomIn(grow: false)
+        case 2: self.clipView.zoomToFit(shrink: true)
+        default: return
         }
-        
-
+        //guard case true = self.clipView.window?.isKeyWindow else { return }
     }
-
-    
-    @IBAction func zoomOut(_ sender: NSMenuItem?) {
-        
-        
-        let newZoomIndex = nearestZoom()-1;
-        
-        if newZoomIndex >= 0{
-            zoomFactor = CGFloat(zoomTable[newZoomIndex])
-        }
-        
-
-        
-    }
-    
-    @IBAction func zoomToActual(_ sender: NSMenuItem?) {
-        
-        zoomFactor = 1.0
-        
-    }
-    
-    @IBAction func zoomToFit(_ sender: NSMenuItem?) {
-        
-        guard imageView!.image != nil else {
-            
-            return
-            
-        }
-        
-//        let imSize = imageView!.image!.size
-//
-//        var clipSize = clipView.bounds.size
-//
-//
-//        guard imSize.width > 0 && imSize.height > 0 && clipSize.width > 0 && clipSize.height > 0 else {
-//
-//            return
-//
-//        }
-//
-//        // 20 pixel gutter
-//
-//        let imageMargin:CGFloat = 40
-//
-//        clipSize.width -= imageMargin
-//        clipSize.height -= imageMargin
-//
-//        let clipAspectRatio = clipSize.width / clipSize.height
-//        let imAspectRatio = imSize.width / imSize.height
-//
-//        if clipAspectRatio > imAspectRatio {
-//
-//            zoomFactor = clipSize.height / imSize.height
-//
-//        } else {
-//
-//            zoomFactor = clipSize.width / imSize.width
-//
-//        }
-        
-        
-        scrollView.magnify(toFit: imageView.frame)
-        
-        zoomFactor = scrollView.magnification
-        
-    }
-    
-    
-
-
-
 }
 

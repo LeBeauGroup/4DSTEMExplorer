@@ -102,19 +102,14 @@ class DetectorView: NSView {
         // rough test
         
         var detectorRect:NSRect
-        
-        
-        
+
         switch detectorShape {
         case DetectorShape.adf:
             detectorRect = apertureRect("inner")
         default:
             detectorRect = apertureRect("outer")
-
         }
-        
-      
-        
+
         itemHit = NSPointInRect(point, detectorRect)
 
         let radius = detectorRect.width/2.0
@@ -141,44 +136,14 @@ class DetectorView: NSView {
     
     
     func isPointInControl(_ point:NSPoint)->Bool{
-        
-        var itemHit = false
-        
-        // rough test
-        
         if detectorShape == DetectorShape.bf{
-            if NSPointInRect(point, controlRect("outer")){
-                return true
-            }
+            return NSPointInRect(point, controlRect("outer"));
         } else if detectorShape == DetectorShape.af{
-            if NSPointInRect(point, controlRect("outer")) || NSPointInRect(point, controlRect("inner")){
-                return true
-            }
+            return NSPointInRect(point, controlRect("outer")) || NSPointInRect(point, controlRect("inner"));
         } else if detectorShape == DetectorShape.adf{
-            if  NSPointInRect(point, controlRect("inner")){
-                return true
-            }
+            return NSPointInRect(point, controlRect("inner"));
         }
-
-        
-        
-        //fine tuning
-//        if itemHit{
-//
-//            let xdist2 = (point.x-center.x)*(point.x-center.x)
-//            let ydist2 = (point.y-center.y)*(point.y-center.y)
-//
-//            let dist2 = xdist2+ydist2
-//
-//            if dist2 >= scaledRadius()*scaledRadius(){
-//                itemHit = false
-//            }
-//
-//
-//        }
-        
-        return itemHit
-        
+        return false;
     }
     
     override func keyDown(with event: NSEvent) {
@@ -363,25 +328,22 @@ class DetectorView: NSView {
                 drawControls(context!)
         
         }
-        
-        
     }
 
     func controlRect(_ ioAngle:String = "outer") -> NSRect {
-        
         let radius = scaledRadius(ioAngle)
+        let sign = radius / radius.magnitude;
         var controlOrigin = centerFrameCoords
-        
 
         switch ioAngle {
         case "inner":
-            controlOrigin.y += -radius  - controlRadius
+            controlOrigin.y += -radius + strokeSize - sign*strokeSize - controlRadius
             controlOrigin.x -= (controlRadius - strokeSize/2)
         default:
-            controlOrigin.x += (radius+strokeSize - controlRadius)
+            controlOrigin.x += (radius + strokeSize + sign*strokeSize - controlRadius)
             controlOrigin.y -= (controlRadius - strokeSize/2)
         }
-        
+
         let rect = NSRect(origin: controlOrigin, size: NSSize(width: controlRadius*2, height: controlRadius*2))
         
         return rect
@@ -389,27 +351,22 @@ class DetectorView: NSView {
 
     
     func apertureRect(_ ioAngle:String = "outer") -> NSRect {
-        
-        let radius:CGFloat = scaledRadius(ioAngle)
+        let radius:CGFloat = abs(scaledRadius(ioAngle))
         let rectWidth = 2*(radius) + 2*strokeSize
         
         let rect = NSRect(origin: apertureOrigin(ioAngle), size: NSSize(width: rectWidth, height: rectWidth))
         
         return rect
-
     }
-    
-    func apertureOrigin(_ ioAngle:String = "outer") -> NSPoint {
-        
-        let radius:CGFloat = scaledRadius(ioAngle)
 
-        
+    func apertureOrigin(_ ioAngle:String = "outer") -> NSPoint {
+        let radius:CGFloat = abs(scaledRadius(ioAngle))
+
         let apOrigin = NSPoint(x:centerFrameCoords.x-radius-strokeSize*scaleFactor(), y:centerFrameCoords.y-radius-strokeSize*scaleFactor())
         
         return apOrigin
-        
     }
-    
+
     func scaledRadius(_ ioAngle:String = "outer") -> CGFloat{
         
         let scaleFactor = self.scaleFactor()
@@ -478,14 +435,8 @@ class DetectorView: NSView {
     }
     
     func drawBf(_ context:CGContext){
-        
-        
         context.addEllipse(in: apertureRect())
         context.drawPath(using: .eoFillStroke)
-        
-
-
-        
     }
     
     func drawAf(_ context:CGContext){

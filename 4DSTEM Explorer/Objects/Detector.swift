@@ -53,29 +53,25 @@ class Detector: NSObject {
     }
     
     func detectorMask() -> Matrix {
-        
         let apFact = ApertureFactory(size: size)
-        
         let mask:Matrix
-        
-        var detectorArray = [Matrix].init()
-        
+
+        // fix negative mask radius
+        let outer = abs(Float(radii!.outer));
+        let inner = abs(Float(radii!.inner));
+
         switch shape {
         case DetectorShape.bf:
-          
-            mask =   apFact.bf(radius: Float(radii!.outer), center: center)
-//            detectorArray.append(bfMatrix)
-            case DetectorShape.adf:
-            mask = apFact.adf(inner: Float(radii!.inner), center: center)
+            mask = apFact.bf(radius: outer, center: center)
+        case DetectorShape.adf:
+            mask = apFact.adf(inner: inner, center: center)
         case DetectorShape.af:
-            mask = apFact.af(inner: Float(radii!.inner), outer: Float(radii!.outer), center: center)
+            // fix swapped inner and outer mask
+            mask = apFact.af(inner: min(inner, outer), outer: max(inner, outer), center: center)
         default:
             mask = Matrix.init(empadSize.height-2, empadSize.width)
 //            detectorArray.append(onesMatrix)
         }
-        
         return mask
-        
     }
-    
 }

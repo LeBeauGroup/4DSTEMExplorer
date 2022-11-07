@@ -615,14 +615,10 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         return bitmapRep
     }
     
-    func uInt8ImageRep()->NSBitmapImageRep?{
+    func uInt8ImageRep()->NSBitmapImageRep? {
         
-        var out = [UInt8].init()
-        if self.count > 0 {
-            let bounds = try! self.quantiles([0.02, 0.98])
-            
-            out = [UInt8].init(repeating: 0, count: real.count)
-        
+        var out = [UInt8].init(repeating: 0, count: real.count)
+        if let bounds = try? self.quantiles([0.02, 0.98]) {
             if bounds[0] != bounds[1] {
                 for (i, element) in real.enumerated() {
                     let mag = (element-bounds[0])/(bounds[1]-bounds[0])
