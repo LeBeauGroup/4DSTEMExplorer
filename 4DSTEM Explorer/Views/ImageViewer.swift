@@ -42,7 +42,6 @@ class ImageViewer: NSImageView {
 //    }()
     weak var delegate:ImageViewerDelegate?
 
-    var matrixStorage:Matrix?
     var selectMode:SelectMode = .point
     var scaledRect:NSRect?{
         get{
@@ -56,6 +55,7 @@ class ImageViewer: NSImageView {
             return scaledRect
         }
     }
+    var matrix: Matrix?
     var maxDisplay:Float?
     var minDisplay:Float?
     var selectionRect:NSRect?
@@ -66,6 +66,7 @@ class ImageViewer: NSImageView {
 
     let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
+    /*
     var matrix:Matrix{
         get{
             return matrixStorage!
@@ -79,13 +80,12 @@ class ImageViewer: NSImageView {
             
             if imageRep != nil{
                 newImage.addRepresentation(imageRep!)
-                self.image = newImage//newMatrix.imageRepresentation(part: "real", format: n, nil, nil)
+                self.image = newImage
                 matrixStorage = newMatrix
             }
         }
-        
-        
-    }    
+    }
+    */
     
     func isPointInSelectionRect(_ point:NSPoint)->Bool{
         
@@ -214,27 +214,30 @@ class ImageViewer: NSImageView {
         
         var origin = point
         
-        if origin.x < 0{
+        guard let imageSize = self.image?.size else { return }
+        guard var selRect = self.selectionRect else { return }
+        
+        if origin.x < 0 {
             origin.x = 0
-        }else if origin.x+(selectionRect?.width)! > CGFloat(matrix.columns-1){
-            origin.x = CGFloat(matrix.columns-1) - (selectionRect?.width)!
+        } else if origin.x + selRect.width > imageSize.width - 1 {
+            origin.x = imageSize.width - 1 - selRect.width
             if selectMode == .marquee{
                 origin.x += 1
             }
         }
         
-        if origin.y < 0{
+        if origin.y < 0 {
             origin.y = 0
-        }else if origin.y+(selectionRect?.height)! > CGFloat(matrix.rows-1){
-            origin.y = CGFloat(matrix.rows-1) - (selectionRect?.height)!
+        } else if origin.y + selRect.height > imageSize.height - 1 {
+            origin.y = imageSize.height - 1 - selRect.height
             if selectMode == .marquee{
                 origin.y += 1
             }
         }
-        
-        selectionRect?.origin.x = origin.x
-        selectionRect?.origin.y = origin.y
-        
+
+        selRect.origin.x = origin.x
+        selRect.origin.y = origin.y
+        self.selectionRect = selRect
     }
     
     

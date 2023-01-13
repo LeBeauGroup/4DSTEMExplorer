@@ -207,7 +207,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         return newMat
         
     }
-    
 
     
     //MARK: - Matrix setters
@@ -399,7 +398,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         }
         
         return subMat
-        
+
     }
     
     func accumulate(product:[Float]) -> Float {
@@ -615,7 +614,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         return bitmapRep
     }
     
-    func uInt8ImageRep()->NSBitmapImageRep? {
+    func uInt8ImageRep() -> NSBitmapImageRep? {
         
         var out = [UInt8].init(repeating: 0, count: real.count)
         if let bounds = try? self.quantiles([0.02, 0.98]) {
@@ -635,10 +634,9 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 }
             }
         }
-        
-        let bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns*1, bitsPerPixel: 8)
-        
-        memmove(bitmapRep?.bitmapData, &out, out.count)
+        guard var bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns*1, bitsPerPixel: 8) else { return nil }
+
+        memmove(bitmapRep.bitmapData, &out, out.count)
 
         return bitmapRep
     }
@@ -1061,9 +1059,3 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
 
     return newMatrix
 }
-
-
-
-
-
-

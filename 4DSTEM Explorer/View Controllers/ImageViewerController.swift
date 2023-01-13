@@ -13,6 +13,7 @@ class ImageViewerController:NSViewController{
     
     @IBOutlet weak var imageViewer:ImageViewer!
     
+    /*
     @IBAction func changeBrightness(_ sender:Any){
         
         
@@ -39,5 +40,6 @@ class ImageViewerController:NSViewController{
         
         imageViewer.image =  nsImage
     }
+     */
     
 }

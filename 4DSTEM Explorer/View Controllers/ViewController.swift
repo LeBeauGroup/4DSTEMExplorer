@@ -129,7 +129,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     }
 
     func detectImage(stride:Int = 1){
-        
         let lrud_xy = lrud_xySegmented.tag(forSegment: lrud_xySegmented.selectedSegment)
         
         var detectedImage:Matrix?  = nil
@@ -146,18 +145,19 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         default:
             detectedImage = dataController.integrating(selectedDetector!, strideLength:stride)
         }
-        
-        if detectedImage != nil{
-            self.imageView!.matrix = detectedImage!
+
+        self.imageView.matrix = detectedImage
+        guard var imageRep = detectedImage?.uInt8ImageRep() else { return }
+
+        if stride > 1 {
+            // upsample image to full size
+            let newSize = CGSize(width: CGFloat(stride) * imageRep.size.width, height: CGFloat(stride) * imageRep.size.height)
+            imageRep = NSBitmapImageRep(cgImage: resizeImage(imageRep.cgImage!, newSize)!)
         }
-        
 
-//        self.zoomToFit(nil)
-        
-        //detectedImage!.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil)
-
-            //            print("retain count:\(CFGetRetainCount(detectedImage! as CFTypeRef))")
-
+        let image = NSImage()
+        image.addRepresentation(imageRep)
+        self.imageView.image = image
     }
     
     @objc func detectorIsMoving(note:Notification) {
@@ -165,33 +165,13 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
 //        selectedDetector = patternViewer.detectorView!.detector
         
         patternViewer.detectorView?.needsDisplay = true
-        
-        let stride:Int?
-        
-        
-        if dataController.imageSize.width % 2 == 0{
-         
-            var dividor = dataController.imageSize.width
 
-            
-            while(dividor > 80){
-                dividor /= 2
-                
-            }
-            
-             stride = dataController.imageSize.width/dividor
-            
-        }else{
-            stride = 1
-        }
-        
+        let size = min(dataController.imageSize.width, dataController.imageSize.height)
+        // return largest power of two newStride such that size / stride >= 100
+        let stride = max(1, Int((Float(size) / 100).binade))
+        self.detectImage(stride: stride)
 
-        
-        
-        self.detectImage(stride: stride!)
-        
         innerAngleTextField.floatValue = Float(patternViewer.detectorView!.detector.radii!.inner)
-        
         outerAngleTextField.floatValue = Float(patternViewer.detectorView!.detector.radii!.outer)
 
 
@@ -570,35 +550,16 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
             
             if result == NSApplication.ModalResponse.OK {
                 let filename = savePanel.url
-                
-                
+
                 var bitmapRep:NSBitmapImageRep?
-               
-          
-                if(tag == 0){
-                    bitmapRep = self.imageView.matrix.floatImageRep()
-                    
-                }else if tag == 1{
+
+                if tag == 0 {
+                    bitmapRep = self.imageView.matrix!.floatImageRep()
+                } else if tag == 1 {
                     bitmapRep = self.patternViewer.matrix.floatImageRep()
-
                 }
-                
-                    
+
                 // To add metadata, will need to switch to cgimagedestination
-                
-                var data:Data = Data.init()
-                
-                let props = [NSBitmapImageRep.PropertyKey:Any]()
-                
-                //        props[NSBitmapImageRep.PropertyKey.compressionFactor] = 1.0
-                //        props[NSBitmapImageRep.PropertyKey.gamma]  = 0.5
-                
-                if bitmapRep != nil{
-                    
-                    data = bitmapRep!.representation(using: NSBitmapImageRep.FileType.tiff, properties: props)!
-                }
-
-                
                 var cgProps = [CFString:Any]()
                 
                 let dest =  CGImageDestinationCreateWithURL(filename! as CFURL, "public.tiff" as CFString, 1, nil)
@@ -681,3 +642,15 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     }
 }
 
+func resizeImage(_ img: CGImage, _ newSize: CGSize,
+                 interpolationQuality: CGInterpolationQuality = .none) -> CGImage? {
+    assert(img.bitsPerPixel == 8 && img.bitsPerComponent == 8)
+    guard let context = CGContext(data: nil, width: Int(newSize.width), height: Int(newSize.height),
+                                  bitsPerComponent: 8, bytesPerRow: Int(newSize.width), space: img.colorSpace!,
+                                  bitmapInfo: CGBitmapInfo.byteOrderDefault.rawValue) else { return nil }
+    context.interpolationQuality = interpolationQuality
+    let rect = CGRect(origin: CGPoint.zero, size: newSize)
+    context.draw(img, in: rect)
+
+    return context.makeImage()
+}
