@@ -59,7 +59,7 @@ class ImageViewer: NSImageView {
     var maxDisplay:Float?
     var minDisplay:Float?
     var selectionRect:NSRect?
-    private var lastDragLocation:NSPoint?
+    private var rectPos:NSPoint?
     private var isSelectionMoving:Bool = false
     private var isSelectionNew:Bool = true
     var selectionIsHidden:Bool = false
@@ -167,76 +167,33 @@ class ImageViewer: NSImageView {
                 //                selectMode = .point
                 selectionRect = NSRect(origin: testPoint, size: CGSize(width: 1, height: 1))
                 
-            }else{
-                lastDragLocation = testPoint
+            } else {
+                rectPos = NSPoint(
+                    x: (testPoint.x - selectionRect!.origin.x)/selectionRect!.size.width,
+                    y: (testPoint.y - selectionRect!.origin.y)/selectionRect!.size.height
+                );
                 isSelectionMoving = true
             }
 
-            
             delegate?.averagePatternInRect(scaledRect)
         case .none:
             return
-//        default:
-//            if !isPointInSelectionRect(testPoint){
-//
-//                isSelectionNew = true
-//                selectionRect = nil
-////                selectMode = .point
-//
-//                selectionRect = NSRect(origin: testPoint, size: CGSize(width: 0, height: 0))
-//
-//
-//                lastDragLocation = testPoint
-//                isSelectionMoving = false
-//
-//            }else {
-//                lastDragLocation = testPoint
-//                isSelectionMoving = true
-//
-//            }
-//
-//            delegate?.averagePatternInRect(scaledRect)
-
-            
         }
-        
-        
-        
         self.needsDisplay = true
-        
-        
     }
     
-    
-    
     func moveOriginInBounds(_ point:NSPoint){
-        // checks to see if the point is in bounds, if not bring it back (testing for origin of selectrion rect
-        
-        var origin = point
-        
+        // set selectonRect's origin to `point`, respecting image boundaries
         guard let imageSize = self.image?.size else { return }
         guard var selRect = self.selectionRect else { return }
-        
-        if origin.x < 0 {
-            origin.x = 0
-        } else if origin.x + selRect.width > imageSize.width - 1 {
-            origin.x = imageSize.width - 1 - selRect.width
-            if selectMode == .marquee{
-                origin.x += 1
-            }
-        }
-        
-        if origin.y < 0 {
-            origin.y = 0
-        } else if origin.y + selRect.height > imageSize.height - 1 {
-            origin.y = imageSize.height - 1 - selRect.height
-            if selectMode == .marquee{
-                origin.y += 1
-            }
-        }
 
-        selRect.origin.x = origin.x
-        selRect.origin.y = origin.y
+        selRect.origin = point
+        // clamp to minimum
+        selRect.origin.x = max(selRect.origin.x, max(0.0, -selRect.size.width))
+        selRect.origin.y = max(selRect.origin.y, max(0.0, -selRect.size.height))
+        // clamp to maximum
+        selRect.origin.x = min(selRect.origin.x, imageSize.width - max(0.0, selRect.size.width))
+        selRect.origin.y = min(selRect.origin.y, imageSize.height - max(0.0, selRect.size.height))
         self.selectionRect = selRect
     }
     
@@ -292,6 +249,19 @@ class ImageViewer: NSImageView {
         
     }
     
+    /*
+    override func mouseUp(with event: NSEvent) {
+        if selectionIsHidden {
+            return
+        }
+        switch selectMode {
+        case .marquee:
+            if !isSelectionMoving {
+                // ensure new rectangle
+            }
+        }
+    }*/
+    
     override func mouseDragged(with event: NSEvent) {
        
         if selectionIsHidden {
@@ -318,21 +288,21 @@ class ImageViewer: NSImageView {
                 
                     var newOrigin = (selectionRect?.origin)!
                     
-                    newOrigin.x += testPoint.x-(lastDragLocation?.x)!
-                    newOrigin.y += testPoint.y-(lastDragLocation?.y)!
+                    newOrigin.x = testPoint.x - (rectPos!.x * newRect.size.width)
+                    newOrigin.y = testPoint.y - (rectPos!.y * newRect.size.height)
                     
                     moveOriginInBounds(newOrigin)
                     
                 }else{
-                    newRect.size.width = testPoint.x-(selectionRect?.origin.x)!
-                    newRect.size.height = testPoint.y-(selectionRect?.origin.y)!
+                    newRect.size.width = testPoint.x - newRect.origin.x
+                    newRect.size.height = testPoint.y - newRect.origin.y
                     selectionRect = newRect
-
-                    
                 }
                 
-                
-                lastDragLocation = testPoint
+                /*rectPos = NSPoint(
+                    x: (testPoint.x - newRect.origin.x)/newRect.size.width,
+                    y: (testPoint.y - newRect.origin.y)/newRect.size.width
+                );*/
 
                 delegate?.averagePatternInRect(scaledRect)
                 
