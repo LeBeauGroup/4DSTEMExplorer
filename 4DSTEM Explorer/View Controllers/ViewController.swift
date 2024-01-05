@@ -508,7 +508,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         imageView.isHidden = false
         imageView.selectionRect = nil
         
-        patternRect = NSRect(x: dataController.imageSize.height/2, y: dataController.imageSize.width/2, width: 0, height: 0)
+        patternRect = NSRect(x: dataController.imageSize.width/2, y: dataController.imageSize.height/2, width: 0, height: 0)
         
         self.averagePatternInRect(patternRect)
         
