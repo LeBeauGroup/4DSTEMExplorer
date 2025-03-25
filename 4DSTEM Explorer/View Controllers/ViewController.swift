@@ -464,7 +464,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     func openPanel(){
     
         let openPanel = NSOpenPanel()
-        openPanel.allowedFileTypes = ["raw", "public.tiff", ]
+        openPanel.allowedFileTypes = ["raw", "public.tiff", "mrc"]
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
         openPanel.canCreateDirectories = false
@@ -482,7 +482,10 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
                 let dc = NSDocumentController.shared
                 dc.noteNewRecentDocumentURL(selectedURL!)
                 
-                self.displayProbePositionsSelection(openPanel.url!)
+
+                    self.displayProbePositionsSelection(openPanel.url!)
+                
+                
             }
         }
 
@@ -503,8 +506,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     
         patternViewer.detectorView?.isHidden = false
         
-
-        
         imageView.isHidden = false
         imageView.selectionRect = nil
         
@@ -513,9 +514,6 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         self.averagePatternInRect(patternRect)
         
         self.detectImage()
-        
-
-    
 
         imageView.setFrameSize(imageView.image!.size)
         
@@ -546,18 +544,19 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         let ext = (sender as! URL).pathExtension
         
+        if ext == "mrc"{
+            sizeSelectionController.loadTiff(self)
+            return
+        }
+        
         let uti = UTTypeCreatePreferredIdentifierForTag(
             kUTTagClassFilenameExtension,
             ext as CFString,
             nil)
         
         if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF) {
-            print("stuff")
             sizeSelectionController.loadTiff(self)
         }
-
-        
-
 
     }
     

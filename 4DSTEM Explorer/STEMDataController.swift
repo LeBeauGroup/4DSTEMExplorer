@@ -176,10 +176,8 @@ class STEMDataController: NSObject {
         var firstImageOffset:UInt64
         
         let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
+        let isMRC = url.pathExtension == "mrc"
         
-        if ext == "mrc" || isTIFF {
-            print("File is an MRC or TIFF file")
-        }
         
 //        // Example usage
 //        do {
@@ -197,19 +195,28 @@ class STEMDataController: NSObject {
 //        }
         
         if  isTIFF{
-        
+            
             let props:[String:Any]
             
             do{
                 try props =  TIFFheader(url)
                 try readTiffInfo(props)
                 firstImageOffset = props["FirstImageOffset"] as! UInt64
-
+                
             }catch{
                 
                 throw FileReadError.invalidTiff
                 
             }
+        }
+        else if isMRC{
+            let (header, feiHeader) = try loadMRCHeader(from: url)
+            firstImageOffset = UInt64(1024+header!.nsymbt)
+            self.detectorSize = IntSize(width: Int(header!.nx), height: Int(header!.nx))
+            self.patternSize = detectorSize
+            self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
+//                volume =  try? loadMRCFile(from: url)
+            
         }else{
             
             firstImageOffset = 0
@@ -227,10 +234,11 @@ class STEMDataController: NSObject {
         let imagePixels = self.imagePixels
         let floatSize = MemoryLayout<Float32>.size
         
+        
         let detectorBitCount = detectorPixels*floatSize
         
         
-        if !isTIFF{
+        if !isTIFF && !isMRC{
             do{
                 let attrib = try FileManager.default.attributesOfItem(atPath: url.path)
                 fileSize = attrib[.size] as! Int
