@@ -177,6 +177,25 @@ class STEMDataController: NSObject {
         
         let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
         
+        if ext == "mrc" || isTIFF {
+            print("File is an MRC or TIFF file")
+        }
+        
+//        // Example usage
+//        do {
+//            let fileURL = URL(fileURLWithPath: "/path/to/your_file.mrc") // Replace with real path
+//            let mrcVolume = try loadMRCFile(from: fileURL)
+//            
+//            print("MRC file loaded successfully.")
+//            print("Dimensions (nx, ny, nz): (\(mrcVolume.header.nx), \(mrcVolume.header.ny), \(mrcVolume.header.nz))")
+//            print("Mode: \(mrcVolume.header.mode)")
+//            print("Data array length: \(mrcVolume.volumeData.count)")
+//            // You can now process `mrcVolume.volumeData` as needed.
+//            
+//        } catch {
+//            print("Error reading MRC file: \(error)")
+//        }
+        
         if  isTIFF{
         
             let props:[String:Any]
