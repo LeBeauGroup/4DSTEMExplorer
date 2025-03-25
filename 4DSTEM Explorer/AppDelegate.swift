@@ -45,7 +45,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
 //        viewController.openPanel()
         viewController.dataController.filePath = urls[0]
-        viewController.displayProbePositionsSelection(urls[0])
+        
+
+            viewController.displayProbePositionsSelection(urls[0])
     }
 
     func applicationWillUnhide(_ notification: Notification) {

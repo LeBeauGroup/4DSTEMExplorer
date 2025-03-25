@@ -163,59 +163,150 @@ struct MRCHeader {
 /// A convenience container for a loaded MRC volume:
 /// - header: parsed metadata
 /// - volumeData: the raw 3D data buffer (in floats for simplicity)
-struct MRCVolume {
+struct MRC4DSTEM {
     var header: MRCHeader
-    var volumeData: [Float]   // Flattened 3D array: [z][y][x]
+    var FEIheader: FEIHeader
+    var data: [Float]   // Flattened 3D array: [z][y][x]
+}
+
+
+func loadMRCHeader(from url: URL) throws -> (MRCHeader?, FEIHeader?){
+    
+    let bufferStream:FileHandle?
+     
+
+    try bufferStream = FileHandle.init(forReadingFrom: url)
+     if let fh = bufferStream{
+         
+         let header = MRCHeader(data: fh.readData(ofLength: 1024))
+         let extendedHeaderSize = Int(header!.nsymbt)
+         
+         let feiHeader =  FEIHeader(data: fh.readData(ofLength: extendedHeaderSize))
+         
+         return (header!, feiHeader)
+     }
+         
+         
+         
+//     }catch{
+//         print("error creating file handle")
+//     }
+    return (nil, nil)
+    
+    
 }
 
 /// Reads an MRC file from disk, returns `MRCVolume` if successful.
-func loadMRCFile(from url: URL) throws -> MRCVolume {
-    // Read the entire file into memory
-    let fileData = try Data(contentsOf: url)
-    
-    // Parse header (first 1024 bytes)
-    guard let header = MRCHeader(data: fileData) else {
-        throw NSError(domain: "MRCReader", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid MRC header"])
+//func loadMRCFile(from url: URL) throws -> MRCVolume {
+//    
+//
+//    // Read the entire file into memory
+//    let fileData = try Data(contentsOf: url)
+//    
+//    // Parse header (first 1024 bytes)
+//    guard let header = MRCHeader(data: fileData) else {
+//        throw NSError(domain: "MRCReader", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid MRC header"])
+//    }
+//    
+//    // The data portion starts right after the 1024-byte header plus any extended header (nsymbt).
+//    let extendedHeaderSize = Int(header.nsymbt)
+//    let dataStart = 1024 + extendedHeaderSize
+//    
+//    guard fileData.count >= dataStart else {
+//        throw NSError(domain: "MRCReader", code: 2, userInfo: [NSLocalizedDescriptionKey: "File too small for extended header"])
+//    }
+//    
+//    // error handling needed for when this is nil
+//    let feiHeader: FEIHeader = readFEIExtendedHeader(from: fileData, feiHeaderLength: extendedHeaderSize)!
+//
+//    // The data dimensions
+//    let nx = Int(header.nx)
+//    let ny = Int(header.ny)
+//    let nz = Int(header.nz)
+//
+//    // Data type depends on `header.mode`
+//    // For brevity, we only show how to handle mode = 1 (signed int).
+//    // If your file can have other modes, you'd need additional logic.
+//    guard header.mode == 1 else {
+//        throw NSError(domain: "MRCReader", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsupported MRC mode: \(header.mode). Only float32 supported in this example."])
+//    }
+//
+//    // Each voxel is 4 bytes if mode == 2.
+//    let voxelCount = nx * ny * nz
+//    let dataSizeNeeded = voxelCount * MemoryLayout<Int16>.size
+//
+//    // Make sure the file has enough bytes for the entire data array
+//    guard fileData.count >= dataStart + dataSizeNeeded else {
+//        throw NSError(domain: "MRCReader", code: 4, userInfo: [NSLocalizedDescriptionKey: "File too small for all voxel data"])
+//    }
+//
+//    // Extract the raw float32 volume data
+//    let volumeBytes = fileData[dataStart ..< dataStart + dataSizeNeeded]
+//    
+//    // Convert those bytes to [Float]
+//    let volumeArray = volumeBytes.withUnsafeBytes {
+//        Array($0.bindMemory(to: Float.self))
+//    }
+//    
+//    return MRC4DSTEM(header: header, FEIheader: fe, data: <#T##[Float]#>)(header: header, volumeData: volumeArray)
+//}
+
+extension Data {
+    func to<T>(type: T.Type, at offset: Int) -> T {
+        let end = offset + MemoryLayout<T>.size
+                
+        return self.subdata(in: offset..<end).withUnsafeBytes {
+            $0.load(as: T.self)
+        }
     }
     
-    // The data portion starts right after the 1024-byte header plus any extended header (nsymbt).
-    let extendedHeaderSize = Int(header.nsymbt)
-    let dataStart = 1024 + extendedHeaderSize
-    
-    guard fileData.count >= dataStart else {
-        throw NSError(domain: "MRCReader", code: 2, userInfo: [NSLocalizedDescriptionKey: "File too small for extended header"])
+    func toString(at offset: Int, withlength length: Int = 16) -> String {
+        let end = (offset + MemoryLayout<CChar>.size*length)
+                
+        let subdata = self.subdata(in: offset..<end)
+        return String(bytes: subdata, encoding: .utf8) ?? ""
     }
+}
 
-    // The data dimensions
-    let nx = Int(header.nx)
-    let ny = Int(header.ny)
-    let nz = Int(header.nz)
+// Define the FEI header struct (example: first 8 bytes: magic number + version)
+struct FEIHeader {
+    let magicNumber: UInt32
+    let version: UInt32
+    let microscopeType: String
+    let scanSizeRight: Int32
+    let scanSizeBottom: Int32
 
-    // Data type depends on `header.mode`
-    // For brevity, we only show how to handle mode = 2 (float32).
-    // If your file can have other modes, you'd need additional logic.
-    guard header.mode == 2 else {
-        throw NSError(domain: "MRCReader", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unsupported MRC mode: \(header.mode). Only float32 supported in this example."])
+    init(data: Data) {
+        self.magicNumber = data.to(type: UInt32.self, at: 0)
+        self.version = data.to(type: UInt32.self, at: 4)
+        self.microscopeType = data.toString(at:20)
+        self.scanSizeRight = data.to(type: Int32.self, at: 595)
+        self.scanSizeBottom = data.to(type: Int32.self, at: 599)
+        
     }
+}
 
-    // Each voxel is 4 bytes if mode == 2.
-    let voxelCount = nx * ny * nz
-    let dataSizeNeeded = voxelCount * MemoryLayout<Float>.size
+func readFEIExtendedHeader(from extendedData: Data) -> FEIHeader? {
 
-    // Make sure the file has enough bytes for the entire data array
-    guard fileData.count >= dataStart + dataSizeNeeded else {
-        throw NSError(domain: "MRCReader", code: 4, userInfo: [NSLocalizedDescriptionKey: "File too small for all voxel data"])
+    do{
+
+//        guard fileData.count >= feiHeaderLength else {
+//            print("File too small for FEI header")
+//            return nil
+//        }
+
+
+        let feiHeader = FEIHeader(data: extendedData)
+        
+        print("FEI Magic Number: \(String(format: "0x%08X", feiHeader.magicNumber))")
+        print("FEI Version: \(feiHeader.version)")
+        print("FEI Scan Size Right: \(feiHeader.scanSizeRight)")
+        print("FEI Scan Size Bottom: \(feiHeader.scanSizeBottom)")
+
+        return feiHeader
+    } catch {
+        print("Failed to read file: \(error)")
     }
-
-    // Extract the raw float32 volume data
-    let volumeBytes = fileData[dataStart ..< dataStart + dataSizeNeeded]
-    
-    // Convert those bytes to [Float]
-    let volumeArray = volumeBytes.withUnsafeBytes {
-        Array($0.bindMemory(to: Float.self))
-    }
-    
-    return MRCVolume(header: header, volumeData: volumeArray)
 }
 
 
