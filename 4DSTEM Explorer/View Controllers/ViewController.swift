@@ -196,22 +196,22 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         let stride:Int?
         
         
-        if dataController.imageSize.width % 2 == 0{
+//        if dataController.imageSize.width % 2 == 0{
          
             var dividor = dataController.imageSize.width
 
             
-            while(dividor > 80){
+            while(dividor > 100){
                 dividor /= 2
                 
             }
             
              stride = dataController.imageSize.width/dividor
             
-        }else{
-            stride = 1
-        }
-        
+//        }else{
+//            stride = 1
+//        }
+//        
 
         
         
