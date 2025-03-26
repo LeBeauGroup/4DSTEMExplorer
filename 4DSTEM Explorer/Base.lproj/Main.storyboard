@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" initialViewController="B8D-0N-5wS">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -293,7 +293,7 @@
                         <rect key="contentRect" x="16" y="240" width="785" height="410"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
                         <value key="minSize" type="size" width="500" height="400"/>
-                        <toolbar key="toolbar" implicitIdentifier="80BD8C4F-3176-4826-B4FA-C2E7983177F0" autosavesConfiguration="NO" displayMode="iconOnly" sizeMode="regular" id="j3l-gq-hi9">
+                        <toolbar key="toolbar" implicitIdentifier="80BD8C4F-3176-4826-B4FA-C2E7983177F0" autosavesConfiguration="NO" showsBaselineSeparator="NO" displayMode="iconOnly" sizeMode="regular" id="j3l-gq-hi9">
                             <allowedToolbarItems>
                                 <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="hNR-kT-Ut2"/>
                                 <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="PnO-OF-hoM"/>
@@ -375,12 +375,12 @@
                                     <nil key="toolTip"/>
                                     <size key="minSize" width="43" height="27"/>
                                     <size key="maxSize" width="43" height="32"/>
-                                    <popUpButton key="view" verticalHuggingPriority="750" tag="-1" id="4i0-SR-hLi">
+                                    <popUpButton key="view" tag="-1" verticalHuggingPriority="750" id="4i0-SR-hLi">
                                         <rect key="frame" x="0.0" y="14" width="43" height="31"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <popUpButtonCell key="cell" type="push" bezelStyle="rounded" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" arrowPosition="noArrow" autoenablesItems="NO" selectedItem="IXR-fg-WJA" id="Iyg-zA-YiR">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                            <font key="font" metaFont="menu"/>
+                                            <font key="font" metaFont="message"/>
                                             <menu key="menu" autoenablesItems="NO" id="jHd-HD-V6b">
                                                 <items>
                                                     <menuItem state="on" image="NSShareTemplate" hidden="YES" id="dla-eF-SRw"/>
@@ -789,7 +789,7 @@ Gw
     </scenes>
     <resources>
         <image name="MarqueeSelection" width="512" height="512"/>
-        <image name="NSShareTemplate" width="15" height="17"/>
+        <image name="NSShareTemplate" width="19" height="23"/>
         <image name="PointSelection" width="512" height="512"/>
         <image name="ZoomIn" width="512" height="512"/>
         <image name="ZoomOut" width="1024" height="1024"/>
