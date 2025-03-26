@@ -37,6 +37,7 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
     func selectSizeFromURL(_ url:URL) {
         
         let fileName = url.lastPathComponent
+        
         let wh = self.decomposeFilenameString(fileName)
         
         if wh != nil{
@@ -85,7 +86,6 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
             
             return
         }
-        
         
         sizeCombo.isHidden = true
         loadButton.isEnabled = false

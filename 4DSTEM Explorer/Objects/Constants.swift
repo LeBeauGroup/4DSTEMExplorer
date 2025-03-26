@@ -10,6 +10,8 @@ import Foundation
 
 
 
+let empadSize = IntSize(width: 128, height: 130)
+
 struct IntSize {
     var width:Int
     var height:Int
@@ -262,6 +264,4 @@ func TIFFheader(_ url: URL)throws ->[String:Any] {
     
 }
 
-
-let empadSize = IntSize(width: 128, height: 130)
 
