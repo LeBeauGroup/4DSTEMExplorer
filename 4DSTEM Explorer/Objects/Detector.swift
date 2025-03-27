@@ -42,6 +42,7 @@ class Detector: NSObject {
         
     }
     
+    
     init(shape:DetectorShape, type:DetectorType, center:NSPoint, radii:DetectorRadii, size:NSSize) {
         self.type = type
         self.shape = shape

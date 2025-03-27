@@ -496,15 +496,20 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         self.view.window?.title = dataController.filePath!.deletingPathExtension().lastPathComponent
 
         
+        
         if patternViewer.detectorView?.isHidden == true{
             
-            let size = NSSize(width: dataController.patternSize.height, height: dataController.patternSize.width)
-            
-            patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint.init(x: 63, y:63), radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)),size:size)
+            patternViewer.detectorView?.isHidden = false
         }
         
     
-        patternViewer.detectorView?.isHidden = false
+        let size = NSSize(width: dataController.patternSize.height, height: dataController.patternSize.width)
+        
+        let centerPoint  = NSPoint(x: dataController.patternSize.width/2, y: dataController.patternSize.height/2)
+        
+        patternViewer.detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: centerPoint, radii: DetectorRadii(inner: CGFloat(innerAngleTextField.floatValue), outer: CGFloat(outerAngleTextField.floatValue)),size:size)
+            
+        
         
         imageView.isHidden = false
         imageView.selectionRect = nil
