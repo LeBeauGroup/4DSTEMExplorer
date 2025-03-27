@@ -178,7 +178,8 @@ class STEMDataController: NSObject {
 
         let dataType: Any.Type
         var firstImageOffset: UInt64
-
+        var additionalRows:Int = 0
+    
         if isTIFF {
             dataType = Float32.self
             let props: [String: Any]
@@ -202,6 +203,7 @@ class STEMDataController: NSObject {
             self.detectorSize = empadSize
             self.patternSize = detectorSize
             patternSize.height -= 2
+            additionalRows = 2
         }
 
         let elementSize: Int
@@ -231,13 +233,18 @@ class STEMDataController: NSObject {
             }
         }
 
+        
         let patternByteCount = patternPixels * elementSize
         let dataTypeIsInt16 = dataType == Int16.self
         let width = self.patternSize.width
-        let height = self.patternSize.height
+        var height = self.patternSize.height
+        let totalPatternPixels = height*(width + additionalRows)
+    
+        
         let totalImages = self.imageSize.width * self.imageSize.height
         let batchSize = 64
         let totalBatches = (totalImages + batchSize - 1) / batchSize
+
 
         let nc = NotificationCenter.default
 
@@ -260,19 +267,19 @@ class STEMDataController: NSObject {
                 if self.dwi?.isCancelled ?? false { break }
 
                 let imagesInBatch = min(batchSize, totalImages - batchIndex * batchSize)
-                let readSize = imagesInBatch * patternPixels * elementSize
+                let readSize = imagesInBatch * (totalPatternPixels) * elementSize
 
                 guard let batchData = self.fh?.readData(ofLength: readSize) else { continue }
 
                 if dataTypeIsInt16 {
                     batchData.withUnsafeBytes { raw in
                         let int16Ptr = raw.bindMemory(to: Int16.self).baseAddress!
-                        vDSP_vflt16(int16Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * patternPixels))
+                        vDSP_vflt16(int16Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
                     }
                 } else {
                     batchData.withUnsafeBytes { raw in
                         let float32Ptr = raw.bindMemory(to: Float32.self).baseAddress!
-                        floatTempBuffer.assign(from: float32Ptr, count: imagesInBatch * patternPixels)
+                        floatTempBuffer.update(from: float32Ptr, count: imagesInBatch * totalPatternPixels)
                     }
                 }
 
@@ -281,13 +288,13 @@ class STEMDataController: NSObject {
                     if globalIndex >= totalImages { break }
 
                     let outPointer = self.patternPointer! + globalIndex * patternPixels
-                    let srcPointer = floatTempBuffer + img * patternPixels
+                    let srcPointer = floatTempBuffer + img * (totalPatternPixels)
 
                     for row in 0..<height {
                         let destRow = height - row - 1
                         let dst = outPointer + destRow * width
                         let src = srcPointer + row * width
-                        dst.assign(from: src, count: width)
+                        dst.update(from: src, count: width)
                     }
 
                     if globalIndex % fracComplete == 0 {
