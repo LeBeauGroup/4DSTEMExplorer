@@ -192,10 +192,14 @@ class STEMDataController: NSObject {
             }
         } else if isMRC {
             dataType = Int16.self
+            
             let (header, feiHeader) = try loadMRCHeader(from: url)
+//            let header = try readMRCHeader(from: url)
+//            let feiHeader = try readFEI1ExtendedHeaders(from: url)
             firstImageOffset = UInt64(1024 + header!.nsymbt)
             self.detectorSize = IntSize(width: Int(header!.nx), height: Int(header!.nx))
             self.patternSize = detectorSize
+            
             self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
         } else {
             dataType = Float32.self

@@ -25,7 +25,7 @@
 		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
 		A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */; };
-		BD4B44E82D9301F800B226DD /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
+		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +51,8 @@
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
+		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
+		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
 		BD4B44E72D9301EE00B226DD /* MRCReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCReader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -97,6 +99,8 @@
 				A51FF4EF1FF5413D00BDC87E /* WindowController.swift */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				BD4B44E72D9301EE00B226DD /* MRCReader.swift */,
+				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
+				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
 			);
 			path = "4DSTEM Explorer";
 			sourceTree = "<group>";
@@ -234,12 +238,12 @@
 				A551530F2006892100C89F5D /* Functions.swift in Sources */,
 				A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */,
 				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
-				BD4B44E82D9301F800B226DD /* MRCReader.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
 				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
 				A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */,
+				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
 				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,
 				A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */,
