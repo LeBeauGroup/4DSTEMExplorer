@@ -37,6 +37,7 @@ class ImageViewer: NSImageView {
 //        return popover
 //    }()
     
+    @IBOutlet weak var positionValue : NSTextField?
     
     
     weak var delegate:ImageViewerDelegate?
@@ -505,37 +506,75 @@ class ImageViewer: NSImageView {
     func changeSelectionRect(){
         
     }
-    
-    func drawPointSelection(point:NSPoint?, context:CGContext){
-        
+    func drawPointSelection(point: NSPoint?, context: CGContext) {
         let strokeWidth = 1.0
         let longOffset = CGFloat(2.0)
         let shortOffset = longOffset * 0.25
-
         let redColor = NSColor.red
-        
-        if point != nil{
-            var crossCenter:NSPoint = point!
-            
-            crossCenter.x -= CGFloat(strokeWidth/2.0)-1
-            crossCenter.y -= CGFloat(strokeWidth/2.0)-1
-            
-            for i in [(-1.0,0.0), (1.0,0.0), (0.0,-1.0), (0.0,1.0)]{
-            
-                
-                let outerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*longOffset, y: crossCenter.y+CGFloat(i.1)*longOffset)
-                let innerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*shortOffset, y: crossCenter.y+CGFloat(i.1)*shortOffset)
-                
-                let line = [outerPoint, innerPoint]
-                
+        let text = "(\(Int(point!.x)), \(Int(point!.y)))"
+
+        if let crossCenter = point {
+            var adjustedCenter = crossCenter
+            adjustedCenter.x -= CGFloat(strokeWidth / 2.0) - 1
+            adjustedCenter.y -= CGFloat(strokeWidth / 2.0) - 1
+
+            for i in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
+                let outerPoint = CGPoint(x: adjustedCenter.x + CGFloat(i.0) * longOffset,
+                                         y: adjustedCenter.y + CGFloat(i.1) * longOffset)
+                let innerPoint = CGPoint(x: adjustedCenter.x + CGFloat(i.0) * shortOffset,
+                                         y: adjustedCenter.y + CGFloat(i.1) * shortOffset)
+
                 context.setLineWidth(CGFloat(strokeWidth))
                 context.setStrokeColor(redColor.cgColor)
-                context.addLines(between: line)
+                context.addLines(between: [outerPoint, innerPoint])
                 context.drawPath(using: .stroke)
+            }
 
-            } // end for
-        } // end if
-        
+            // Draw text next to the crosshairs
+            let attributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: NSColor.red,
+                .font: NSFont.systemFont(ofSize: 6)
+            ]
+            let attributedString = NSAttributedString(string: text, attributes: attributes)
+
+            // Define the position of the text (e.g. 4 points right and 4 points above center)
+            let textPosition = CGPoint(x: adjustedCenter.x + 4, y: adjustedCenter.y )
+            attributedString.draw(at: textPosition)
+        }
     }
+    
+//    func drawPointSelection(point:NSPoint?, context:CGContext){
+//        
+//        let strokeWidth = 1.0
+//        let longOffset = CGFloat(2.0)
+//        let shortOffset = longOffset * 0.25
+//
+//        let redColor = NSColor.red
+//        
+//        let text = "x"
+//        
+//        if point != nil{
+//            var crossCenter:NSPoint = point!
+//            
+//            crossCenter.x -= CGFloat(strokeWidth/2.0)-1
+//            crossCenter.y -= CGFloat(strokeWidth/2.0)-1
+//            
+//            for i in [(-1.0,0.0), (1.0,0.0), (0.0,-1.0), (0.0,1.0)]{
+//            
+//                
+//                let outerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*longOffset, y: crossCenter.y+CGFloat(i.1)*longOffset)
+//                let innerPoint = CGPoint.init(x: crossCenter.x+CGFloat(i.0)*shortOffset, y: crossCenter.y+CGFloat(i.1)*shortOffset)
+//                
+//                let line = [outerPoint, innerPoint]
+//                
+//                context.setLineWidth(CGFloat(strokeWidth))
+//                context.setStrokeColor(redColor.cgColor)
+//                context.addLines(between: line)
+//                context.drawPath(using: .stroke)
+//
+//            } // end for
+//        } // end if
+//        
+//    }
     
 }

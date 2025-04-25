@@ -21,6 +21,7 @@ class PatternViewer: NSImageView {
     
     @IBOutlet weak var patternValue : NSTextField?
     
+    
     override func updateTrackingAreas() {
         if trackingArea != nil {
             self.removeTrackingArea(trackingArea!)
