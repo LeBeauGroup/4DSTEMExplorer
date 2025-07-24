@@ -175,6 +175,8 @@ class STEMDataController: NSObject {
 
         let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
         let isMRC = url.pathExtension == "mrc"
+        let isDM4 = url.pathExtension == "dm4"
+        
 
         let dataType: Any.Type
         var firstImageOffset: UInt64
