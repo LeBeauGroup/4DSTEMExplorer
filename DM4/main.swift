@@ -16,13 +16,13 @@ public extension String {
 
 }
 
-let fileURL = "~/Desktop/test_data/Diffraction SI.dm4".expandingTildeInPath
+let fileURL = "~/Desktop/test_data/Diffraction SI-2.dm4".expandingTildeInPath
 
 let url = URL(fileURLWithPath: fileURL)
 print(url.absoluteString)
 let dm4 = try DigitalMicrographReader(fileURL: url)
 
-print(dm4.imageList())
+print(dm4.tagsDict)
 
 
 
