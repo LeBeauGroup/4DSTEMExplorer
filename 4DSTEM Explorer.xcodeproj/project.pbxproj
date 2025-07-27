@@ -21,6 +21,7 @@
 		A551530F2006892100C89F5D /* Functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A551530E2006892100C89F5D /* Functions.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
+		A58EE5872E327798003851E7 /* HDF5Kit in Frameworks */ = {isa = PBXBuildFile; productRef = A58EE5862E327798003851E7 /* HDF5Kit */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
@@ -93,6 +94,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A58EE5872E327798003851E7 /* HDF5Kit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -268,6 +270,7 @@
 			);
 			mainGroup = A51FEFA31FEC48FD00A8A5EC;
 			packageReferences = (
+				A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */,
 			);
 			productRefGroup = A51FEFAD1FEC48FD00A8A5EC /* Products */;
 			projectDirPath = "";
@@ -584,6 +587,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/trueb2/HDF5Kit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A58EE5862E327798003851E7 /* HDF5Kit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */;
+			productName = HDF5Kit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A51FEFA41FEC48FD00A8A5EC /* Project object */;
 }

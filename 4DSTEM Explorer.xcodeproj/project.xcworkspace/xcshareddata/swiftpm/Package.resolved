@@ -1,0 +1,24 @@
+{
+  "originHash" : "47732ea05e50a1bb2d02100fe4125dff15a60696e3f6f67b2c09f2e2f1a3ecd7",
+  "pins" : [
+    {
+      "identity" : "chdf5",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/trueb2/CHDF5.git",
+      "state" : {
+        "revision" : "fe3301ac74b9c2f4fb25f8ec29abea067495edc6",
+        "version" : "1.0.3"
+      }
+    },
+    {
+      "identity" : "hdf5kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/trueb2/HDF5Kit.git",
+      "state" : {
+        "revision" : "e811ac5be669b336e641bcbbaa53850dfc89f7e2",
+        "version" : "0.3.2"
+      }
+    }
+  ],
+  "version" : 3
+}
