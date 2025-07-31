@@ -19,11 +19,13 @@
 		A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B141FF4250E006D4044 /* DetectorView.swift */; };
 		A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B161FF4958A006D4044 /* ImageViewer.swift */; };
 		A551530F2006892100C89F5D /* Functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A551530E2006892100C89F5D /* Functions.swift */; };
+		A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A560204E2E38106B00BD8CB8 /* BinaryReader.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
-		A58EE5872E327798003851E7 /* HDF5Kit in Frameworks */ = {isa = PBXBuildFile; productRef = A58EE5862E327798003851E7 /* HDF5Kit */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
+		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
+		A5CF1BA32E3993C8006A1AFA /* SwiftyJSON in Frameworks */ = {isa = PBXBuildFile; productRef = A5CF1BA22E3993C8006A1AFA /* SwiftyJSON */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
 		A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
@@ -69,18 +71,18 @@
 		A5219B141FF4250E006D4044 /* DetectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorView.swift; sourceTree = "<group>"; };
 		A5219B161FF4958A006D4044 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		A551530E2006892100C89F5D /* Functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Functions.swift; sourceTree = "<group>"; };
+		A560204E2E38106B00BD8CB8 /* BinaryReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryReader.swift; sourceTree = "<group>"; };
 		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
 		A56918EA1FEDB2B000C0EF70 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
+		A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMImageEntryStructs.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
 		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
-		BD3E30732E285C63007411A7 /* GatanReader_backup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatanReader_backup.swift; sourceTree = "<group>"; };
 		BD4B44E72D9301EE00B226DD /* MRCReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCReader.swift; sourceTree = "<group>"; };
-		BD9FD2BB2E314B2800AF63D1 /* GatanReader 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatanReader 2.swift"; sourceTree = "<group>"; };
 		BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalMicrographReader.swift; sourceTree = "<group>"; };
 		BDC9507F2E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DM4; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -94,7 +96,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A58EE5872E327798003851E7 /* HDF5Kit in Frameworks */,
+				A5CF1BA32E3993C8006A1AFA /* SwiftyJSON in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -142,9 +144,9 @@
 				A551530E2006892100C89F5D /* Functions.swift */,
 				A51FF4EF1FF5413D00BDC87E /* WindowController.swift */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
-				BD3E30732E285C63007411A7 /* GatanReader_backup.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
-				BD9FD2BB2E314B2800AF63D1 /* GatanReader 2.swift */,
+				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
+				A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */,
 				BD4B44E72D9301EE00B226DD /* MRCReader.swift */,
 				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
 				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
@@ -270,7 +272,7 @@
 			);
 			mainGroup = A51FEFA31FEC48FD00A8A5EC;
 			packageReferences = (
-				A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */,
+				A5CF1BA12E3993C8006A1AFA /* XCRemoteSwiftPackageReference "SwiftyJSON" */,
 			);
 			productRefGroup = A51FEFAD1FEC48FD00A8A5EC /* Products */;
 			projectDirPath = "";
@@ -322,12 +324,14 @@
 				A551530F2006892100C89F5D /* Functions.swift in Sources */,
 				A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */,
 				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
+				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
 				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
 				A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */,
+				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
 				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,
@@ -589,21 +593,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */ = {
+		A5CF1BA12E3993C8006A1AFA /* XCRemoteSwiftPackageReference "SwiftyJSON" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/trueb2/HDF5Kit.git";
+			repositoryURL = "https://github.com/SwiftyJSON/SwiftyJSON";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.3.2;
+				minimumVersion = 5.0.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A58EE5862E327798003851E7 /* HDF5Kit */ = {
+		A5CF1BA22E3993C8006A1AFA /* SwiftyJSON */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A58EE5852E327798003851E7 /* XCRemoteSwiftPackageReference "HDF5Kit" */;
-			productName = HDF5Kit;
+			package = A5CF1BA12E3993C8006A1AFA /* XCRemoteSwiftPackageReference "SwiftyJSON" */;
+			productName = SwiftyJSON;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
