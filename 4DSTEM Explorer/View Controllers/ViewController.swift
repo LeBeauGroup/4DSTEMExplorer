@@ -464,7 +464,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     func openPanel(){
     
         let openPanel = NSOpenPanel()
-        openPanel.allowedFileTypes = ["raw", "public.tiff", "mrc"]
+        openPanel.allowedFileTypes = ["raw", "public.tiff", "mrc", "dm4"]
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
         openPanel.canCreateDirectories = false
@@ -549,10 +549,12 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         
         let ext = (sender as! URL).pathExtension
         
-        if ext == "mrc"{
+        if ext == "mrc" || ext == "dm4"{
             sizeSelectionController.loadTiff(self)
             return
         }
+        
+
         
         let uti = UTTypeCreatePreferredIdentifierForTag(
             kUTTagClassFilenameExtension,

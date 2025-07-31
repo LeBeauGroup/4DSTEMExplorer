@@ -1,112 +1,42 @@
 // DigitalMicrographReader.swift
 // Swift port of RosettaSciIO's DM3/DM4 file reader
-// Compatible with macOS (no iOS-specific features)
+// Compatible with macOS
 
 import Foundation
 
 // MARK: - BinaryReader Extension
 
-enum BinaryReaderError: Error {
-    case stringDecodingFailed
-}
 
-struct BinaryReader {
-    let data: Data
-    var offset: Int = 0
 
-    enum Endian {
-        case little
-        case big
-    }
+import Foundation
+import Accelerate
 
-    mutating func readUInt8() throws -> UInt8 {
-        defer { offset += 1 }
-        return data[offset]
-    }
+//
+//struct ImageData: Codable {
+//    var dataReference: LazyDataReference?
+//    var pixelDepth: Int?
+//    var dataType: Int?
+//    var dimensions: [Int]?
+//    var calibrations: CalibrationSet?
+//}
+//
+//struct CalibrationSet: Codable {
+//    var brightness: CalibrationAxis?
+//    var dimensions: [CalibrationAxis]?
+//}
+//
+//struct CalibrationAxis: Codable {
+//    var origin: Double?
+//    var scale: Double?
+//    var units: String?
+//}
 
-    mutating func readUInt16(endian: Endian) throws -> UInt16 {
-        let range = offset..<(offset+2)
-        defer { offset += 2 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: UInt16.self) }
-        return endian == .little ? UInt16(littleEndian: value) : UInt16(bigEndian: value)
-    }
-    
-    mutating func readInt16(endian: Endian) throws -> Int16 {
-        let range = offset..<(offset+2)
-        defer { offset += 2 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Int16.self) }
-        return endian == .little ? Int16(littleEndian: value) : Int16(bigEndian: value)
-    }
 
-    
-    mutating func readUInt32(endian: Endian) throws -> UInt32 {
-        let range = offset..<(offset+4)
-        defer { offset += 4 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: UInt32.self) }
-        return endian == .little ? UInt32(littleEndian: value) : UInt32(bigEndian: value)
-    }
-
-    mutating func readInt32(endian: Endian) throws -> Int32 {
-        let range = offset..<(offset+4)
-        defer { offset += 4 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Int32.self) }
-        return endian == .little ? Int32(littleEndian: value) : Int32(bigEndian: value)
-    }
-
-    mutating func readInt64(endian: Endian) throws -> Int64 {
-        let range = offset..<(offset+8)
-        defer { offset += 8 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Int64.self) }
-        return endian == .little ? Int64(littleEndian: value) : Int64(bigEndian: value)
-    }
-
-    mutating func readFloat32(endian: Endian) throws -> Float32 {
-        let range = offset..<(offset+4)
-        defer { offset += 4 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Float32.self) }
-        return endian == .little ? Float32(bitPattern: value.bitPattern.littleEndian) : value
-    }
-    
-    mutating func readFloat64(endian: Endian) throws -> Double {
-        let range = offset..<(offset+8)
-        defer { offset += 8 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Double.self) }
-        return endian == .little ? Double(bitPattern: value.bitPattern.littleEndian) : value
-    }
-    
-    mutating func readDouble(endian: Endian) throws -> Double {
-        let range = offset..<(offset+8)
-        defer { offset += 8 }
-        let value = data.subdata(in: range).withUnsafeBytes { $0.load(as: Double.self) }
-        return endian == .little ? Double(bitPattern: value.bitPattern.littleEndian) : value
-    }
-
-    mutating func readString(length: Int) throws -> String {
-        let range = offset..<(offset + length)
-        let rawData = data.subdata(in: range)
-        offset += length
-
-        if let utf8 = String(data: rawData, encoding: .utf8) {
-            return utf8
-        } else if let latin1 = String(data: rawData, encoding: .isoLatin1) {
-            return latin1
-        } else {
-            throw BinaryReaderError.stringDecodingFailed
-        }
-    }
-}
-struct LazyDataReference {
+struct LazyDataReference:Codable{
     let offset: Int
     let size: Int
     let type: Int
 }
-
-// DigitalMicrographReader.swift
-// Swift port of RosettaSciIO's DM3/DM4 file reader
-// Compatible with macOS (no iOS-specific features)
-
-import Foundation
-import Accelerate
 
 enum DMReaderError: Error {
     case unsupportedVersion(Int)
@@ -156,11 +86,13 @@ class DigitalMicrographReader {
     }
     
     private func parseTags(ntags: Int, groupName: String, groupDict: inout [String: Any]) throws {
+        
+        var unnamedCounter = 0
+
         for _ in 0..<ntags {
             
             let tagHeader = try parseTagHeader()
             var tagName = tagHeader.tagName.replacingOccurrences(of: ".", with: "")
-            var unnamedCounter = 0
             
             if tagName.isEmpty {
                 tagName = "TagGroup\(unnamedCounter)"
@@ -178,7 +110,7 @@ class DigitalMicrographReader {
                     let dtype = try readLOrQ()
                     let size = try readLOrQ() // or compute from other metadata if needed
                     let dataOffset = reader.offset
-                    let reference = LazyDataReference(offset: dataOffset, size: size, type: dtype)
+                    let reference = ["offset": dataOffset, "size": size, "datatype": dtype]
                     groupDict[tagName] = reference
                     
                     // Skip reading actual data
@@ -202,6 +134,7 @@ class DigitalMicrographReader {
             }
         }
     }
+
     
     func elementByteSize(for type: Int) -> Int {
         switch type {

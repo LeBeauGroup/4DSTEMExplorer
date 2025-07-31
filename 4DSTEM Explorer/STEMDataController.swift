@@ -54,7 +54,18 @@ class STEMDataController: NSObject {
             return Int(detectorSize.width*detectorSize.height)
         }
     }
-    
+    private func navigateDict(_ metadata:[String:Any],_ keyPath:[String]) -> [String:Any]{
+        var temp = metadata
+        for key in keyPath{
+            if let dict = temp[key] as! [String:Any]?{
+                temp = dict
+            }
+            
+        }
+        
+        return temp
+    }
+
     var fileStream:InputStream?
     
     var patternPointer:UnsafeMutablePointer<Float32>?
@@ -164,6 +175,22 @@ class STEMDataController: NSObject {
     
 //    import Accelerate
 //    import UniformTypeIdentifiers
+    
+    func sanitizeJSON(_ obj: Any) -> Any {
+        switch obj {
+        case let dict as [String: Any]:
+            return dict.mapValues { sanitizeJSON($0) }
+        case let array as [Any]:
+            return array.map { sanitizeJSON($0) }
+        case let number as NSNumber:
+            if number.doubleValue.isInfinite || number.doubleValue.isNaN {
+                return NSNull()
+            }
+            return number
+        default:
+            return obj
+        }
+    }
 
     func openFile(url: URL) throws {
         let ext = url.pathExtension
@@ -176,9 +203,10 @@ class STEMDataController: NSObject {
         let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
         let isMRC = url.pathExtension == "mrc"
         let isDM4 = url.pathExtension == "dm4"
+        let isRaw = url.pathExtension == "raw"
         
 
-        let dataType: Any.Type
+        var dataType: Any.Type? = nil
         var firstImageOffset: UInt64
         var additionalRows:Int = 0
     
@@ -203,6 +231,75 @@ class STEMDataController: NSObject {
             self.patternSize = detectorSize
             
             self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
+        } else if isDM4{
+            
+            let dm4 = try DigitalMicrographReader(fileURL: url)
+            var metadata = dm4.tagsDict
+            
+            firstImageOffset = 0
+                        
+            let keysToSampling = ["root", "ImageList", "TagGroup0", "ImageTags", "SI", "Acquisition", "Spatial Sampling"]
+            
+
+                
+            let sampling = navigateDict(metadata, keysToSampling)
+            
+            let keysToData = ["root", "ImageList", "TagGroup1", "ImageData", "Data"]
+            
+            let keysToDetector = ["root", "ImageList", "TagGroup1", "ImageTags",  "Acquisition", "Parameters", "Detector"]
+
+            let keysToSize = ["root", "ImageList", "TagGroup1", "ImageData", "Dimensions"]
+            
+            let keysToPixelDepth = ["root", "ImageList", "TagGroup1", "ImageData"]
+
+            let data = navigateDict(metadata, keysToData)
+//            let pixelDepth = navigateDictToInt(metadata, keysToPixelDepth)
+            
+            let detector = navigateDict(metadata, keysToDetector)
+            let sizes = navigateDict(metadata, keysToSize)
+            
+            if let dtypeNumber = data["datatype"] as? Int{
+                switch dtypeNumber{
+                case 2:
+                    dataType = Int16.self
+                case 4:
+                    dataType = UInt16.self
+                case 5:
+                    dataType = UInt32.self
+                case 8:
+                    dataType = Bool.self
+                case 10:
+                    dataType = UInt8.self
+                default:
+                    dataType = Int16.self
+                    
+                }
+            }
+            
+
+            var offset:Int = 0
+            
+            var sizesArray: [UInt32]  = Array.init(repeating: 0, count: 4)
+            
+            for sizeKey in sizes.keys{
+                
+                if let index = sizeKey.last(where: { $0.isNumber }){
+                    
+                    if let t = sizes[sizeKey] as? UInt32{
+                        sizesArray[Int(String(index))!] = t
+                    }
+                    
+                }
+            }
+//
+
+                    
+            firstImageOffset = UInt64(data["offset"] as! Int)
+            self.detectorSize = IntSize(width: Int(sizesArray[0]), height: Int(sizesArray[1]))
+            self.patternSize = detectorSize
+            
+            self.imageSize = IntSize(width: Int(sizesArray[2]), height: Int(sizesArray[3]))
+
         } else {
             dataType = Float32.self
             firstImageOffset = 0
@@ -212,22 +309,34 @@ class STEMDataController: NSObject {
             additionalRows = 2
         }
 
-        let elementSize: Int
-        switch dataType {
-        case is Float32.Type:
-            elementSize = MemoryLayout<Float32>.size
-        case is Int16.Type:
-            elementSize = MemoryLayout<Int16>.size
-        default:
-            elementSize = MemoryLayout<Float32>.size
+        var elementSize: Int = 0
+        
+        if dataType != nil{
+            switch dataType {
+            case is UInt32.Type:
+                elementSize = MemoryLayout<UInt32>.size
+            case is Float32.Type:
+                elementSize = MemoryLayout<Float32>.size
+            case is Int16.Type:
+                elementSize = MemoryLayout<Int16>.size
+            case is UInt8.Type:
+                elementSize = MemoryLayout<UInt8>.size
+            case is UInt16.Type:
+                elementSize = MemoryLayout<UInt16>.size
+            case is Bool.Type:
+                elementSize = MemoryLayout<Bool>.size
+            default:
+                elementSize = MemoryLayout<Float32>.size
+            }
         }
+
 
         let detectorPixels = self.detectorPixels
         let patternPixels = self.patternPixels
         let imagePixels = self.imagePixels
         let detectorBitCount = detectorPixels * elementSize
 
-        if !isTIFF && !isMRC {
+        if isRaw {
             do {
                 let attrib = try FileManager.default.attributesOfItem(atPath: url.path)
                 let fileSize = attrib[.size] as! Int
@@ -241,7 +350,8 @@ class STEMDataController: NSObject {
 
         
         let patternByteCount = patternPixels * elementSize
-        let dataTypeIsInt16 = dataType == Int16.self
+//        let dataTypeIsInt16 == Int16.self
+
         let width = self.patternSize.width
         var height = self.patternSize.height
         let totalPatternPixels = height*(width + additionalRows)
@@ -277,17 +387,41 @@ class STEMDataController: NSObject {
 
                 guard let batchData = self.fh?.readData(ofLength: readSize) else { continue }
 
-                if dataTypeIsInt16 {
+                switch dataType {
+                case is Int16.Type:
                     batchData.withUnsafeBytes { raw in
                         let int16Ptr = raw.bindMemory(to: Int16.self).baseAddress!
                         vDSP_vflt16(int16Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
                     }
-                } else {
+                case is UInt16.Type:
+                    batchData.withUnsafeBytes { raw in
+                        let uint16Ptr = raw.bindMemory(to: UInt16.self).baseAddress!
+                        vDSP_vflt16(uint16Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
+                    }
+
+                case is UInt32.Type:
+                    batchData.withUnsafeBytes { raw in
+                        let uint32Ptr = raw.bindMemory(to: UInt32.self).baseAddress!
+                        vDSP_vflt32(uint32Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
+                    }
+                case is UInt8.Type:
+                    batchData.withUnsafeBytes { raw in
+                        let uint8Ptr = raw.bindMemory(to: UInt8.self).baseAddress!
+                        vDSP_vfltu8(uint8Ptr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
+                    }
+                case is Bool.Type:
+                    batchData.withUnsafeBytes { raw in
+                        let boolPtr = raw.bindMemory(to: UInt8.self).baseAddress!
+                        vDSP_vfltu8(boolPtr, 1, floatTempBuffer, 1, vDSP_Length(imagesInBatch * totalPatternPixels))
+                    }
+                    default:
                     batchData.withUnsafeBytes { raw in
                         let float32Ptr = raw.bindMemory(to: Float32.self).baseAddress!
                         floatTempBuffer.update(from: float32Ptr, count: imagesInBatch * totalPatternPixels)
                     }
+                    
                 }
+
 
                 for img in 0..<imagesInBatch {
                     let globalIndex = batchIndex * batchSize + img
@@ -319,228 +453,6 @@ class STEMDataController: NSObject {
 
         DispatchQueue.global().async(execute: dwi!)
     }
-    
-//    func openFile(url:URL) throws{
-//        
-//        let ext = url.pathExtension
-//
-//        let uti = UTTypeCreatePreferredIdentifierForTag(
-//            kUTTagClassFilenameExtension,
-//            ext as CFString,
-//            nil)
-//        
-//        let dataType:Any.Type
-//        
-//        var firstImageOffset:UInt64
-//        
-//        let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
-//        let isMRC = url.pathExtension == "mrc"
-//        
-//        
-////        // Example usage
-////        do {
-////            let fileURL = URL(fileURLWithPath: "/path/to/your_file.mrc") // Replace with real path
-////            let mrcVolume = try loadMRCFile(from: fileURL)
-////            
-////            print("MRC file loaded successfully.")
-////            print("Dimensions (nx, ny, nz): (\(mrcVolume.header.nx), \(mrcVolume.header.ny), \(mrcVolume.header.nz))")
-////            print("Mode: \(mrcVolume.header.mode)")
-////            print("Data array length: \(mrcVolume.volumeData.count)")
-////            // You can now process `mrcVolume.volumeData` as needed.
-////            
-////        } catch {
-////            print("Error reading MRC file: \(error)")
-////        }
-//        
-//        if  isTIFF{
-//            dataType =  Float32.self
-//            
-//            let props:[String:Any]
-//            
-//            do{
-//                try props =  TIFFheader(url)
-//                try readTiffInfo(props)
-//                firstImageOffset = props["FirstImageOffset"] as! UInt64
-//                
-//            }catch{
-//                
-//                throw FileReadError.invalidTiff
-//                
-//            }
-//        }
-//        else if isMRC{
-//            dataType =  Int16.self
-//
-//            let (header, feiHeader) = try loadMRCHeader(from: url)
-//            firstImageOffset = UInt64(1024+header!.nsymbt)
-//            self.detectorSize = IntSize(width: Int(header!.nx), height: Int(header!.nx))
-//            self.patternSize = detectorSize
-//            self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
-////                volume =  try? loadMRCFile(from: url)
-//            
-//        }else{
-//            dataType =  Float32.self
-//            firstImageOffset = 0
-//            self.detectorSize = empadSize
-//            self.patternSize = detectorSize
-//            patternSize.height -= 2
-//            
-//    
-//            
-//        }
-//        
-//        var fileSize = 0
-//        let detectorPixels = self.detectorPixels
-//        let patternPixels = self.patternPixels
-//        let imagePixels = self.imagePixels
-//       
-//        
-//        let elementSize:Int
-//        
-//        switch dataType {
-//        case is Float32.Type:
-//            elementSize = MemoryLayout<Float32>.size
-//        case is Int16.Type:
-//            elementSize = MemoryLayout<Int16>.size
-//        default:
-//            elementSize = MemoryLayout<Float32>.size
-//        }
-//        
-//        let detectorBitCount = detectorPixels*elementSize
-//        
-//        
-//        if !isTIFF && !isMRC{
-//            do{
-//                let attrib = try FileManager.default.attributesOfItem(atPath: url.path)
-//                fileSize = attrib[.size] as! Int
-//                
-//            }catch{
-//                throw FileReadError.invalidRaw
-//            }
-//            if  fileSize != detectorPixels*imagePixels*elementSize {
-//                throw FileReadError.invalidDimensions
-//            }
-//            
-//
-//        }
-//        
-//        
-//        
-//        let patternBitCount = patternPixels*elementSize
-//        let dataPixels = patternPixels*imagePixels*elementSize
-//        
-//        let nc = NotificationCenter.default
-//
-//        dwi  = DispatchWorkItem {
-//        
-//            self.openFileHandle(url: url)
-//            
-//            if self.patternPointer != nil{
-//                self.patternPointer?.deallocate(capacity: patternPixels*imagePixels*elementSize)
-//            }
-//            
-//            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: dataPixels)
-//
-//            
-//
-//            
-//            let fracComplete = Int(Double(imagePixels)*0.05)
-//            
-//            self.fh?.seek(toFileOffset: firstImageOffset)
-//            
-//            for i in stride(from: 0, to: self.imageSize.height, by: 1){
-//                
-//                if (self.dwi?.isCancelled)!{
-//                    break
-//                }
-//                
-//                autoreleasepool{
-//                    
-//                    for j in stride(from: 0, to: self.imageSize.width, by: 1){
-//                        
-//                        if (self.dwi?.isCancelled)!{
-//                            break
-//                        }
-//                        
-//                        let curImagePixel = (i*self.imageSize.width+j)
-//                        let patternOffset = curImagePixel*detectorBitCount
-//
-//                        
-//                        let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
-//                        
-//                        if !isTIFF{
-//                            self.fh?.seek(toFileOffset: UInt64(patternOffset))
-//                        }
-//                        
-//                        var imageData = self.fh?.readData(ofLength: patternBitCount)
-//                        
-//                        //                    let newPointer = self.patternPointer! + curImagePixel*(patternPixels)
-//
-//                        
-//                        if isTIFF{
-//                            imageData?.withUnsafeMutableBytes { (i32ptr: UnsafeMutablePointer<UInt32>) in
-//                                for i in 0..<patternPixels {
-//                                    i32ptr[i] =  i32ptr[i].byteSwapped
-//                                }
-//                            }
-//                        }
-//                        
-//                        if dataType is Int16.Type{
-//                                // Fast conversion
-//                                var floatBuffer = [Float32](repeating: 0, count: patternPixels)
-//                                imageData?.withUnsafeBytes { rawBufferPointer in
-//                                    let int16Ptr = rawBufferPointer.bindMemory(to: Int16.self).baseAddress!
-//                                    vDSP_vflt16(int16Ptr, 1, &floatBuffer, 1, vDSP_Length(patternPixels))
-//                                }
-//
-//                            }
-//                        
-//                                                
-//
-//                        // store rows in reversed order
-//                        imageData?.withUnsafeBytes{(ptr: UnsafePointer<Float32>) in
-//                            let width = self.patternSize.width
-//                            for row in 0..<self.patternSize.height {
-//                                let destRow = self.patternSize.height - row - 1
-//                                (newPointer + destRow*width).assign(from: ptr + row*width, count: width)
-//                            }
-//                        }
-//                        
-//                        
-//                        
-//                        if(curImagePixel % fracComplete == 0 ){
-//                            DispatchQueue.main.async {
-//                                nc.post(name: Notification.Name("updateProgress"), object:curImagePixel)
-//                            }
-//                        }
-//                    }// forj
-//                } //autorelease
-//                
-//            } //fori
-//            
-//            DispatchQueue.main.async {
-//                self.delegate?.didFinishLoadingData()
-//                self.progressdelegate?.didFinishLoadingData()
-//            }
-//            
-////            if (self.dwi?.isCancelled)!{
-////                DispatchQueue.main.async {
-////                    self.progressdelegate?.cancel(self)
-////                }
-////            }else{
-////                
-////                DispatchQueue.main.async {
-////                    self.delegate?.didFinishLoadingData()
-////                    self.progressdelegate?.didFinishLoadingData()
-////                }
-////            }
-//        }
-//        
-//        
-//         DispatchQueue.global().async(execute: dwi!)
-//
-//        
-//    }
     
     
     func openFileHandle(url:URL){
