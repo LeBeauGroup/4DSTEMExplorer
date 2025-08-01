@@ -325,7 +325,6 @@ class DigitalMicrographReader {
     
     func readSimpleArray(size: Int, etype: Int) throws -> [Any] {
         var array: [Any] = []
-        print("Array size: \(size)")
         for _ in 0..<size {
             array.append(try readSimpleData(etype: etype))
         }
