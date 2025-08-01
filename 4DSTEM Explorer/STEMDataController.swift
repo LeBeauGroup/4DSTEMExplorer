@@ -14,6 +14,7 @@ enum FileReadError: Error {
     case invalidTiff
     case invalidRaw
     case invalidDimensions
+    case notDiffractionSI
 }
 
 enum DataType {
@@ -247,7 +248,145 @@ class STEMDataController: NSObject {
             }
         }
     }
+    
+    
+    // MARK: - File read
+    
+    
+    func waitForFileDownload(at url: URL, timeout: TimeInterval = 15.0, stableDuration: TimeInterval = 1.5) -> Bool {
+        let start = Date()
+        var lastSize: Int64 = -1
+        var stableStart: Date? = nil
+
+        while Date().timeIntervalSince(start) < timeout {
+            do {
+                let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+                if let fileSize = attrs[.size] as? Int64 {
+                    if fileSize == lastSize {
+                        if stableStart == nil {
+                            stableStart = Date()
+                        } else if Date().timeIntervalSince(stableStart!) >= stableDuration {
+                            // File size hasn't changed for long enough; assume download complete
+                            return true
+                        }
+                    } else {
+                        stableStart = nil
+                        lastSize = fileSize
+                    }
+                }
+            } catch {
+                // File not yet readable
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return false
+    }
+    
+    func waitUntilDropboxFileIsReadable(at url: URL, timeout: TimeInterval = 10.0) -> Bool {
+        let start = Date()
+        while true {
+            do {
+                _ = try Data(contentsOf: url)
+                return true  // File is readable
+            } catch {
+                // Possibly still downloading
+            }
+
+            if Date().timeIntervalSince(start) > timeout {
+                return false  // Timed out
+            }
+
+            // Sleep a bit to avoid CPU spinning
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+    }
+    func waitUntilFileIsDownloaded(at url: URL, timeout: TimeInterval = 10.0) -> Bool {
+        let start = Date()
+        while !isFileFullyDownloaded(at: url) {
+            if Date().timeIntervalSince(start) > timeout {
+                print("Timeout waiting for file to download")
+                return false
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1)) // Avoid CPU hog
+        }
+        return true
+    }
+    
+    func isDropboxFile(_ url: URL) -> Bool {
+        let path = url.path
+        return path.contains("Dropbox")
+    }
+
+    func isFileFullyDownloaded(at url: URL) -> Bool {
+        do {
+            let resourceValues = try url.resourceValues(forKeys: [.isUbiquitousItemKey,
+                                                                  .ubiquitousItemDownloadingStatusKey])
+            guard resourceValues.isUbiquitousItem == true else {
+                return true  // Not a cloud file, assume it's local
+            }
+
+            return resourceValues.ubiquitousItemDownloadingStatus == .current
+        } catch {
+            print("Failed to check file status: \(error)")
+            return false
+        }
+    }
+    
+    func forceDownloadDropboxFile(at url: URL) -> Bool {
+        let startTime = Date()
+        let timeout: TimeInterval = 15.0
+        var lastSize: Int64 = -1
+        var stableStart: Date? = nil
+
+        while Date().timeIntervalSince(startTime) < timeout {
+            do {
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                // Optional: check size stability for completeness
+                let size = Int64(data.count)
+                if size == lastSize {
+                    if stableStart == nil {
+                        stableStart = Date()
+                    } else if Date().timeIntervalSince(stableStart!) > 2.0 {
+                        return true // Size is stable → likely fully downloaded
+                    }
+                } else {
+                    lastSize = size
+                    stableStart = nil
+                }
+            } catch {
+                // Triggers Dropbox download behind the scenes
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return false
+    }
+    
+    func nudgeDropboxDownload(url: URL) {
+        let coordinator = NSFileCoordinator()
+        var error: NSError?
+        coordinator.coordinate(readingItemAt: url, options: [], error: &error) { _ in
+            // No-op — access itself is the trigger
+        }
+    }
+    
     func openFile(url: URL) throws {
+        
+        
+        if isDropboxFile(url) {
+            nudgeDropboxDownload(url: url)
+            // ...
+        } else if (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true {
+            print("Detected iCloud file")
+            // Use `startDownloadingUbiquitousItem(at:)` and check download status
+        } else {
+            print("Not iCloud or Dropbox")
+        }
+       
+        
         let ext = url.pathExtension
         let uti = UTTypeCreatePreferredIdentifierForTag(
             kUTTagClassFilenameExtension,
@@ -298,19 +437,41 @@ class STEMDataController: NSObject {
 //
 //        
 //            let sampling = navigateDict(metadata, keysToSampling)
-//
-            let keysToData = ["root", "ImageList", "TagGroup1", "ImageData", "Data"]
             
-//            let keysToDetector = ["root", "ImageList", "TagGroup1", "ImageTags",  "Acquisition", "Parameters", "Detector"]
-
-            let keysToSize = ["root", "ImageList", "TagGroup1", "ImageData", "Dimensions"]
+            let keysImageList = ["root", "ImageList"]
             
-//            let keysToPixelDepth = ["root", "ImageList", "TagGroup1", "ImageData"]
-
+            let imageList  = navigateDict(metadata, keysImageList)
+            
+            var tagGroup:String? = nil
+            
+            for (key, _) in imageList {
+                let keyToImage = ["root", "ImageList", "\(key)"]
+                let imageDict  = navigateDict(metadata, keyToImage)
+                
+                if let name = imageDict["Name"] as? String{
+                    if name == "Diffraction SI"{
+                        tagGroup = key
+                        break
+                    }
+                }
+            }
+            
+            guard let tg = tagGroup else {
+                throw FileReadError.notDiffractionSI
+                }
+                //
+            let keysToData = ["root", "ImageList", tg, "ImageData", "Data"]
+            
+            //            let keysToDetector = ["root", "ImageList", "TagGroup1", "ImageTags",  "Acquisition", "Parameters", "Detector"]
+            
+            let keysToSize = ["root", "ImageList", tg, "ImageData", "Dimensions"]
+            
+            //            let keysToPixelDepth = ["root", "ImageList", "TagGroup1", "ImageData"]
+            
             let data = navigateDict(metadata, keysToData)
-//            let pixelDepth = navigateDictToInt(metadata, keysToPixelDepth)
+            //            let pixelDepth = navigateDictToInt(metadata, keysToPixelDepth)
             
-//            let detector = navigateDict(metadata, keysToDetector)
+            //            let detector = navigateDict(metadata, keysToDetector)
             let sizes = navigateDict(metadata, keysToSize)
             
             if let dtypeNumber = data["datatype"] as? Int{
@@ -331,7 +492,7 @@ class STEMDataController: NSObject {
                 }
             }
             
-
+            
             
             var sizesArray: [UInt32]  = Array.init(repeating: 0, count: 4)
             
@@ -343,12 +504,13 @@ class STEMDataController: NSObject {
                     
                 }
             }
-                    
+            
             firstImageOffset = UInt64(data["offset"] as! Int)
             self.detectorSize = IntSize(width: Int(sizesArray[0]), height: Int(sizesArray[1]))
             self.patternSize = detectorSize
             
             self.imageSize = IntSize(width: Int(sizesArray[2]), height: Int(sizesArray[3]))
+        
 
         } else {
             dataType = .float32

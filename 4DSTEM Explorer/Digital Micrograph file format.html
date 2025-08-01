@@ -1,0 +1,950 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Digital Micrograph file format</title>
+<link rel="stylesheet" type="text/css" href="../../bits/cbbstyle.css">
+</head>
+
+<body bgcolor="#ffffff">
+
+<h1>Digital Micrograph file format</h1>
+<hr>
+
+
+<p>Digital Micrograph is an image processing program produced commercially by
+  <a href="http://www.gatan.com/">Gatan</a>.
+
+<p>Gatan does not publish the file format for Digital Micrograph.
+This information has been obtained by examining the structure of files,
+thus it may be inaccurate or wrong and is definitely incomplete.
+
+<p>See also
+  the <a href="http://rsb.info.nih.gov/ij/plugins/DM3Format.gj.html">Greg
+  Jefferis' Digital Micrograph 3 file format page</a> on which some of the
+  information here is based.
+
+<p>GMS 2 introduced a new file format, DM4.  This format is very similar to DM3
+  but can accommodate much larger images.
+
+<p>More recently the DM5 format has been introduced, based
+  on <a href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a>.
+  Gatan now has
+  some <a href="https://www.gatan.com/dm5-documentation">documentation for the
+  DM5 format</a>.
+
+<p><a href="#dm2">DM2 info</a>: updated some time ago and packed complex 18 Nov 2015
+
+<p><a href="#dm3">DM3 info</a>: updated March 2006 with cosmetic changes Nov 2013
+
+<p><a href="#dm4">DM4 info</a>: updated Nov 2013
+
+<p><a href="#dm5">DM5 info</a>: minimal info Sept 2024
+
+<p>&nbsp;
+
+
+<hr>
+<a name="dm2"></a>
+<h2>Digital Micrograph 2 file format</h2>
+
+<p>The files examined were written by Digital Micrograph 2.1.5.
+For DM 2.5 the main difference is the version tag
+
+<p>A ? means a guess or I've not bothered to check or I'm not sure.
+
+<p>
+Mac file type: GSHN<br>
+Mac creator:   GCCD<br>
+
+<p>All DM2 files are big-endian, ie high order byte first.
+
+<h3>Resource fork:</h3>
+
+Seems to contain ~286 bytes, but no resources as seen by ResEdit.
+
+<h3>Data fork:</h3>
+
+File is arranged in a series of fields, each field containing
+tag (2 bytes), data length (4 bytes), data (data length bytes).
+
+<p>The 2 byte tag identifies the type of data contained in the field. These
+are, approximately in the order they appear in the file (is the order
+significant?)
+
+<pre>
+tag value
+(hex)
+
+  3d  DM version multiplied by 100 and stored as i4 (ie length 4). For DM 2.1.5
+      the version is 200, for DM 2.5 it is 250.
+
+ffff  The image itself. First 8 bytes specify size and type as 4i2.
+      This is the same as the "small header format", except that only data
+      types 1 to 7 are listed in the manual for this format.
+
+      1  width
+      2  height
+      3  bytes/pixel (eg float=4, complex=8)
+      4  data type.  1  2 byte integer signed ("short")
+                     2  4 byte real (IEEE 754)
+                     3  8 byte complex (real, imaginary)
+                     4  ?
+                     5  4 byte packed complex (see below)
+                     6  1 byte integer unsigned ("byte")
+                     7  4 byte integer signed ("long")
+                     8  rgb view, 4 bytes/pixel, unused, red, green, blue?
+                     9  1 byte integer signed
+                    10  2 byte integer unsigned
+                    11  4 byte integer unsigned
+                    12  8 byte real
+                    13 16 byte complex
+                    14  1 byte binary (ie 0 or 1)
+
+      The first 3 multiplied together should give the total number of bytes in
+      the picture.
+      The rest (ie all but first 8 bytes) is the image.
+
+      Packed complex (data type 5)
+      This is used for the Fourier transform of real images, which have
+      symmetric real parts and antisymmetric imaginary parts and thus can
+      be stored in half the number of bytes that the equivalent complex
+      picture would take. The format is somewhat strange.
+      I have confused things further by using semper's coordinate system.
+      If the equivalent full complex picture of size n by n would look like
+      x1 = -n/2,          x2 = int((n-1)/2)
+      y1 = -int((n-1)/2), y2 = n/2
+
+      real part
+
+            x1         ...         -1       0       1      ...      x2
+      y1   rx1,y1                          r0,y1                   rx2,y1
+      ...
+       1                           r-1,1   r0,1    r1,1 
+       0   rx1,0                   r-1,0   r0,0    r1,0            rx2,0
+      -1                           r-1,-1  r0,-1   r1,-1
+      ...
+      y2   rx1,y2                          r0,y2                   rx2,y2
+
+      imaginary part likewise but i-1,-1 etc
+
+      packed complex
+
+            x1     x1+1  ... -2      -1       0       1    ...  x2-1    x2
+      y1   rx1,0  *rx1,y1    r1,y1   i1,y1   r2,y1   i2,y1     rx2,y1  ix2,y1
+      ...
+       1   rx1,y2  ix1,y2    r1,1    i1,1    r2,1    i2,1      rx2,1   ix2,1
+       0   r0,0   *r0,y1     r1,0    i1,0    r2,0    i2,0      rx2,0   ix2,0
+      -1   r0,-1   i0,-1     r1,-1   i1,-1   r2,-1   i2,-1     rx2,-1  ix2,-1
+      ...
+      y2   r0,y2   i0,y2     r1,y2   i1,y2   r2,y2   i2,y2     rx2,y2  ix2,y2
+
+      The top of the x1 and x1+1 columns contain what would be in the bottom
+      of the x1 column, with two imaginary parts containing real parts (marked
+      with *)
+
+      Below is an example for the Fourier transform of an 8x8 real image.
+
+Real part
+                                                    x
+        -4         -3         -2         -1         0         1         2         3
+  4   Re(-4, 4)  Re(-3, 4)  Re(-2, 4)  Re(-1, 4)  Re(0, 4)  Re(1, 4)  Re(2, 4)  Re(3, 4)
+  3   Re(-4, 3)  Re(-3, 3)  Re(-2, 3)  Re(-1, 3)  Re(0, 3)  Re(1, 3)  Re(2, 3)  Re(3, 3)
+  2   ...
+  1   ...
+y 0   Re(-4, 0)  Re(-3, 0)  Re(-2, 0)  Re(-1, 0)  Re(0, 0)  Re(1, 0)  Re(2, 0)  Re(3, 0)
+ -1   ...
+ -2   ...
+ -3   Re(-4,-3)  Re(-3,-3)  Re(-2,-3)  Re(-1,-3)  Re(0,-3)  Re(1,-3)  Re(2,-3)  Re(3,-3)
+
+Imaginary part is same as real part but Im(-4,-4) etc
+
+Packed complex version of above
+DMx         0          1          2          3         4         5         6         7
+                                                      x
+y          -4         -3         -2         -1         0         1         2         3
+0   4   Re(-4, 0) *Re(-4, 4)  Re( 1, 4)  Im( 1, 4)  Re(2, 4)  Im(2, 4)  Re(3, 4)  Im(3, 4)
+1   3   Re(-4,-1)  Im(-4,-1)  Re( 1, 3)  Im( 1, 3)  Re(2, 3)  Im(2, 3)  Re(3, 3)  Im(3, 3)
+2   2   Re(-4,-2)  Im(-4,-2)  Re( 1, 2)  Im( 1, 2)  ...
+3   1   Re(-4,-3)  Im(-4,-3)  Re( 1, 1)  Im( 1, 1)  ...
+4 y 0   Re( 0, 0) *Re( 0, 4)  Re( 1, 0)  Im( 1, 0)  Re(2, 0)  Im(2, 0)  Re(3, 0)  Im(3, 0)
+5  -1   Re( 0,-1)  Im( 0,-1)  Re( 1,-1)  Im( 1,-1)  ...
+6  -2   Re( 0,-2)  Im( 0,-2)  Re( 1,-2)  Im( 1,-2)  ...
+7  -3   Re( 0,-3)  Im( 0,-3)  Re( 1,-3)  Im( 1,-3)  Re(2,-3)  Im(2,-3)  Re(3,-3)  Im(3,-3)
+
+
+  3b  Contains the local info saved with the picture eg mictroscope cs.
+      First 4 bytes - number of tags (i4)
+      Each tag has the format
+      4i2, string, 8i2, string, 10i2
+      The integer before each string is the string length
+      The integer before this is the string length + 2
+      Integer 8 seems to be the type of the tag
+        2  string
+        3  number
+        4  keyword
+        5  unknown
+      All the rest of the integers were the same in all tags examined.
+
+  3c  Contents of notes box. First 4 bytes are number of characters. Rest is
+      text of notes box. There is no trailing null.
+
+  2d  Display type = raster image if present? Length=0
+      Also has 16 and 3e set
+
+  2e  Display type = surface plot if present? Length=0
+      Also has 2f, 30, 31, 32, 33, 34 set
+
+ 1f4  Display type = line plot if present? Length=0
+      Also has 1f5, 1f6, 1f7, 1f8, 1f9 and others set
+
+  16  Display magnification (screen pixels/pixel) (real)
+
+  3e  Position of top left of picture with respect to top left of window
+      (2i2)
+
+  1b  Picture maximum value (real)
+
+  1c  Picture minimum value (real)
+
+  35  Units for pixel size (null terminated (eg 1/um for fft) plus other
+      stuff to total of 16 bytes (or is everything after the null junk?)
+
+  1f  Pixel size in um? (real)
+
+  20  Pixel size in um? (real)
+
+  23  0 = normal contrast, 1 = inverted contrast (i1) set in display info
+
+   d  Colour mode (i2) set in display info
+         1  Gray-scale
+         2  Linear
+         3  Rainbow?
+         4  Temperature?
+         5  Custom?
+
+   c  Contrast mode (i2) set in display info
+         1  Linear
+         2  Equalized
+         3  Pseudo-contour?
+         4  Custom?
+
+  27  0 = survey off, 1 = survey on (i1) set in display info
+
+  28  0 = survey cross-wires, 1 = survey entire image (i2) set in display info
+
+  11  Value to display as black (contrast limits) (real)
+
+  12  Value to display as white (contrast limits) (real)
+
+  26  Minimum contrast (real) set in display info
+
+  25  Annotation, eg text or lines on screen. First 4 bytes is probably number
+      of annotations (i4)
+
+  19  position & size of window on screen, top left = 0,0. (4i2)
+      top, left, bot, right
+
+   0  End of file (length 0)
+</pre>
+
+<p>&nbsp;
+<p>&nbsp;
+
+
+<hr>
+<a name="dm3"></a>
+<h2>Digital Micrograph 3 file format</h2>
+
+<p>
+Mac file type: GTGI<br>
+Mac creator:   GCCD<br>
+
+<p>Files examined were written from DM 3.3.1 on a PC and a Mac and later versions.
+
+<h3>Notation used</h3>
+
+<p>The notation is loosely based on Fortran.
+
+<pre>
+  i1   char    1 byte integer
+  i2   short   2 byte integer
+  i4   long    4 byte integer
+
+  f4   float   4 byte floating point
+  f8   double  8 byte floating point
+
+   a   char      string
+</pre>
+
+<p>Byte order
+
+<pre>
+  i4be   big endian, Motorola, Mac PPC, eg 00 00 01 02 for 258
+  i4le   little endian, Intel, Mac Intel, Windows,  eg 02 01 00 00 for 258
+  i4*    order depends on byte order flag (3rd i4 integer in file)
+</pre>
+
+<p>Hex values are written eg 14h, ie 14h = 20
+
+<h3>Overall file structure</h3>
+
+<p>File consists of a header, a tag directory and a group of nulls marking the
+  end of the file. The tag directory contains both tags and more tag
+  directories in a hierarchical structure.
+
+<p>The image itself is in a tag directory called "ImageList". More than one
+  image can be stored in Imagelist.
+
+<p>All numbers relating to the header and tag structure are in big endian byte
+  order. Tag values are in the native order of the machine writing the file.
+
+<h4>Header</h4>
+<pre>
+  version   i4be    DM version = 3
+  rootlen   i4be    Size of root tag directory in bytes = file length - 16
+  byteord   i4be    Byte order, 0 = big endian (Mac) order,
+                                1 = little endian (PC) order
+</pre>
+
+<h4>Root tag directory</h4>
+<pre>
+  sortf     i1      Sorted, 1 = sorted (normally = 1)
+  closef    i1      Closed, 1 = open (normally = 0)
+  ntags     i4be    Number of tags in root directory (12h = 18)
+</pre>
+
+
+<h4>Tags and tag directories in root tag directory</h4>
+
+<p>The following is repeated for each tag directory and tag (see below for
+  details)
+
+<pre>
+  tag       i1      tag, 14h or 15h or 0 for end of file
+  ltname    i2be    tag name length in bytes, may be 0
+  tname     a       tag name (length ltname), may be absent
+  ...               tag directory or tag data
+</pre>
+
+
+<h4>End of file</h4>
+<pre>
+            8*00     End of file is marked with 8 nulls
+</pre>
+
+<h4>Example, Mac DM3 file</h4>
+
+<pre>
+  00 00 00 03  00 22 59 b9  00 00 00 00
+  01 00 00 00  00 12 15 00  11 41 70 70  6c 69 63 61  74 69 6f 6e
+  ......
+  00 00 00 00 00 00 00 00
+</pre>
+
+
+<h3>Tag directories and tags</h3>
+
+<p>Tag directories and tags in the root tag directory and other tag directories
+  are identified by their first byte.
+
+<pre>
+  14h = 20      tag directory
+  15h = 21      tag
+  00            end of file
+</pre>
+
+<h3>Tag directories</h3>
+
+<p>Example
+<pre>
+  14   00 12   44 6f 63 75 6d 65 6e 74 4f 62 6a 65 63 74 4c 69 73 74
+  00   00   00 00 00 01
+  ......
+
+  14             i1      identifies tag directory (14h = 20)
+  00 12          i2be    bytes in tag name (ltname), may be 0
+  44 6f 63 75  6d 65 6e 74  4f 62 6a 65  63 74 4c 69  73 74
+                 a       tag name, length ltname "DocumentObjectList"
+
+  00             i1      1 = sorted? (can be 0 or 1)
+  00             i1      0 = closed?, 1 = open (normally = 0)
+  00 00 00 01    i4be    number of tags in tag directory (01h = 1). Can be 0
+</pre>
+
+<h3>Tags</h3>
+
+<h4>Overall structure</h4>
+<pre>
+         i1              identifies tag (15h = 21)
+         i2be            ltname, bytes in tag name, may be 0
+         a               tag name, length ltname
+
+         a4              string "%%%%"
+         i4be            ninfo, size of info array following (=1)
+         i4be * ninfo    info(ninfo), array of ninfo integers
+                         contains tag data type(s) for tag values
+         xx* * ninfo     tag values (byte order set by byte order flag)
+                         byte lengths specified in info(ninfo)
+</pre>
+
+
+<h3>Single entry tag</h3>
+
+<p>Example
+<pre>
+  15   00 0e   41 6e 6e 6f 74 61 74 69 6f 6e 54 79 70 65
+  25 25 25 25   00 00 00 01   00 00 00 03   00 00 00 14
+
+
+  15             i1      identifies tag (15h = 21)
+  00 0e          i2be    bytes in tag name (ltname), may be 0
+  41 6e 6e 6f  74 61 74 69  6f 6e 54 79  70 65
+                 a       tag name, length ltname "AnnotationType"
+
+  25 25 25 25    a4      "%%%%"
+  00 00 00 01    i4be    ninfo, size of info array following (=1)
+  00 00 00 03    i4be    info(ninfo), array of ninfo i4 integers, in this case just 1
+                         contains tag data type (3 = signed i4*)
+  00 00 00 14    i4*     tag value, 14h = 20
+</pre>
+
+<p>For single entry tags:
+<pre>
+  ninfo = 1
+  info(1) = tag data type
+</pre>
+
+<h3>Tag containing a group of data (struct)</h3>
+
+<p>Example
+<pre>
+  15 0006 4f6666736574  25252525 00000007 0000000f 00000000 00000002
+                        00000000 00000006 00000000 00000006
+                        00000000 00000000
+
+
+  15             i1      identifies tag (15h = 21)
+  00 06          i2be    bytes in tag name (ltname), may be 0
+  4f 66 66 73 65 74
+                 a       tag name, length ltname "Offset"
+
+  25 25 25 25    a4      "%%%%"
+  00 00 00 07    i4be    ninfo, size of info array following (=7)
+                         info(ninfo):
+  00 00 00 0f    i4be    info(1) tag data type (0fh = group of data)
+  00 00 00 00    i4be    info(2) length of groupname? (always = 0)
+  00 00 00 02    i4be    info(3) ngroup, number of entries in group (=2)
+  00 00 00 00    i4be    info(4) length of fieldname? (always = 0)
+  00 00 00 06    i4be    info(5) tag data type for value 1 (06h = f4)
+  00 00 00 00    i4be    info(6) length of fieldname? (always = 0)
+  00 00 00 06    i4be    info(7) tag data type for value 2 (06h = f4)
+                         tag values:
+  00 00 00 00    f4*     value(1)
+  00 00 00 00    f4*     value(2)
+</pre>
+
+<p>For group tags
+<pre>
+ninfo = size of info array
+info(1) = 0fh
+info(2) = 0 normally
+info(3) = ngroup, number of members in group
+info(2*i+3) = tag data type for value i
+Other info entries are always zero
+</pre>
+
+<h3>Tag containing an array</h3>
+
+<p>Example, an image tag
+<pre>
+15 0004 44617461 25252525 00000003 00000014 00000002 00000024
+                 fdff feff ffff 0000 0100 0200 0300 0400 0500
+                 fdff feff ffff 0000 0100 0200 0300 0400 0500
+                 fdff feff ffff 0000 0100 0200 0300 0400 0500
+                 fdff feff ffff 0000 0100 0200 0300 0400 0500
+
+
+  15             i1      identifies tag (15h = 21)
+  00 04          i2be    bytes in tag name (ltname)
+  44 61 74 61    a       tag name, length ltname "Data"
+
+  25 25 25 25    a4      "%%%%"
+  00 00 00 03    i4be    ninfo, size of info array following (=3)
+                         info(ninfo):
+  00 00 00 14    i4be    info(1), tag data type (14h = array)
+  00 00 00 02    i4be    info(2), tag data type for array members (02h = i2 signed)
+  00 00 00 24    i4be    info(3) = info(ninfo), narray, size of array (=36)
+                         tag values:
+  fd ff          i2*     value(1)
+  fe ff          i2*     value(2)
+  ....                   etc to value(36)
+</pre>
+
+<p>For array tags
+<pre>
+ninfo = 3
+info(1) = 14h
+info(2) = tag data type for all array members
+info(3) = info(ninfo), narray, size of array
+</pre>
+
+<h3>Tag containing an array of groups</h3>
+
+<p>Example
+<pre>
+15 0004 434c5554 25252525 0000000b 00000014 0000000f 00000000 00000003
+                 00000000 00000002 00000000 00000002 00000000 00000002
+                 00000100
+                 0000 0000 0000
+                 0101 0101 0101
+                 0202 0202 0202
+                 0303 0303 0303
+                 .....
+
+  15             i1      identifies tag (15h = 21)
+  00 04          i2be    bytes in tag name (ltname)
+  43 4c 55 54    a       tag name, length ltname "CLUT"
+
+  25 25 25 25    a4      "%%%%"
+  00 00 00 0b    i4be    ninfo, size of info array following (=11)
+                         info(ninfo):
+  00 00 00 14    i4be    info(1), tag data type (14h = array)
+  00 00 00 0f    i4be    info(2), tag data type for array members (0fh = group)
+  00 00 00 00    i4be    info(3), length of groupname? (always = 0)
+  00 00 00 03    i4be    info(4), ngroup, number of entries in group (=3)
+  00 00 00 00    i4be    info(5), length of fieldname? (always = 0)
+  00 00 00 02    i4be    info(6), tag data type for value 1 (02h = i2)
+  00 00 00 00    i4be    info(7), length of fieldname? (always = 0)
+  00 00 00 02    i4be    info(8), tag data type for value 2 (02h = i2)
+  00 00 00 00    i4be    info(9), length of fieldname? (always = 0)
+  00 00 00 02    i4be    info(10), tag data type for value 3 (02h = i2)
+  00 00 01 00    i4be    info(11) = info(ninfo), narray, size of array (=256)
+                         tag values:
+  0000 0000 0000 3i2*    3 values for first element of array
+  0101 0101 0101 3i2*    3 values for second element of array
+  ....
+</pre>
+
+<p>For arrays of groups
+<pre>
+ninfo = size of info array
+info(1) = 14h
+info(2) = 0fh
+info(3) = 0 normally
+info(4) = ngroup, number of values in group
+info(2*i+4) = tag data type for value i
+info(ninfo) = narray, size of info array
+</pre>
+
+<h3>Tag data types</h3>
+<pre>
+  02h =  2  i2* signed    (short)
+  03h =  3  i4* signed    (long)
+  04h =  4  i2* unsigned  (ushort) or unicode string
+  05h =  5  i4* unsigned  (ulong)
+  06h =  6  f4*           (float)
+  07h =  7  f8*           (double)
+  08h =  8  i1            (boolean)
+  09h =  9  a1            (char)
+  0ah = 10  i1
+  0bh = 11  i8* ?         (long long) not sure if signed or unsigned
+  0fh = 15  group of data (struct)
+            info(2) = 0
+            info(3) = ngroup, number in group
+            info(2*n+4) = 0
+            info(2*n+5) data type for each value in group
+  12h = 18  a             (string)
+  14h = 20  array of numbers or groups
+            info(ninfo) = narray, number of array members
+            info(2) is then treated as info(1) above
+</pre>
+
+<h3>General</h3>
+
+<p>There is no simple way of finding the length of a type 15 tag without
+completely decoding it and working out the number of bytes in each data
+type.
+
+<p>The image itself is in a type 15 tag with name "Data" about half way through
+the tags. It is thus difficult to find the image as the length and number of
+the preceeding tags can change between images. One possible lazy way is to
+search for the string "15h 0004h Data%%%%", the image will start 16 bytes
+beyond this.
+
+<p>There may be more than one image in the file. Each image will have its own
+  Data tag. Images are numbered from 0.
+
+<p>There may be a "thumbnail" image which can be either before or after the
+  main images in the file. The image number of the thumbnail Data tag is given
+  in the tag with name Thumbnails::ImageIndex.
+
+<p>Useful tags in order of appearance:
+
+<pre>
+
+Description        info in the notes box (not always present)
+Data               the image itself
+DataType           as in DM2. Note this is different from the tag data type above.
+                   These values are only for the image data and must be
+                   consistent with the tag data type for the Data tag.
+                   There are a number of other DataTypes defined that I've
+                   never seen in images
+
+   0            null
+   1     i2     2 byte integer signed ("short")
+   2     f4     4 byte real (IEEE 754)
+   3     c8     8 byte complex (real, imaginary)
+   4            obsolete
+   5     c4     4 byte packed complex (see DM2)
+   6    ui1     1 byte integer unsigned ("byte")
+   7     i4     4 byte integer signed ("long")
+   8  4*ui1     rgb, 4 bytes/pixel, unused, red, green, blue
+   9     i1     1 byte integer signed
+  10    ui2     2 byte integer unsigned
+  11    ui4     4 byte integer unsigned
+  12     f8     8 byte real
+  13     c16   16 byte complex
+  14     i1     1 byte binary (ie 0 or 1)
+  23  4*ui1     rgba, 4 bytes/pixel, 0, red, green, blue. Used for thumbnail images
+
+
+Dimensions         a type 14 tag containing 2 type 15s with no names
+                   (irritatingly) which are image width and height
+PixelDepth         bytes/pixel
+
+For CCD images (these follow the tags above)
+
+Acquisition Date   image acquisition date and time, unfortunatley both
+Acquisition Time   as strings. Worse still, the date string can be
+                   in either UK/international or US order depending on the
+                   date settings on the mac or PC. It is thus impossible
+                   to unambiguously determine the date from the date string.
+ImageIndex         Image number of thumbnail image
+</pre>
+
+<p>Unfortunately the tags describing the image are after the image itself,
+this is particularly annoying for the image dimensions.
+
+<p>&nbsp;
+<p>&nbsp;
+
+
+
+<hr>
+<a name="dm4"></a>
+<h2>Digital micrograph 4 (DM4) file format</h2>
+
+<p>The DM4 format is very similar to the DM3 format. It uses 8 byte integers
+  rather than the 4 byte integers used for DM3 files thus allowing files
+  larger than 2GB. It also includes a byte count for each tag, allowing tags
+  with unknown structure to be skipped over.
+
+<h3>Overall file structure</h3>
+
+<p>As for DM3, the file consists of a header, a root tag directory, a series of
+  tags and tag directories and 8 nulls to mark the end of file.
+
+<p>The names of the tags are the same as for DM3.
+
+<h4>Header</h4>
+<pre>
+  version   i4be    DM version = 4
+  rootlen   i8be    Size of root tag directory in bytes = file length - 24
+  byteord   i4be    Byte order, 1 = little endian (PC) order
+</pre>
+
+
+<h4>Root tag directory</h4>
+<pre>
+  sortf     i1      Sorted, 1 = sorted (normally = 1)
+  closef    i1      Closed, 1 = open (normally = 0)
+  ntags     i8be    Number of tags in root directory
+</pre>
+
+<h4>Tags and tag directories in root tag directory</h4>
+
+<p>The following is repeated for each tag directory and tag (see below for
+  details)
+
+<pre>
+  tag       i1      tag, 14h or 15h or 0 for end of file
+  ltname    i2be    tag name length in bytes, may be 0
+  tname     a       tag name (length ltname), may be absent
+  tlen      i8be    tag data size in bytes (new for dm4)
+  ...               tag directory or tag data
+</pre>
+
+<h4>End of file</h4>
+<pre>
+            8*00     End of file is marked with 8 nulls
+</pre>
+
+
+<h4>Example DM4 file</h4>
+
+<pre>
+  00 00 00 04  00 00 00 00 01 09 58 7e  00 00 00 01
+  01 00  00 00 00 00 00 00 00 0f
+  15  00 11
+  41 70 70 6c 69 63 61 74 69 6f 6e 42 6f 75 6e 64 73
+  00 00 00 00 00 00 00 84  25 25  25 25
+  ......
+  00 00 00 00 00 00 00 00
+</pre>
+
+<p>Header
+<pre>
+  00 00 00 04              i4be    DM version = 4
+  00 00 00 00 01 09 58 7e  i8be    file length - 24
+  00 00 00 01              i4be    byte order, 1 = little endian (PC) order
+</pre>
+
+
+<p>Root tag directory
+<pre>
+  01                       i1      1 = sorted (normally = 1)
+  00                       i1      0 = closed, 1 = open (normally = 0)
+  00 00 00 00 00 00 00 0f  i8be    number of tags in root directory (0fh = 15)
+</pre>
+
+<p>Tag in root tag directory
+<pre>
+  15  00 11  41 70 70 6c ...       Tag directories and tags, see below
+</pre>
+
+<p>End of file
+<pre>
+  00 00 00 00 00 00 00 00          End of file appears to be marked with 8 nulls
+</pre>
+
+
+<h3>Tag directories and tags</h3>
+
+<p>Tag directories and tags in the root tag directory and other tag directories
+  are identified by their first byte.
+<pre>
+  14h = 20      tag directory
+  15h = 21      tag
+  00            end of file
+</pre>
+
+
+<h3>Tag directories</h3>
+
+<p>Tag directories contain zero or more tags and/or other tag directories
+
+<h4>Tag directory structure</h4>
+<pre>
+  tag       i1      tag = 14h (20), identifies tag directory
+  ltname    i2be    tag name length in bytes, may be 0
+  tname     a       tag name (length ltname), may be absent
+  tlen      i8be    total bytes in tag directory including all sub-directories (new for DM4)
+  sortf     i1      Sorted, 1 = sorted (mostly = 1)
+  closef    i1      Closed, 1 = open (normally = 0)
+  ntags     i8be    Number of tags in tag directory. Can be 0 (in which case tlen = 10)
+</pre>
+
+<h4>Example</h4>
+
+<pre>
+  14                                                 20
+  00 12                                              18
+  44 6f 63 75 6d 65 6e 74  4f 62 6a 65 63 74 4c 69
+  73 74                                              DocumentObjectList
+  00 00 00 00 00 00 15 36                            5430
+  00                                                 0
+  00                                                 0
+  00 00 00 00 00 00 00 01                            1
+</pre>
+
+
+<h3>Tags</h3>
+
+<p>The data contained within a tag is defined by an information array
+  containing the number of elements and the data type(s) for each element. The
+  first entry in the information array is the tag data type, the rest of the
+  information array depends on the tag data type.
+
+<p>Unlike for DM3 files, it is possible to skip over a tag without knowing its
+  structure as the remaining number of bytes in a tag is given by tlen.
+
+<p>Tags can be single entry ie containing only one value, group tags containing
+  a number of values which may have different tag data types and arrays which
+  contain a number of values all of the same data type (which may be the group
+  data type).
+
+<h4>Overall tag structure</h4>
+
+<pre>
+  tag         i1           tag = 15h (21), identifies tag
+  ltname      i2be         tag name length in bytes, may be 0
+  tname       a            tag name (length ltname), may be absent
+  tlen        i8be         total bytes in tag including %%%% (new for DM4)
+  %%%%        a4           string "%%%%"
+  ninfo       i8be         size of info array following
+  info(ninfo) ninfo*i8be   array of ninfo integers,
+                           contains tag data type(s) for tag values
+                           info(1) = tag data type (see <a href="#tagdatatypes">tag data types</a> below)
+  &lt;values&gt;    xx*          tag values (byte order set by byte order flag)
+                           byte lengths specified in info(ninfo)
+</pre>
+
+
+<h3>Single entry tag</h3>
+
+<pre>
+  ...
+  ninfo       i8be         ninfo = 1
+  info(1)     i8be         tag data type (any value except 0fh and 14h)
+  &lt;value&gt;     xx*          tag value, length defined by tag data type in info(1)
+</pre>
+
+
+<h3>Tag containing a group of data (struct)</h3>
+
+<p>A group contains more than one value which may have different tag data types
+  (but are often the same).
+
+<pre>
+  ...
+  ninfo       i8be         number of elements in info array
+  info(1)     i8be         = 0fh, tag data type
+  info(2)     i8be         = 0
+  info(3)     i8be         ngroup, number of elements in group
+  info(2*i+2) i8be         = 0
+  info(2*i+3) i8be         tag data type for element i
+                           above repeated for i = 1 to ngroup
+  &lt;value&gt;     xx*          tag values, length defined by tag data type in info(2*i+3)
+                           above repeated for i = 1 to ngroup
+</pre>
+
+
+<h4>Example</h4>
+
+<pre>
+  15                                                    21
+  00 11                                                 17
+  41 70 70 6c 69 63 61 74  69 6f 6e 42 6f 75 6e 64  73  ApplicationBounds
+  00 00 00 00 00 00 00 84                               132
+  25 25 25 25                                           %%%%
+
+  00 00 00 00 00 00 00 0b                               11
+
+  00 00 00 00 00 00 00 0f                               15
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 04                               4
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 0b                               12
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 0b                               12
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 0b                               12
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 0b                               12
+
+  00 00 00 00 00 00 00 00                               0
+  00 00 00 00 00 00 00 00                               0
+  29 04 00 00 00 00 00 00                               1065
+  3c 06 00 00 00 00 00 00                               1596
+</pre>
+
+
+<h3>Tag containing an array</h3>
+
+<pre>
+  ...
+  ninfo       i8be         = 3, number of elements in info array
+  info(1)     i8be         = 14h, array data type
+  info(2)     i8be         tag data type for all array elements
+  info(3)     i8be         narray, number of elements in array
+  &lt;value&gt;     xx*          tag values, length defined by tag data type in info(2)
+                           above repeated narray times
+</pre>
+
+
+<h3>Tag containing an array of groups</h3>
+
+<p>This is a special case of a tag containing an array
+
+<pre>
+  ...
+  ninfo       i8be         number of elements in info array
+  info(1)     i8be         = 14h, array data type
+
+  info(2)     i8be         = 0fh, tag data type for all array elements
+  info(3)     i8be         = 0
+  info(4)     i8be         ngroup, number of elements in group
+  info(2*i+3) i8be         = 0
+  info(2*i+4) i8be         tag data type for element i of group
+                           above repeated for i = 1 to ngroup
+
+  info(ninfo) i8be         narray, number of elements in array
+  &lt;value&gt;     xx*          tag values, length defined by tag data type in info(2*i+4)
+                           above repeated narray*ngroup times
+</pre>
+
+
+<a name="tagdatatypes"></a>
+<h3>Tag data types</h3>
+
+<p>These are the same as for DM3 files (with the addition of type 0bh)
+
+<pre>
+  02h =  2  i2* signed    (short)
+  03h =  3  i4* signed    (long)
+  04h =  4  i2* unsigned  (ushort) or unicode string
+  05h =  5  i4* unsigned  (ulong)
+  06h =  6  f4*           (float)
+  07h =  7  f8*           (double)
+  08h =  8  i1            (boolean)
+  09h =  9  a1            (char)
+  0ah = 10  i1
+  0bh = 11  i8* ?         (long long) not sure if signed or unsigned
+  0fh = 15                group of data (struct)
+  12h = 18  a             (string)
+  14h = 20                array of data or groups of data
+</pre>
+
+<p>&nbsp;
+<p>&nbsp;
+
+
+
+<hr>
+<a name="dm5"></a>
+<h2>Digital micrograph 5 (DM5) file format</h2>
+
+<p>The DM5 format is based
+  on <a href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a> and is
+  completely different from any other DM format. HDF5 is the most recent
+  <a href="https://wikipedia.org/wiki/Hierarchical_Data_Format">hierarchical
+    data format</a> aimed at a universal file format for all kinds of data.
+
+<p>Gatan has
+  some <a href="https://www.gatan.com/dm5-documentation">documentation for the
+  DM5 format</a> which also gives some information about the elements used in
+  other DM formats.
+
+<p>The <a href="https://www.hdfgroup.org/">HDF Group</a> provides
+  the <a href="https://www.hdfgroup.org/download-hdfview/">HDF View program</a>
+  for examining the contents of a HDF file. There is also
+  a <a href="https://myhdf5.hdfgroup.org/">web based HDF5 viewer</a>.
+
+
+
+<!--
+   Feb  1996   Original
+   Apr  1999   Later additions
+27 May  1999   DM3
+30 June 1999   More on DM3
+ 6 Dec  2000    "
+28 Sept 2024   Info on DM5
+-->
+
+<hr>
+
+<p><a href="../../index.html">Dr Chris&nbsp;Boothroyd</a>&nbsp;|
+<a href="../index.html">Information</a>
+
+<a href="/f61217a453d065015090cd27fd6fb2c2"> </a></body>
+</html>

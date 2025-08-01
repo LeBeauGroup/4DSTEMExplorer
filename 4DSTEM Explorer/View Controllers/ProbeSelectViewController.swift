@@ -68,7 +68,13 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
             alert.runModal()
             self.dismiss(nil)
             
-        }catch{
+        }catch FileReadError.notDiffractionSI{
+            let alert = NSAlert.init()
+            alert.messageText = "DM File does not contain a diffraction SI dataset."
+            alert.runModal()
+            self.dismiss(nil)
+        }
+        catch{
             let alert = NSAlert.init()
             alert.messageText = "Something went wrong with the selected file, please try again."
             alert.runModal()
