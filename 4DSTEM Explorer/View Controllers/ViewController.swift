@@ -533,9 +533,9 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBAction func displayProbePositionsSelection(_ sender: Any){
         
        
-        let sizeSelectionController:ProbeSelectViewController = storyboard?.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(rawValue: "ProbeSelectViewController")) as! ProbeSelectViewController
+        let sizeSelectionController:ProbeSelectViewController = storyboard?.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier("ProbeSelectViewController")) as! ProbeSelectViewController
         
-        self.presentViewControllerAsSheet(sizeSelectionController)
+        self.presentAsSheet(sizeSelectionController)
         
         sizeSelectionController.view.window?.makeFirstResponder(sizeSelectionController.loadButton)
 

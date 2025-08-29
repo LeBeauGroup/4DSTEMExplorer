@@ -27,7 +27,7 @@ struct MatrixOutput {
 infix operator .*
 
 
-class ValueError: Error, CustomStringConvertible {
+struct ValueError: Error, CustomStringConvertible {
     let description: String
     
     init(_ description: String) {
@@ -36,7 +36,9 @@ class ValueError: Error, CustomStringConvertible {
 }
 
 
-class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
+class Matrix: CustomStringConvertible, CustomPlaygroundDisplayConvertible, NSCopying{
+    var playgroundDescription: Any
+    
     
     
     func copy(with zone: NSZone? = nil) -> Any {
@@ -119,6 +121,8 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         self.type = "real"
         
         real = Array(UnsafeBufferPointer(start: pointer, count: rows*columns))
+        
+        self.playgroundDescription = "test"
     }
 
     init(meshIndicesAlong:Int, _ rows:Int, _ columns:Int) {
@@ -141,7 +145,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 
             }
         }
-        
+        self.playgroundDescription = "test"
     }
     
     init(array:[Float], _ rows:Int, _ columns:Int) {
@@ -155,7 +159,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         self.rows = rows
         self.columns = columns
         self.type = "real"
-        
+        self.playgroundDescription = "test"
         
     }
     
@@ -192,7 +196,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 imag = nil
         }
         
-
+        self.playgroundDescription = "test"
         
     }
     

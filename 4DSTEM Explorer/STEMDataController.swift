@@ -39,11 +39,13 @@ enum DataType {
     }
 }
 
-
-protocol STEMDataControllerDelegate:class {
-    func didFinishLoadingData()
+@MainActor
+protocol STEMDataControllerDelegate:AnyObject {
+    @MainActor func didFinishLoadingData()
 }
-protocol STEMDataControllerProgressDelegate:class {
+
+@MainActor
+protocol STEMDataControllerProgressDelegate:AnyObject {
     func didFinishLoadingData()
     func cancel(_ sender:Any)
 }
@@ -558,36 +560,36 @@ class STEMDataController: NSObject {
 
         let nc = NotificationCenter.default
 
-        dwi = DispatchWorkItem {
-            self.openFileHandle(url: url)
+        dwi = DispatchWorkItem {[weak self] in
+            self?.openFileHandle(url: url)
 
-            self.patternPointer?.deallocate()
-            self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
+            self?.patternPointer?.deallocate()
+            self?.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
 
             let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
 
-            self.fh?.seek(toFileOffset: firstImageOffset)
+            self?.fh?.seek(toFileOffset: firstImageOffset)
             let fracComplete = max(1, Int(Double(totalImages) * 0.05))
 
             for batchIndex in 0..<totalBatches {
-                if self.dwi?.isCancelled ?? false { break }
+                if self?.dwi?.isCancelled ?? false { break }
 
                 let imagesInBatch = min(batchSize, totalImages - batchIndex * batchSize)
                 let readSize = imagesInBatch * (totalPatternPixels) * elementSize
 
-                guard let batchData = self.fh?.readData(ofLength: readSize) else { continue }
+                guard let batchData = self?.fh?.readData(ofLength: readSize) else { continue }
                 
                 let count = imagesInBatch * totalPatternPixels
 
-                self.convertToFloat(dataType: dataType, sourceData: batchData, destinationBuffer: floatTempBuffer, count: count)
+                self?.convertToFloat(dataType: dataType, sourceData: batchData, destinationBuffer: floatTempBuffer, count: count)
 
 
                 for img in 0..<imagesInBatch {
                     let globalIndex = batchIndex * batchSize + img
                     if globalIndex >= totalImages { break }
 
-                    let outPointer = self.patternPointer! + globalIndex * patternPixels
+                    let outPointer = (self?.patternPointer!)! + globalIndex * patternPixels
                     let srcPointer = floatTempBuffer + img * (totalPatternPixels)
 
                     for row in 0..<height {
@@ -605,10 +607,13 @@ class STEMDataController: NSObject {
                 }
             }
 
-            DispatchQueue.main.async {
-                self.delegate?.didFinishLoadingData()
-                self.progressdelegate?.didFinishLoadingData()
-            }
+//            // finish on main
+//            DispatchQueue.main.async { [weak self] in
+//                guard let self else { return }
+//                self.delegate?.didFinishLoadingData()
+//                self.progressdelegate?.didFinishLoadingData()
+//            }
+            
         }
 
         DispatchQueue.global().async(execute: dwi!)
@@ -795,7 +800,7 @@ class STEMDataController: NSObject {
                     pos += 1
                 }
             }
-            maskPatternProduct.deallocate(capacity: patternPixels)
+            maskPatternProduct.deallocate()
 
             group.leave()
 
@@ -857,7 +862,7 @@ class STEMDataController: NSObject {
     
     deinit {
         fh?.closeFile()
-        patternPointer?.deinitialize()
+        patternPointer?.deinitialize(count:imagePixels)
     }
 
 }

@@ -247,7 +247,7 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
     
 
 
-    override func controlTextDidEndEditing(_ obj: Notification) {
+    func controlTextDidEndEditing(_ obj: Notification) {
         
         if let combobox = obj.object as! NSComboBox?{
             

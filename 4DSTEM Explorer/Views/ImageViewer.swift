@@ -9,7 +9,8 @@
 import Cocoa
 import CoreGraphics
 
-protocol ImageViewerDelegate: class {
+@MainActor
+protocol ImageViewerDelegate: AnyObject {
     func averagePatternInRect(_ rect:NSRect?)
     func selectPatternAt(_ i:Int, _ j:Int)
 

@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51DAD1E1FF6866B00D36AB0 /* Detector.swift */; };
-		A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */; };
 		A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
 		A51FEFB71FEC48FD00A8A5EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */; };
@@ -27,6 +26,8 @@
 		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
 		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
 		A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */; };
+		BD25F3692E61F10100264569 /* testApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD25F3682E61F10100264569 /* testApp.swift */; };
+		BD25F36A2E61F16400264569 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CEF22B2E5FFACF00E3A6F9 /* ContentView.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
 		BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 		BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
@@ -76,9 +77,11 @@
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
+		A5CEF22B2E5FFACF00E3A6F9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMImageEntryStructs.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
+		BD25F3682E61F10100264569 /* testApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = testApp.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
 		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
 		BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Digital Micrograph file format.html"; sourceTree = "<group>"; };
@@ -142,10 +145,12 @@
 				A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */,
 				A551530E2006892100C89F5D /* Functions.swift */,
 				A51FF4EF1FF5413D00BDC87E /* WindowController.swift */,
+				BD25F3682E61F10100264569 /* testApp.swift */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
 				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
 				A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */,
+				A5CEF22B2E5FFACF00E3A6F9 /* ContentView.swift */,
 				BD4B44E72D9301EE00B226DD /* MRCReader.swift */,
 				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
 				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
@@ -317,7 +322,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BD25F3692E61F10100264569 /* testApp.swift in Sources */,
 				A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */,
+				BD25F36A2E61F16400264569 /* ContentView.swift in Sources */,
 				A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
 				A551530F2006892100C89F5D /* Functions.swift in Sources */,
@@ -325,7 +332,6 @@
 				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
 				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
-				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
@@ -410,7 +416,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -461,7 +467,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -487,7 +493,7 @@
 				MARKETING_VERSION = 0.93;
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -509,7 +515,7 @@
 				MARKETING_VERSION = 0.93;
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
