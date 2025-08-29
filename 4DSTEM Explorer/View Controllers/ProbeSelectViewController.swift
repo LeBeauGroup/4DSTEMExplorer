@@ -13,7 +13,7 @@ class ProbeSelectViewController: NSViewController, STEMDataControllerProgressDel
     
     
     @IBOutlet weak var sizeCombo: NSComboBox!
-    weak var dataController:STEMDataController!
+    weak var dataController:STEMDataStore!
     weak var parentController:ViewController!
     
     @IBOutlet weak var progressIndicator: NSProgressIndicator!

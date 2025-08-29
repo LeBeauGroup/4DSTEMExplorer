@@ -8,6 +8,7 @@
 
 import Cocoa
 import Quartz
+import SwiftUI
 
 protocol ViewControllerDelegate: class {
     func averagePatternInRect(_ rect:NSRect?)
@@ -30,7 +31,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
     @IBOutlet weak var clipView: CenteringClipView!
     @IBOutlet weak var displayLogCheckbox: NSButtonCell!
 
-    var dataController = STEMDataController()
+    var dataController = STEMDataStore()
     var patternRect:NSRect? //= NSRect(x: 0, y: 0, width: 0, height: 0)
     
     var selectedDetector:Detector?

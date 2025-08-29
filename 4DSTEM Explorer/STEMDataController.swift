@@ -9,6 +9,7 @@
 import Foundation
 import Cocoa
 import Accelerate
+import SwiftUI
 
 enum FileReadError: Error {
     case invalidTiff
@@ -50,7 +51,7 @@ protocol STEMDataControllerProgressDelegate:AnyObject {
     func cancel(_ sender:Any)
 }
 
-class STEMDataController: NSObject {
+class STEMDataController: NSObject, Observable {
     
     var filePath:URL?
     var imageSize:IntSize = IntSize(width: 0, height: 0)
