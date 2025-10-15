@@ -153,7 +153,11 @@ class STEMDataController: NSObject {
                             destinationBuffer, 1, vDSP_Length(count))
 
             default: // assuming Float32
-                destinationBuffer.update(from: raw.bindMemory(to: Float32.self).baseAddress!, count: count)
+                guard let base = raw.bindMemory(to: Float32.self).baseAddress else {
+                    // If we can't get a baseAddress (e.g., zero-length), do nothing safely.
+                    return
+                }
+                destinationBuffer.update(from: base, count: count)
             }
         }
     }
@@ -225,28 +229,6 @@ class STEMDataController: NSObject {
             throw FileReadError.invalidTiff
         }
         
-    }
-    
-    enum DataType {
-        case uint32
-        case float32
-        case int16
-        case uint8
-        case uint16
-        case bool
-        case unknown // for default handling
-
-        var elementSize: Int {
-            switch self {
-            case .uint32: return MemoryLayout<UInt32>.size
-            case .float32: return MemoryLayout<Float32>.size
-            case .int16: return MemoryLayout<Int16>.size
-            case .uint8: return MemoryLayout<UInt8>.size
-            case .uint16: return MemoryLayout<UInt16>.size
-            case .bool: return MemoryLayout<Bool>.size
-            case .unknown: return MemoryLayout<Float32>.size
-            }
-        }
     }
     
     
@@ -564,7 +546,7 @@ class STEMDataController: NSObject {
             self.patternPointer?.deallocate()
             self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
 
-            let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * batchSize)
+            let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: detectorPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
 
             self.fh?.seek(toFileOffset: firstImageOffset)
@@ -871,3 +853,4 @@ func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
     return (strideWidth, strideHeight)
 }
+
