@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum DetectorShape {
+enum DetectorShape: Hashable {
     case point
     case bf
     case af
@@ -16,7 +16,7 @@ enum DetectorShape {
     case custom
 }
 
-enum DetectorType{
+enum DetectorType: Hashable {
     case integrating
     case dpc
     case com
@@ -80,3 +80,4 @@ class Detector: NSObject {
     }
     
 }
+
