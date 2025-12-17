@@ -510,27 +510,76 @@ class STEMDataController: NSObject {
         let detectorPixels = self.detectorPixels
         let patternPixels = self.patternPixels
         let imagePixels = self.imagePixels
-//        let detectorBitCount = detectorPixels * elementSize
 
         if isRaw {
             do {
                 let attrib = try FileManager.default.attributesOfItem(atPath: url.path)
-                let fileSize = attrib[.size] as! Int
-                if fileSize != detectorPixels * imagePixels * elementSize {
-                    throw FileReadError.invalidDimensions
+                let fileSize = (attrib[.size] as? NSNumber)?.intValue ?? 0
+
+                // Only validate when we know image dimensions
+                if imagePixels > 0 {
+                    let basePixelsPerImage = (self.patternSize.height + additionalRows) * self.patternSize.width
+                    let totalPixels = basePixelsPerImage * imagePixels
+
+                    let candidates: [DataType] = [.float32, .uint16, .int16, .uint8, .uint32]
+                    var matched = false
+                    for cand in candidates {
+                        let expectedBytes = totalPixels * cand.elementSize
+                        if fileSize == expectedBytes {
+                            dataType = cand
+                            matched = true
+                            break
+                        }
+                    }
+                    if !matched {
+                        throw FileReadError.invalidDimensions
+                    }
+                }
+                // Derive image dimensions for RAW if not already set
+                let bytesPerImage = (self.patternSize.height + additionalRows) * self.patternSize.width * dataType.elementSize
+                if bytesPerImage > 0 {
+                    let totalImages = fileSize / bytesPerImage
+
+                    // If image size hasn't been set yet, try to parse from filename or infer
+                    if self.imageSize.width == 0 || self.imageSize.height == 0 {
+                        let name = url.lastPathComponent
+                        var inferredW: Int? = nil
+                        var inferredH: Int? = nil
+
+                        // Try to parse numbers following 'x' and 'y' like original workflow
+                        if let regex = try? NSRegularExpression(pattern: "(?<=[xXyY])[0-9]+", options: []) {
+                            let s = name as NSString
+                            let matches = regex.matches(in: name, options: [], range: NSRange(location: 0, length: s.length))
+                            if let first = matches.first {
+                                inferredW = Int(s.substring(with: first.range))
+                            }
+                            if matches.count > 1, let last = matches.last {
+                                inferredH = Int(s.substring(with: last.range))
+                            }
+                        }
+
+                        if let w = inferredW, let h = inferredH {
+                            self.imageSize = IntSize(width: w, height: h)
+                        } else {
+                            // Fallback: try a square grid if possible
+                            let root = Int(Double(totalImages).squareRoot())
+                            if root * root == totalImages {
+                                self.imageSize = IntSize(width: root, height: root)
+                            } else {
+                                self.imageSize = IntSize(width: totalImages, height: 1)
+                            }
+                        }
+                    }
                 }
             } catch {
                 throw FileReadError.invalidRaw
             }
         }
 
-        
-//        let patternByteCount = patternPixels * elementSize
-//        let dataTypeIsInt16 == Int16.self
 
         let width = self.patternSize.width
         let height = self.patternSize.height
-        let totalPatternPixels = height*(width + additionalRows)
+        let totalPatternPixels = (height + additionalRows) * width
     
         
         let totalImages = self.imageSize.width * self.imageSize.height
