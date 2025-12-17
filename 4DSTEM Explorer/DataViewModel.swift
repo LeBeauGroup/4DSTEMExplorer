@@ -1,8 +1,22 @@
 import Foundation
 import Cocoa
 import CoreVideo
+import QuartzCore
+
+// Temporary local definitions to make the toolbar compile.
+// If your project already defines these elsewhere, you can remove these and import/use the shared ones.
+enum SelectionMode: Hashable {
+    case point
+    case marquee
+}
+
 
 final class DataViewModel: NSObject, ObservableObject {
+    // Drag/continuous update support
+    private var lastDragUpdate: TimeInterval = 0
+    private let dragUpdateInterval: TimeInterval = 0.012 // ~83 Hz
+    @Published var isDragging: Bool = false
+
     @Published var selectedURL: URL?
     @Published var status: String = "Idle"
     @Published var isLoading: Bool = false
@@ -14,10 +28,89 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var selectedI: Int = 0
     @Published var selectedJ: Int = 0
 
+    @Published var patternSize: IntSize = .init(width: 32, height: 32)
+
     @Published var detectorShape: DetectorShape = .bf
     @Published var detectorType: DetectorType = .integrating
     @Published var detectorInnerRadius: CGFloat = 0
     @Published var detectorOuterRadius: CGFloat = 10
+    
+    // Selection mode used by the Picker in the toolbar
+    @Published var selectionMode: SelectionMode = .point
+    // Current zoom scale (0.0 ... 1.0 for percent formatting)
+    @Published var currentScale: Double = 1.0
+
+    // Export actions used by the toolbar
+    func exportImage() { /* TODO: implement */ }
+    func exportPattern() { /* TODO: implement */ }
+
+    // Zoom controls used by the toolbar
+    func zoomIn() { currentScale *= 1.1 }
+    func zoomOut() { currentScale /= 1.1 }
+    func setScale(_ scale: Double) { currentScale = scale }
+
+    // MARK: - Drag-driven selection updates
+    func beginDrag() {
+        isDragging = true
+        lastDragUpdate = 0
+    }
+
+    func endDrag() {
+        isDragging = false
+    }
+
+    /// Update selection continuously from a point in the scan image view's coordinate space.
+    /// - Parameters:
+    ///   - location: The location in the view's coordinate space (origin at top-left for SwiftUI GeometryReader by default).
+    ///   - viewSize: The size of the view that renders the scan image.
+    ///   - throttle: If true, limits update rate to `dragUpdateInterval`.
+    func updateSelection(at location: CGPoint, in viewSize: CGSize, throttle: Bool = true) {
+        let now = CACurrentMediaTime()
+        if throttle {
+            if now - lastDragUpdate < dragUpdateInterval { return }
+            lastDragUpdate = now
+        }
+
+        let imgW = max(1, self.dataController.imageSize.width)
+        let imgH = max(1, self.dataController.imageSize.height)
+        let vW = max(1.0, Double(viewSize.width))
+        let vH = max(1.0, Double(viewSize.height))
+
+        // Map view-space point to image indices. Assume the scan image is aspect-fit inside the view.
+        // Compute aspect-fit rect of the image within the view to handle letterboxing.
+        let imgAspect = Double(imgW) / Double(imgH)
+        let viewAspect = vW / vH
+
+        var drawRect = CGRect(origin: .zero, size: CGSize(width: vW, height: vH))
+        if imgAspect > viewAspect {
+            // Image is wider than view: full width, vertical letterboxing
+            let drawHeight = vW / imgAspect
+            let yOffset = (vH - drawHeight) / 2.0
+            drawRect = CGRect(x: 0, y: yOffset, width: vW, height: drawHeight)
+        } else {
+            // Image is taller than view: full height, horizontal letterboxing
+            let drawWidth = vH * imgAspect
+            let xOffset = (vW - drawWidth) / 2.0
+            drawRect = CGRect(x: xOffset, y: 0, width: drawWidth, height: vH)
+        }
+
+        // Convert location to normalized coordinates within drawRect
+        let x = Double(location.x)
+        let y = Double(location.y)
+        guard drawRect.width > 0 && drawRect.height > 0 else { return }
+        let nx = (x - Double(drawRect.minX)) / Double(drawRect.width)
+        let ny = (y - Double(drawRect.minY)) / Double(drawRect.height)
+
+        // If outside the drawn image area, clamp to edges
+        let clampedNX = min(max(nx, 0.0), 1.0)
+        let clampedNY = min(max(ny, 0.0), 1.0)
+
+        // Map to image indices. Note: SwiftUI's origin is top-left in GeometryReader, so y increases downward already.
+        let j = Int(round(clampedNX * Double(imgW - 1)))
+        let i = Int(round(clampedNY * Double(imgH - 1)))
+
+        self.select(i: i, j: j)
+    }
 
     private let dataController = STEMDataController()
     private var progressObserver: NSObjectProtocol?
@@ -81,12 +174,20 @@ final class DataViewModel: NSObject, ObservableObject {
         return Detector(shape: detectorShape, type: detectorType, center: center, radii: radii, size: NSSize(width: pW, height: pH))
     }
 
-    func computeScanImage() {
+//    func computeScanImage() {
+//        let pW = self.dataController.patternSize.width
+//        let pH = self.dataController.patternSize.height
+//        if pW == 0 || pH == 0 { return }
+//        let det = currentDetector()
+//        let mat = self.dataController.integrating(det, strideLength: 1)
+//        self.scanPixelBuffer = makePixelBuffer(from: mat)
+//    }
+    func computeScanImage(stride: Int=0) {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return }
         let det = currentDetector()
-        let mat = self.dataController.integrating(det, strideLength: 1)
+        let mat = self.dataController.integrating(det, strideLength: max(1, stride))
         self.scanPixelBuffer = makePixelBuffer(from: mat)
     }
 
@@ -148,6 +249,8 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
         }
         self.imageWidth = self.dataController.imageSize.width
         self.imageHeight = self.dataController.imageSize.height
+        self.patternSize.width = self.dataController.patternSize.width
+        self.patternSize.height = self.dataController.patternSize.height
         if let m = dataController.pattern(0, 0) {
             self.pixelBuffer = makePixelBuffer(from: m)
             self.computeScanImage()
@@ -168,3 +271,4 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
         status = "Cancelled"
     }
 }
+

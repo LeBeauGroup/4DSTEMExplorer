@@ -11,7 +11,6 @@
 		A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */; };
 		A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
-		A51FEFB71FEC48FD00A8A5EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */; };
 		A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */; };
 		A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FF4EF1FF5413D00BDC87E /* WindowController.swift */; };
 		A5219B111FF3E618006D4044 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B101FF3E618006D4044 /* Constants.swift */; };
@@ -32,27 +31,12 @@
 		BD5D94602EF346F600EE1173 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945F2EF346F600EE1173 /* RootView.swift */; };
 		BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94612EF3477A00EE1173 /* DataViewModel.swift */; };
 		BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94632EF3480500EE1173 /* PixelBufferView.swift */; };
-		BD5D94662EF34A6E00EE1173 /* ClickablePixelBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94652EF34A6E00EE1173 /* ClickablePixelBufferView.swift */; };
+		BD91DC592EF359700065E76D /* ClickableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC582EF359700065E76D /* ClickableImageView.swift */; };
+		BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */; };
+		BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */; };
 		BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 		BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		BDEB43932ECE430D0000F7B1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A51FEFA41FEC48FD00A8A5EC /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BDEB43852ECE430C0000F7B1;
-			remoteInfo = "4DSTEM Explore";
-		};
-		BDEB439D2ECE430D0000F7B1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A51FEFA41FEC48FD00A8A5EC /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BDEB43852ECE430C0000F7B1;
-			remoteInfo = "4DSTEM Explore";
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		BD3E30792E285C8A007411A7 /* Embed Frameworks */ = {
@@ -109,10 +93,11 @@
 		BD5D945F2EF346F600EE1173 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BD5D94612EF3477A00EE1173 /* DataViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViewModel.swift; sourceTree = "<group>"; };
 		BD5D94632EF3480500EE1173 /* PixelBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBufferView.swift; sourceTree = "<group>"; };
-		BD5D94652EF34A6E00EE1173 /* ClickablePixelBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickablePixelBufferView.swift; sourceTree = "<group>"; };
+		BD91DC582EF359700065E76D /* ClickableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickableImageView.swift; sourceTree = "<group>"; };
+		BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMMenuCommands.swift; sourceTree = "<group>"; };
+		BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelController.swift; sourceTree = "<group>"; };
 		BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalMicrographReader.swift; sourceTree = "<group>"; };
 		BDC9507F2E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DM4; sourceTree = BUILT_PRODUCTS_DIR; };
-		BDEB43862ECE430C0000F7B1 /* 4DSTEM Explore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "4DSTEM Explore.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "4DSTEM ExploreTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BDEB439C2ECE430D0000F7B1 /* 4DSTEM ExploreUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "4DSTEM ExploreUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -133,13 +118,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BDC9507C2E2FCB7400F061E4 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		BDEB43832ECE430C0000F7B1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -182,7 +160,6 @@
 			children = (
 				A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */,
 				BDC9507F2E2FCB7400F061E4 /* DM4 */,
-				BDEB43862ECE430C0000F7B1 /* 4DSTEM Explore.app */,
 				BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */,
 				BDEB439C2ECE430D0000F7B1 /* 4DSTEM ExploreUITests.xctest */,
 			);
@@ -215,7 +192,9 @@
 				BD5D945F2EF346F600EE1173 /* RootView.swift */,
 				BD5D94612EF3477A00EE1173 /* DataViewModel.swift */,
 				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
-				BD5D94652EF34A6E00EE1173 /* ClickablePixelBufferView.swift */,
+				BD91DC582EF359700065E76D /* ClickableImageView.swift */,
+				BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */,
+				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
 			);
 			path = "4DSTEM Explorer";
 			sourceTree = "<group>";
@@ -311,28 +290,6 @@
 			productReference = BDC9507F2E2FCB7400F061E4 /* DM4 */;
 			productType = "com.apple.product-type.tool";
 		};
-		BDEB43852ECE430C0000F7B1 /* 4DSTEM Explore */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BDEB43A42ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM Explore" */;
-			buildPhases = (
-				BDEB43822ECE430C0000F7B1 /* Sources */,
-				BDEB43832ECE430C0000F7B1 /* Frameworks */,
-				BDEB43842ECE430C0000F7B1 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				BDEB43872ECE430C0000F7B1 /* 4DSTEM Explore */,
-			);
-			name = "4DSTEM Explore";
-			packageProductDependencies = (
-			);
-			productName = "4DSTEM Explore";
-			productReference = BDEB43862ECE430C0000F7B1 /* 4DSTEM Explore.app */;
-			productType = "com.apple.product-type.application";
-		};
 		BDEB43912ECE430D0000F7B1 /* 4DSTEM ExploreTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BDEB43A72ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM ExploreTests" */;
@@ -344,7 +301,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				BDEB43942ECE430D0000F7B1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
@@ -367,7 +323,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				BDEB439E2ECE430D0000F7B1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
@@ -401,9 +356,6 @@
 					BDC9507E2E2FCB7400F061E4 = {
 						CreatedOnToolsVersion = 16.4;
 					};
-					BDEB43852ECE430C0000F7B1 = {
-						CreatedOnToolsVersion = 26.1.1;
-					};
 					BDEB43912ECE430D0000F7B1 = {
 						CreatedOnToolsVersion = 26.1.1;
 						TestTargetID = BDEB43852ECE430C0000F7B1;
@@ -431,7 +383,6 @@
 			targets = (
 				A51FEFAB1FEC48FD00A8A5EC /* 4DSTEM Explorer */,
 				BDC9507E2E2FCB7400F061E4 /* DM4 */,
-				BDEB43852ECE430C0000F7B1 /* 4DSTEM Explore */,
 				BDEB43912ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
 				BDEB439B2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
 			);
@@ -444,14 +395,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */,
-				A51FEFB71FEC48FD00A8A5EC /* Main.storyboard in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		BDEB43842ECE430C0000F7B1 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -499,12 +442,13 @@
 				A551530F2006892100C89F5D /* Functions.swift in Sources */,
 				BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */,
 				A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */,
+				BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */,
 				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
 				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
-				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */,
-				BD5D94662EF34A6E00EE1173 /* ClickablePixelBufferView.swift in Sources */,
+				BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */,
+				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
 				BD5D94602EF346F600EE1173 /* RootView.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
@@ -514,6 +458,7 @@
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
 				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,
 				A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */,
+				BD91DC592EF359700065E76D /* ClickableImageView.swift in Sources */,
 				BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
 				A5219B131FF41936006D4044 /* PatternViewer.swift in Sources */,
@@ -526,13 +471,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		BDEB43822ECE430C0000F7B1 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -551,19 +489,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		BDEB43942ECE430D0000F7B1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BDEB43852ECE430C0000F7B1 /* 4DSTEM Explore */;
-			targetProxy = BDEB43932ECE430D0000F7B1 /* PBXContainerItemProxy */;
-		};
-		BDEB439E2ECE430D0000F7B1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BDEB43852ECE430C0000F7B1 /* 4DSTEM Explore */;
-			targetProxy = BDEB439D2ECE430D0000F7B1 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */ = {
@@ -776,94 +701,6 @@
 			};
 			name = Release;
 		};
-		BDEB43A52ECE430D0000F7B1 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 67JZ53W5NK;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 The LeBeau Group. All rights reserved.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-Explore";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		BDEB43A62ECE430D0000F7B1 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 67JZ53W5NK;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 The LeBeau Group. All rights reserved.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-Explore";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 		BDEB43A82ECE430D0000F7B1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1016,15 +853,6 @@
 			buildConfigurations = (
 				BDC950842E2FCB7400F061E4 /* Debug */,
 				BDC950852E2FCB7400F061E4 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		BDEB43A42ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM Explore" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BDEB43A52ECE430D0000F7B1 /* Debug */,
-				BDEB43A62ECE430D0000F7B1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
