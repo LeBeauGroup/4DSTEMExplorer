@@ -782,9 +782,8 @@ class STEMDataController: NSObject {
         return Matrix.init(array: outArray, strideHeight, strideWidth)
     }
     
-    func com(_ detector:Detector,strideLength:Int = 1, xy:Int = 0)->Matrix{
+    func com(_ detector:Detector,strideLength:Int = 1, xy:COMAxis = .x)->Matrix{
     
-        
         let mask = detector.detectorMask()
         
         let group = DispatchGroup()
@@ -794,7 +793,7 @@ class STEMDataController: NSObject {
         
         var outArray = [Float].init(repeating: 0.0, count: Int(strideWidth*strideHeight))
 
-        let indices = Matrix.init(meshIndicesAlong: xy, patternSize.height, patternSize.width)
+        let indices = Matrix.init(meshIndicesAlong: xy.rawValue, patternSize.height, patternSize.width)
 
         DispatchQueue.global(qos: .userInteractive).sync {
         

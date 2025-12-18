@@ -1,6 +1,12 @@
 import SwiftUI
 import AppKit
 
+// Fallback definitions if not provided elsewhere in the project
+// Ensure these are available and Hashable for Picker selections
+
+//enum DPCAxis: String, CaseIterable, Identifiable, Hashable { case leftRight, upDown; var id: String { rawValue } }
+//enum CalculationMode: String, CaseIterable, Identifiable, Hashable { case integrate, com, comColor, dpc; var id: String { rawValue } }
+
 struct DetectorOverlay: View {
     // Inputs from your model
     let shape: DetectorShape
@@ -78,7 +84,7 @@ struct DetectorOverlay: View {
                         .frame(width: 10, height: 10)
 
                 }
-                
+
             }
         }
         .allowsHitTesting(false) // overlay should not intercept interactions
@@ -140,7 +146,7 @@ struct RootView: View {
                                 patternHeight: model.patternSize.height
                             )
                         } else {
-                            Text(model.isLoading ? "Loading…" : "Select a point in the scan image.")
+                            Text(model.isLoading ? "Loading…" : "Select a point in the computed image.")
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .foregroundColor(.secondary)
                         }
@@ -149,10 +155,10 @@ struct RootView: View {
                 }
                 detectorSettings
                     .frame(width: 240)
-                
+
             }
 
-            GroupBox("Scan Image") {
+            GroupBox("Computed Image") {
                 ZStack {
                     if let scan = model.scanPixelBuffer {
                         ZStack(alignment: .topLeading) {
@@ -282,6 +288,56 @@ struct RootView: View {
                         )
                     }
                 }
+
+                // Model must define CalculationMode, DPCAxis, strideLength, and handle them in computeScanImage()
+                GroupBox("Calculation") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Mode picker: Integrate (sum), COM, COM Color, DPC
+                        Picker("Mode", selection: $model.calculationMode) {
+                            Text("Integrate").tag(CalculationMode.integrate)
+                            Text("COM").tag(CalculationMode.com)
+                            Text("COM Color").tag(CalculationMode.comColor)
+                            Text("DPC").tag(CalculationMode.dpc)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: model.calculationMode) { (_: CalculationMode, _: CalculationMode) in
+                            model.computeScanImage()
+                        }
+
+                        if model.calculationMode == .com {
+                            // Use explicit Binding to trigger recomputation on set
+                            Picker("COM Axis", selection: Binding<COMAxis>(
+                                get: { model.comAxis },
+                                set: { newValue in
+                                    model.comAxis = newValue
+                                    model.computeScanImage()
+                                }
+                            )) {
+                                Text("X").tag(COMAxis.x)
+                                Text("Y").tag(COMAxis.y)
+                            }
+                            .pickerStyle(.segmented)
+                        }
+
+                        // DPC axis control shown only when DPC mode is active
+                        if model.calculationMode == .dpc {
+                            Picker("DPC Axis", selection: Binding<DPCAxis>(
+                                get: { model.dpcAxis },
+                                set: { newValue in
+                                    model.dpcAxis = newValue
+                                }
+                            )) {
+                                Text("Left–Right").tag(DPCAxis.leftRight)
+                                Text("Up–Down").tag(DPCAxis.upDown)
+                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: model.dpcAxis) { (_: DPCAxis, _: DPCAxis) in
+                                model.computeScanImage()
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 4)
 
 //                Button("Recompute") { model.computeScanImage() }
             }
