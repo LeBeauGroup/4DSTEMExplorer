@@ -64,7 +64,7 @@ struct FourDSTEMExplorerApp: App {
                 }
         }
         .commands {
-            FourDSTEMMenuCommands()
+            FourDSTEMMenuCommands(model: model, openPanel: openPanel)
         }
     }
 }

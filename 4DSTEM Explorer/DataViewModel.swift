@@ -10,6 +10,25 @@ enum SelectionMode: Hashable {
     case marquee
 }
 
+enum CalculationMode: Hashable {
+    case integrate
+    case com
+    case dpc
+    case comColor
+}
+
+enum DPCAxis: Hashable {
+    case leftRight // maps to lrud = 1 in STEMDataController.dpc
+    case upDown    // maps to lrud = 0 in STEMDataController.dpc
+}
+
+enum COMAxis:  Int, Hashable {
+    case x
+    case y
+}
+
+//    var id: String { rawValue } }
+
 
 final class DataViewModel: NSObject, ObservableObject {
     // Drag/continuous update support
@@ -39,6 +58,11 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var selectionMode: SelectionMode = .point
     // Current zoom scale (0.0 ... 1.0 for percent formatting)
     @Published var currentScale: Double = 1.0
+
+    @Published var calculationMode: CalculationMode = .integrate
+    @Published var strideLength: Int = 1
+    @Published var dpcAxis: DPCAxis = .leftRight
+    @Published var comAxis: COMAxis = .x
 
     // Export actions used by the toolbar
     func exportImage() { /* TODO: implement */ }
@@ -187,7 +211,54 @@ final class DataViewModel: NSObject, ObservableObject {
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return }
         let det = currentDetector()
-        let mat = self.dataController.integrating(det, strideLength: max(1, stride))
+
+        let strideLen = max(1, stride > 0 ? stride : self.strideLength)
+        let mat: Matrix
+        switch calculationMode {
+        case .integrate:
+            mat = self.dataController.integrating(det, strideLength: strideLen)
+        case .com:
+            // xy: 0 = x, 1 = y. For now, use x; extend UI if you want both.
+            mat = self.dataController.com(det, strideLength: strideLen, xy: self.comAxis)
+        case .dpc:
+            // lrud: 1 = left-right, 0 = up-down (per STEMDataController.dpc)
+            let lrud = (dpcAxis == .leftRight) ? 1 : 0
+            mat = self.dataController.dpc(det, strideLength: strideLen, lrud: lrud)
+        case .comColor:
+            // Compute COM X and Y
+            let comX = self.dataController.com(det, strideLength: 1, xy: COMAxis.x)
+            let comY = self.dataController.com(det, strideLength: 1, xy: COMAxis.y)
+            let rows = comX.rows
+            let cols = comX.columns
+            let count = rows * cols
+
+            // Build magnitude and angle arrays
+            var hue = [Float](repeating: 0, count: count)
+            var mag = [Float](repeating: 0, count: count)
+
+            // Accessors: assuming Matrix provides `real` contiguous floats
+            let xData = comX.real
+            let yData = comY.real
+            for idx in 0..<count {
+                let x = xData[idx]
+                let y = yData[idx]
+                let m = hypotf(x, y)
+                let ang = atan2f(-y, x) // [-pi, pi]
+                var h = (ang + Float.pi) / (2.0 * Float.pi) // -> [0,1]
+                if h < 0 { h += 1 }
+                if h > 1 { h -= 1 }
+                hue[idx] = h
+                mag[idx] = m
+            }
+
+            // Angle-only visualization: full saturation and value
+            let sat = [Float](repeating: 1.0, count: count)
+            let valArr = [Float](repeating: 1.0, count: count)
+
+            let rgb = hsvToRGB(h: hue, s: sat, v: valArr)
+            self.scanPixelBuffer = makeRGBPixelBuffer(fromRGB: rgb, width: cols, height: rows)
+            return
+        }
         self.scanPixelBuffer = makePixelBuffer(from: mat)
     }
 
@@ -237,6 +308,131 @@ final class DataViewModel: NSObject, ObservableObject {
 
         return pb
     }
+
+    private func robustMinMax(_ values: inout [Float], lowPercentile: Float = 0.02, highPercentile: Float = 0.98) -> (Float, Float) {
+        // Copy and partially sort to estimate percentiles
+        var sorted = values
+        sorted.sort()
+        let n = sorted.count
+        if n == 0 { return (0, 1) }
+        let loIdx = max(0, min(n - 1, Int(Float(n - 1) * lowPercentile)))
+        let hiIdx = max(0, min(n - 1, Int(Float(n - 1) * highPercentile)))
+        return (sorted[loIdx], sorted[hiIdx])
+    }
+
+    private func hsvToRGB(h: [Float], s: Float, v: [Float]) -> [UInt8] {
+        let count = min(h.count, v.count)
+        var rgb = [UInt8](repeating: 0, count: count * 3)
+        for i in 0..<count {
+            var H = h[i]
+            var V = v[i]
+            // Clamp inputs
+            if H < 0 { H = 0 } else if H > 1 { H = 1 }
+            if V < 0 { V = 0 } else if V > 1 { V = 1 }
+            let S = max(0, min(s, 1))
+
+            let h6 = H * 6
+            let c = V * S
+            let x = c * (1 - fabsf(fmodf(h6, 2) - 1))
+            let m = V - c
+
+            let r1, g1, b1: Float
+            switch h6 {
+            case 0..<1: (r1, g1, b1) = (c, x, 0)
+            case 1..<2: (r1, g1, b1) = (x, c, 0)
+            case 2..<3: (r1, g1, b1) = (0, c, x)
+            case 3..<4: (r1, g1, b1) = (0, x, c)
+            case 4..<5: (r1, g1, b1) = (x, 0, c)
+            default:    (r1, g1, b1) = (c, 0, x)
+            }
+
+            let r = r1 + m
+            let g = g1 + m
+            let b = b1 + m
+
+            rgb[i*3 + 0] = UInt8(min(max(r * 255, 0), 255))
+            rgb[i*3 + 1] = UInt8(min(max(g * 255, 0), 255))
+            rgb[i*3 + 2] = UInt8(min(max(b * 255, 0), 255))
+        }
+        return rgb
+    }
+
+    private func hsvToRGB(h: [Float], s: [Float], v: [Float]) -> [UInt8] {
+        let count = min(h.count, min(s.count, v.count))
+        var rgb = [UInt8](repeating: 0, count: count * 3)
+        for i in 0..<count {
+            var H = h[i]
+            var V = v[i]
+            var S = s[i]
+            // Clamp inputs
+            if H < 0 { H = 0 } else if H > 1 { H = 1 }
+            if V < 0 { V = 0 } else if V > 1 { V = 1 }
+            if S < 0 { S = 0 } else if S > 1 { S = 1 }
+
+            let h6 = H * 6
+            let c = V * S
+            let x = c * (1 - fabsf(fmodf(h6, 2) - 1))
+            let m = V - c
+
+            let r1, g1, b1: Float
+            switch h6 {
+            case 0..<1: (r1, g1, b1) = (c, x, 0)
+            case 1..<2: (r1, g1, b1) = (x, c, 0)
+            case 2..<3: (r1, g1, b1) = (0, c, x)
+            case 3..<4: (r1, g1, b1) = (0, x, c)
+            case 4..<5: (r1, g1, b1) = (x, 0, c)
+            default:    (r1, g1, b1) = (c, 0, x)
+            }
+
+            let r = r1 + m
+            let g = g1 + m
+            let b = b1 + m
+
+            rgb[i*3 + 0] = UInt8(min(max(r * 255, 0), 255))
+            rgb[i*3 + 1] = UInt8(min(max(g * 255, 0), 255))
+            rgb[i*3 + 2] = UInt8(min(max(b * 255, 0), 255))
+        }
+        return rgb
+    }
+
+    private func makeRGBPixelBuffer(fromRGB rgb: [UInt8], width: Int, height: Int) -> CVPixelBuffer? {
+        var pixelBuffer: CVPixelBuffer?
+        let attrs: [CFString: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ]
+        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                         width,
+                                         height,
+                                         kCVPixelFormatType_32BGRA,
+                                         attrs as CFDictionary,
+                                         &pixelBuffer)
+        if status != kCVReturnSuccess { return nil }
+        guard let pb = pixelBuffer else { return nil }
+
+        CVPixelBufferLockBaseAddress(pb, [])
+        defer { CVPixelBufferUnlockBaseAddress(pb, []) }
+
+        guard let base = CVPixelBufferGetBaseAddress(pb)?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
+
+        // Pack RGB into BGRA with A = 255
+        for y in 0..<height {
+            let dstRow = base.advanced(by: y * bytesPerRow)
+            for x in 0..<width {
+                let srcIdx = (y * width + x) * 3
+                let dstIdx = x * 4
+                let r = rgb[srcIdx + 0]
+                let g = rgb[srcIdx + 1]
+                let b = rgb[srcIdx + 2]
+                dstRow[dstIdx + 0] = b
+                dstRow[dstIdx + 1] = g
+                dstRow[dstIdx + 2] = r
+                dstRow[dstIdx + 3] = 255
+            }
+        }
+        return pb
+    }
 }
 
 extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressDelegate {
@@ -262,6 +458,10 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
             self.detectorOuterRadius = base * 0.15
             self.detectorShape = .bf
             self.detectorType = .integrating
+            self.calculationMode = .integrate
+            self.strideLength = 1
+            self.dpcAxis = .leftRight
+            self.comAxis = .x
             self.computeScanImage()
         }
     }

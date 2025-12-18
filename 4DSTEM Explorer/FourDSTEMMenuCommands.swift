@@ -1,10 +1,16 @@
 import SwiftUI
 
 // MARK: - Menu Commands using direct model calls
+
 struct FourDSTEMMenuCommands: Commands {
-    @EnvironmentObject private var model: DataViewModel
-    @EnvironmentObject private var openPanel: OpenPanelController
-    
+      @ObservedObject var model: DataViewModel
+      @ObservedObject var openPanel: OpenPanelController
+
+      init(model: DataViewModel, openPanel: OpenPanelController) {
+          self.model = model
+          self.openPanel = openPanel
+      }
+
     var body: some Commands {
         // File menu
         CommandGroup(replacing: .newItem) {

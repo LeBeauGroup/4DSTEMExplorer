@@ -169,7 +169,7 @@ class ViewController: NSViewController,NSWindowDelegate, ImageViewerDelegate, ST
         case 1:
             detectedImage = dataController.dpc(selectedDetector!, strideLength:stride, lrud: lrud_xy )
         case 2:
-            detectedImage = dataController.com(selectedDetector!, strideLength:stride, xy: lrud_xy)
+            detectedImage = dataController.com(selectedDetector!, strideLength:stride, xy: COMAxis(rawValue:lrud_xy) ?? .x)
         default:
             detectedImage = dataController.integrating(selectedDetector!, strideLength:stride)
         }
