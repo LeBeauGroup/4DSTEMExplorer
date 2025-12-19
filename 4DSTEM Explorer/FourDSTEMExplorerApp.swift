@@ -1,7 +1,25 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let taskProgressUpdated = Notification.Name("updateProgress")
+}
 
+struct NoTrackProgressStyle: ProgressViewStyle {
+    var color: Color = .accentColor
+    var height: CGFloat = 4
 
+    func makeBody(configuration: Configuration) -> some View {
+        // configuration.fractionCompleted is 0.0 to 1.0
+        let progress = configuration.fractionCompleted ?? 0
+        
+        GeometryReader { geometry in
+            RoundedRectangle(cornerRadius: height / 2)
+                .fill(color)
+                .frame(width: geometry.size.width * CGFloat(progress))
+        }
+        .frame(height: height)
+    }
+}
 
 @main
 struct FourDSTEMExplorerApp: App {
@@ -14,10 +32,16 @@ struct FourDSTEMExplorerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+            
                 .environmentObject(model)
                 .environmentObject(openPanel)
+                .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
+
                 .toolbar {
+                    
+                    
                     ToolbarItemGroup(placement: .automatic) {
+
                         // Export Menu
                         Menu {
                             Button("Image") {
@@ -37,6 +61,17 @@ struct FourDSTEMExplorerApp: App {
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 120)
+                        .onChange(of: model.selectionMode) { _, newMode in
+                            switch newMode {
+                            case .point:
+                                // Clear any marquee and show the single pattern at the current selection
+                                model.selectionRect = nil
+                                model.updatePatternForCurrentSelection()
+                            case .marquee:
+                                // Initialize a 1×1 marquee at the current selection for immediate feedback
+                                model.beginMarquee(atI: model.selectedI, j: model.selectedJ)
+                            }
+                        }
 
                         // Zoom Controls
                         Button {
@@ -60,6 +95,28 @@ struct FourDSTEMExplorerApp: App {
                             .onSubmit {
                                 model.setScale(scale)
                             }
+                        
+
+                    }
+                    ToolbarItem() {
+                        
+                        if model.isLoading {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ProgressView(value: model.progress, total: 1.0) // Determinate
+                                    .progressViewStyle(.linear)
+                                    .controlSize(.small)
+                                    .frame(width: 100)
+                                
+                                    .onReceive(NotificationCenter.default.publisher(for: .taskProgressUpdated)) { notification in
+                                        // Extract the value from userInfo
+                                        if let progress = notification.object as? Double {
+                                            model.progress = progress
+                                        }
+                                    }
+                                
+                            }
+                        }
+//                        Spacer()
                     }
                 }
         }

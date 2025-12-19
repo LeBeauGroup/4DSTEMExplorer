@@ -42,7 +42,7 @@ class ImageViewer: NSImageView {
     
     weak var delegate:ImageViewerDelegate?
     
-    var matrixStorage:Matrix?
+//    var matrixStorage:Matrix?
     var selectMode:SelectMode = .point
     var scaledRect:NSRect?{
         get{
@@ -67,26 +67,31 @@ class ImageViewer: NSImageView {
 
     let selectionFillColor:NSColor = NSColor.red.withAlphaComponent(0.25)
     
-    var matrix:Matrix{
-        get{
-            return matrixStorage!
-        }
-        set(newMatrix){
-            
-            let imageRep:NSBitmapImageRep? = newMatrix.uInt8ImageRep()
-            let newImage = NSImage()
-            
-            selectionRect = nil
-            
-            if imageRep != nil{
-                newImage.addRepresentation(imageRep!)
-                self.image = newImage//newMatrix.imageRepresentation(part: "real", format: n, nil, nil)
-                matrixStorage = newMatrix
-            }
-        }
-        
-        
-    }    
+//    var matrix: Matrix? {
+//        get { matrixStorage }
+//        set {
+//            // Reset selection when matrix changes
+//            selectionRect = nil
+//            guard let newMatrix = newValue else {
+//                matrixStorage = nil
+//                self.image = nil
+//                self.needsDisplay = true
+//                return
+//            }
+//            if let imageRep = newMatrix.uInt8ImageRep() {
+//                let newImage = NSImage()
+//                newImage.addRepresentation(imageRep)
+//                self.image = newImage
+//                matrixStorage = newMatrix
+//                self.needsDisplay = true
+//            } else {
+//                matrixStorage = nil
+//                self.image = nil
+//                assertionFailure("Failed to create image representation from Matrix")
+//                self.needsDisplay = true
+//            }
+//        }
+//    }    
     
     func isPointInSelectionRect(_ point:NSPoint)->Bool{
         
@@ -211,31 +216,33 @@ class ImageViewer: NSImageView {
     
     
     func moveOriginInBounds(_ point:NSPoint){
-        // checks to see if the point is in bounds, if not bring it back (testing for origin of selectrion rect
-        
-        var origin = point
-        
-        if origin.x < 0{
-            origin.x = 0
-        }else if origin.x+(selectionRect?.width)! > CGFloat(matrix.columns-1){
-            origin.x = CGFloat(matrix.columns-1) - (selectionRect?.width)!
-            if selectMode == .marquee{
-                origin.x += 1
-            }
-        }
-        
-        if origin.y < 0{
-            origin.y = 0
-        }else if origin.y+(selectionRect?.height)! > CGFloat(matrix.rows-1){
-            origin.y = CGFloat(matrix.rows-1) - (selectionRect?.height)!
-            if selectMode == .marquee{
-                origin.y += 1
-            }
-        }
-        
-        selectionRect?.origin.x = origin.x
-        selectionRect?.origin.y = origin.y
-        
+//        // Ensure we have a matrix and a selectionRect to work with
+//        guard let matrix = self.matrix, var selectionRect = self.selectionRect else { return }
+//
+//        // checks to see if the point is in bounds, if not bring it back (testing for origin of selection rect)
+//        var origin = point
+//
+//        if origin.x < 0 {
+//            origin.x = 0
+//        } else if origin.x + selectionRect.width > CGFloat(matrix.columns - 1) {
+//            origin.x = CGFloat(matrix.columns - 1) - selectionRect.width
+//            if selectMode == .marquee {
+//                origin.x += 1
+//            }
+//        }
+//
+//        if origin.y < 0 {
+//            origin.y = 0
+//        } else if origin.y + selectionRect.height > CGFloat(matrix.rows - 1) {
+//            origin.y = CGFloat(matrix.rows - 1) - selectionRect.height
+//            if selectMode == .marquee {
+//                origin.y += 1
+//            }
+//        }
+//
+//        // Write back the adjusted origin to the stored selectionRect
+//        selectionRect.origin = origin
+//        self.selectionRect = selectionRect
     }
     
     
@@ -259,11 +266,8 @@ class ImageViewer: NSImageView {
                 rate = 5.0
             }
             
-        
+            guard var origin = selectionRect?.origin else { return }
             
-            var origin:NSPoint = (selectionRect?.origin)!
-
-
             switch keyChar {
             case NSUpArrowFunctionKey:
                 origin.y -= rate
@@ -297,7 +301,8 @@ class ImageViewer: NSImageView {
         }
         
         let testPoint = (self.convert(event.locationInWindow, from:nil))
-        let scaleFactor = (self.image?.size.width)!/frame.width
+        guard let imageSize = self.image?.size else { return }
+        let scaleFactor = imageSize.width / frame.width
 
     
         if true
@@ -310,21 +315,20 @@ class ImageViewer: NSImageView {
             switch selectMode{
             case .marquee:
                 
-                var newRect = selectionRect!
-                var newSize = selectionRect?.size
+                guard var newRect = selectionRect else { return }
                 
                 if isSelectionMoving{
                 
-                    var newOrigin = (selectionRect?.origin)!
+                    guard var newOrigin = selectionRect?.origin, let last = lastDragLocation else { return }
                     
-                    newOrigin.x += testPoint.x-(lastDragLocation?.x)!
-                    newOrigin.y += testPoint.y-(lastDragLocation?.y)!
+                    newOrigin.x += testPoint.x - last.x
+                    newOrigin.y += testPoint.y - last.y
                     
                     moveOriginInBounds(newOrigin)
                     
                 }else{
-                    newRect.size.width = testPoint.x-(selectionRect?.origin.x)!
-                    newRect.size.height = testPoint.y-(selectionRect?.origin.y)!
+                    newRect.size.width = testPoint.x - newRect.origin.x
+                    newRect.size.height = testPoint.y - newRect.origin.y
                     selectionRect = newRect
 
                     
@@ -337,21 +341,21 @@ class ImageViewer: NSImageView {
                 
             case .point:
                 
-                var newOrigin = (selectionRect?.origin)!
+                guard var newOrigin = selectionRect?.origin else { return }
                 
-                newOrigin.x += testPoint.x-(selectionRect?.origin.x)!
-                newOrigin.y += testPoint.y-(selectionRect?.origin.y)!
+                newOrigin.x += testPoint.x - newOrigin.x
+                newOrigin.y += testPoint.y - newOrigin.y
 
                 moveOriginInBounds(newOrigin)
 
-                var selectedPattern = (selectionRect?.origin)!
+                guard var selectedPattern = self.selectionRect?.origin else { return }
                 
                 // Check on the x position
                 selectedPattern.x *= scaleFactor
                 if selectedPattern.x < 0 {
                     selectedPattern.x = 0
-                }else if  selectedPattern.x > (self.image?.size.width)!-1 {
-                    selectedPattern.x = (self.image?.size.width)! - 1
+                }else if  selectedPattern.x > imageSize.width - 1 {
+                    selectedPattern.x = imageSize.width - 1
                 }
                 // Check on the y position
                 
@@ -360,8 +364,8 @@ class ImageViewer: NSImageView {
                 
                 if selectedPattern.y < 0 {
                     selectedPattern.y = 0
-                }else if selectedPattern.y > (self.image?.size.height)!-1 {
-                    selectedPattern.y = (self.image?.size.height)! - 1
+                }else if selectedPattern.y > imageSize.height - 1 {
+                    selectedPattern.y = imageSize.height - 1
                 }
                 
                 
@@ -446,13 +450,14 @@ class ImageViewer: NSImageView {
     override func draw(_ dirtyRect: NSRect) {
 
 
-        let context = NSGraphicsContext.current?.cgContext
-
-        NSColor.darkGray.set()
-        NSBezierPath(rect: dirtyRect).fill()
-        
         super.draw(dirtyRect)
         
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+//        
+//        NSColor.darkGray.set()
+//        NSBezierPath(rect: dirtyRect).fill()
+//        
+//
         if selectionIsHidden {
             return
         }
@@ -460,11 +465,11 @@ class ImageViewer: NSImageView {
         switch selectMode {
         case .marquee:
             
-            if selectionRect != nil{
+            if let selectionRect = selectionRect {
                 
                 selectionFillColor.set()
                 
-                let pathSelectionRect = NSBezierPath(rect: selectionRect!)
+                let pathSelectionRect = NSBezierPath(rect: selectionRect)
             
                 pathSelectionRect.fill()
                 NSColor.red.set()
@@ -473,9 +478,8 @@ class ImageViewer: NSImageView {
                 
             }
         case .point:
-            if selectionRect != nil{
-
-            drawPointSelection(point: selectionRect?.origin, context: context!)
+            if let selectionRect = selectionRect {
+                drawPointSelection(point: selectionRect.origin, context: context)
             }
         case .none:
             return
@@ -578,3 +582,4 @@ class ImageViewer: NSImageView {
 //    }
     
 }
+
