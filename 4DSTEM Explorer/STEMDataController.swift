@@ -50,6 +50,11 @@ protocol STEMDataControllerProgressDelegate:class {
 
 class STEMDataController: NSObject {
     
+    // Notification posted when a new displayable NSImage is ready
+    static let imageDidUpdateNotification = Notification.Name("STEMDataController.imageDidUpdate")
+    // Optional cache for latest rendered image (used by observers)
+    private(set) var lastRenderedImage: NSImage?
+    
     var filePath:URL?
     var imageSize:IntSize = IntSize(width: 0, height: 0)
     var fh:FileHandle?
@@ -59,6 +64,8 @@ class STEMDataController: NSObject {
     
     var detectorSize:IntSize = empadSize
     var patternSize:IntSize = empadSize
+    
+    var providedRawImageSize: IntSize? = nil
     
     var patternPixels:Int{
         get{
@@ -87,6 +94,10 @@ class STEMDataController: NSObject {
         }
         
         return temp
+    }
+    
+    func setRawImageSize(width: Int, height: Int) {
+        self.providedRawImageSize = IntSize(width: width, height: height)
     }
 
     var fileStream:InputStream?
@@ -288,7 +299,9 @@ class STEMDataController: NSObject {
         let start = Date()
         while !isFileFullyDownloaded(at: url) {
             if Date().timeIntervalSince(start) > timeout {
+#if DEBUG
                 print("Timeout waiting for file to download")
+#endif
                 return false
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1)) // Avoid CPU hog
@@ -311,7 +324,9 @@ class STEMDataController: NSObject {
 
             return resourceValues.ubiquitousItemDownloadingStatus == .current
         } catch {
+#if DEBUG
             print("Failed to check file status: \(error)")
+#endif
             return false
         }
     }
@@ -362,10 +377,14 @@ class STEMDataController: NSObject {
             nudgeDropboxDownload(url: url)
             // ...
         } else if (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true {
+#if DEBUG
             print("Detected iCloud file")
+#endif
             // Use `startDownloadingUbiquitousItem(at:)` and check download status
         } else {
+#if DEBUG
             print("Not iCloud or Dropbox")
+#endif
         }
        
         
@@ -542,31 +561,34 @@ class STEMDataController: NSObject {
 
                     // If image size hasn't been set yet, try to parse from filename or infer
                     if self.imageSize.width == 0 || self.imageSize.height == 0 {
-                        let name = url.lastPathComponent
-                        var inferredW: Int? = nil
-                        var inferredH: Int? = nil
-
-                        // Try to parse numbers following 'x' and 'y' like original workflow
-                        if let regex = try? NSRegularExpression(pattern: "(?<=[xXyY])[0-9]+", options: []) {
-                            let s = name as NSString
-                            let matches = regex.matches(in: name, options: [], range: NSRange(location: 0, length: s.length))
-                            if let first = matches.first {
-                                inferredW = Int(s.substring(with: first.range))
-                            }
-                            if matches.count > 1, let last = matches.last {
-                                inferredH = Int(s.substring(with: last.range))
-                            }
-                        }
-
-                        if let w = inferredW, let h = inferredH {
-                            self.imageSize = IntSize(width: w, height: h)
+                        if let provided = self.providedRawImageSize {
+                            self.imageSize = provided
                         } else {
-                            // Fallback: try a square grid if possible
-                            let root = Int(Double(totalImages).squareRoot())
-                            if root * root == totalImages {
-                                self.imageSize = IntSize(width: root, height: root)
+                            let name = url.lastPathComponent
+                            var inferredW: Int? = nil
+                            var inferredH: Int? = nil
+
+                            // Try to parse numbers following 'x' and 'y' like original workflow
+                            if let regex = try? NSRegularExpression(pattern: "(?<=[xXyY])[0-9]+", options: []) {
+                                let s = name as NSString
+                                let matches = regex.matches(in: name, options: [], range: NSRange(location: 0, length: s.length))
+                                if let first = matches.first {
+                                    inferredW = Int(s.substring(with: first.range))
+                                }
+                                if matches.count > 1, let last = matches.last {
+                                    inferredH = Int(s.substring(with: last.range))
+                                }
+                            }
+
+                            if let w = inferredW, let h = inferredH {
+                                self.imageSize = IntSize(width: w, height: h)
                             } else {
-                                self.imageSize = IntSize(width: totalImages, height: 1)
+                                let root = Int(Double(totalImages).squareRoot())
+                                if root * root == totalImages {
+                                    self.imageSize = IntSize(width: root, height: root)
+                                } else {
+                                    self.imageSize = IntSize(width: totalImages, height: 1)
+                                }
                             }
                         }
                     }
@@ -630,16 +652,34 @@ class STEMDataController: NSObject {
 
                     if globalIndex % fracComplete == 0 {
                         DispatchQueue.main.async {
-                            nc.post(name: Notification.Name("updateProgress"), object: globalIndex)
+                            nc.post(name: Notification.Name("updateProgress"), object: Double(globalIndex)/Double(totalImages))
                         }
                     }
                 }
             }
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async(execute: DispatchWorkItem {
                 self.delegate?.didFinishLoadingData()
                 self.progressdelegate?.didFinishLoadingData()
-            }
+
+//                // Produce a default integrated preview for the viewer (safe detector covering full pattern)
+//                let fullDetector = Detector()
+//                let previewMatrix = self.integrating(fullDetector, strideLength: 1)
+//                #if DEBUG
+//                NSLog("[STEMDataController] Creating preview image: matrix size %dx%d", previewMatrix.columns, previewMatrix.rows)
+//                #endif
+//                if let img = self.nsImage(from: previewMatrix) {
+//                    #if DEBUG
+//                    NSLog("[STEMDataController] Preview NSImage created (w: %f, h: %f). Posting imageDidUpdateNotification…", img.size.width, img.size.height)
+//                    #endif
+//                    self.lastRenderedImage = img
+//                    NotificationCenter.default.post(name: STEMDataController.imageDidUpdateNotification, object: self, userInfo: ["image": img])
+//                } else {
+//                    #if DEBUG
+//                    NSLog("[STEMDataController] Failed to create NSImage from preview matrix")
+//                    #endif
+//                }
+            })
         }
 
         DispatchQueue.global().async(execute: dwi!)
@@ -655,7 +695,9 @@ class STEMDataController: NSObject {
             self.fh = bufferStream
             
         }catch{
+#if DEBUG
             print("error creating file handle")
+#endif
         }
     }
 
@@ -883,7 +925,194 @@ class STEMDataController: NSObject {
         
     }
     
+    func comColor(_ detector: Detector, strideLength: Int = 1) -> CVPixelBuffer? {
+        let comX = self.com(detector, strideLength: strideLength, xy: .x)
+        let comY = self.com(detector, strideLength: strideLength, xy: .y)
+        let rows = comX.rows
+        let cols = comX.columns
+        let count = rows * cols
+        
+        let xData = comX.real
+        let yData = comY.real
+        
+        var shiftedX = xData
+        var shiftedY = yData
+        
+        var mag = [Float](repeating: 0, count: count)
+        var hue = [Float](repeating: 0, count: count)
+        
+        var cx = Float(detector.center.x)
+        var cy = Float(detector.center.y)
+        
+        vDSP_vsadd(shiftedX, 1, [-cx], &shiftedX, 1, vDSP_Length(count))
+        vDSP_vsadd(shiftedY, 1, [-cy], &shiftedY, 1, vDSP_Length(count))
+        
+        vDSP.hypot(shiftedX, shiftedY, result: &mag)
+        
+        // angle with y down:
+        var negY = [Float](repeating: 0, count: count)
+        vDSP_vneg(shiftedY, 1, &negY, 1, vDSP_Length(count))
+        
+        var ang = [Float](repeating: 0, count: count)
+        ang.withUnsafeMutableBufferPointer { angPtr in
+            negY.withUnsafeBufferPointer { negYPtr in
+                shiftedX.withUnsafeBufferPointer { shiftedXPtr in
+                    vvatan2f(angPtr.baseAddress!, negYPtr.baseAddress!, shiftedXPtr.baseAddress!, [Int32(count)])
+                }
+            }
+        }
+        
+        // Convert angle to hue [0,1)
+
+        let pi = Float.pi
+        let twoPi = pi * 2.0
+        
+        vDSP_vsadd(ang, 1, [pi], &hue, 1, vDSP_Length(count))
+        vDSP_vsdiv(hue, 1, [twoPi], &hue, 1, vDSP_Length(count))
+        vDSP_vfrac(hue, 1, &hue, 1, vDSP_Length(count))
+        
+        // Normalize magnitude via 95th percentile and map to Value (brightness)
+        var val = mag
+        var sorted = val
+        sorted.sort()
+        let idx = max(0, min(count - 1, Int(Float(count - 1) * 0.95)))
+        let p95 = sorted[idx]
+        let inv = (p95 > 0) ? (1.0 / p95) : 1.0
+        if inv != 1.0 {
+            val = vDSP.multiply(inv, val)
+        }
+        val = vDSP.clip(val, to: 0.0...1.0)
+
+        // Use full saturation so hue is vivid while brightness encodes magnitude
+        let sat = [Float](repeating: 1.0, count: count)
+
+        // Convert HSV to RGB bytes (low magnitude -> black, high magnitude -> bright color)
+        let rgbBytes = self.hsvToRGB(h: hue, s: sat, v: val)
+        
+        // Create BGRA pixel buffer
+        let attrs = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ] as CFDictionary
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(kCFAllocatorDefault, cols, rows, kCVPixelFormatType_32BGRA, attrs, &pixelBuffer)
+        guard status == kCVReturnSuccess, let pb = pixelBuffer else {
+            return nil
+        }
+        
+        CVPixelBufferLockBaseAddress(pb, [])
+        
+        if let baseAddress = CVPixelBufferGetBaseAddress(pb) {
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
+            for row in 0..<rows {
+                let rowPtr = baseAddress.advanced(by: row * bytesPerRow)
+                for col in 0..<cols {
+                    let srcIndex = (row * cols + col) * 3
+                    let pixelPtr = rowPtr.advanced(by: col * 4)
+                    let r = rgbBytes[srcIndex]
+                    let g = rgbBytes[srcIndex + 1]
+                    let b = rgbBytes[srcIndex + 2]
+                    pixelPtr.storeBytes(of: b, as: UInt8.self)       // B
+                    pixelPtr.advanced(by: 1).storeBytes(of: g, as: UInt8.self) // G
+                    pixelPtr.advanced(by: 2).storeBytes(of: r, as: UInt8.self) // R
+                    pixelPtr.advanced(by: 3).storeBytes(of: UInt8(255), as: UInt8.self) // A
+                }
+            }
+        }
+        
+        CVPixelBufferUnlockBaseAddress(pb, [])
+        
+        return pixelBuffer
+    }
     
+    private func hsvToRGB(h: [Float], s: [Float], v: [Float]) -> [UInt8] {
+        // Convert HSV float arrays to RGB UInt8 array (3 components per pixel)
+        // h, s, v expected in [0,1]
+        // Output RGB in [0,255]
+        let count = h.count
+        var rgb = [UInt8](repeating: 0, count: count * 3)
+        
+        for i in 0..<count {
+            let hue = h[i] * 6.0
+            let saturation = s[i]
+            let value = v[i]
+            
+            let c = value * saturation
+            let x = c * (1 - abs(fmod(hue, 2.0) - 1))
+            let m = value - c
+            
+            var r1: Float = 0
+            var g1: Float = 0
+            var b1: Float = 0
+            
+            switch Int(hue) {
+            case 0:
+                r1 = c; g1 = x; b1 = 0
+            case 1:
+                r1 = x; g1 = c; b1 = 0
+            case 2:
+                r1 = 0; g1 = c; b1 = x
+            case 3:
+                r1 = 0; g1 = x; b1 = c
+            case 4:
+                r1 = x; g1 = 0; b1 = c
+            case 5:
+                r1 = c; g1 = 0; b1 = x
+            default:
+                r1 = 0; g1 = 0; b1 = 0
+            }
+            
+            let r = UInt8(max(0, min(255, Int((r1 + m) * 255))))
+            let g = UInt8(max(0, min(255, Int((g1 + m) * 255))))
+            let b = UInt8(max(0, min(255, Int((b1 + m) * 255))))
+            
+            rgb[i * 3] = r
+            rgb[i * 3 + 1] = g
+            rgb[i * 3 + 2] = b
+        }
+        
+        return rgb
+    }
+    
+    // MARK: - Rendering helpers for ImageViewerRepresentable
+    private func nsImage(from pixelBuffer: CVPixelBuffer) -> NSImage? {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let rep = NSCIImageRep(ciImage: ciImage)
+        let img = NSImage(size: NSSize(width: rep.pixelsWide, height: rep.pixelsHigh))
+        img.addRepresentation(rep)
+        return img
+    }
+
+    private func nsImage(from matrix: Matrix) -> NSImage? {
+        let rows = matrix.rows
+        let cols = matrix.columns
+        var data = matrix.real
+        guard rows > 0, cols > 0, !data.isEmpty else { return nil }
+        if let minVal = data.min(), let maxVal = data.max(), maxVal > minVal {
+            let scale = 255.0 / (maxVal - minVal)
+            let offset = -minVal * scale
+            vDSP_vsmsa(data, 1, [scale], [offset], &data, 1, vDSP_Length(data.count))
+        }
+        var u8 = [UInt8](repeating: 0, count: data.count)
+        vDSP_vfixu8(data, 1, &u8, 1, vDSP_Length(data.count))
+        let cs = CGColorSpaceCreateDeviceGray()
+        guard let provider = CGDataProvider(data: Data(u8) as CFData) else { return nil }
+        guard let cg = CGImage(width: cols,
+                               height: rows,
+                               bitsPerComponent: 8,
+                               bitsPerPixel: 8,
+                               bytesPerRow: cols,
+                               space: cs,
+                               bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                               provider: provider,
+                               decode: nil,
+                               shouldInterpolate: true,
+                               intent: .defaultIntent) else { return nil }
+        let img = NSImage(size: NSSize(width: cols, height: rows))
+        img.addRepresentation(NSBitmapImageRep(cgImage: cg))
+        return img
+    }
     
     deinit {
         fh?.closeFile()
@@ -901,4 +1130,8 @@ func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
     return (strideWidth, strideHeight)
 }
+
+
+
+
 

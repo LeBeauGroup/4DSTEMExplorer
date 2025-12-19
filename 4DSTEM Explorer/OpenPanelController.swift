@@ -7,14 +7,14 @@ final class OpenPanelController: ObservableObject {
     /// Allowed content types for the open panel. Default is any type.
     var allowedContentTypes: [UTType] = [.item]
     
-    @MainActor
-    func open() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.allowedFileTypes = ["dm4", "mrc", "tiff", "tif", "raw"]
-        panel.begin { _ in }
-    }
+//    @MainActor
+//    func open() {
+//        let panel = NSOpenPanel()
+//        panel.allowsMultipleSelection = false
+//        panel.canChooseDirectories = false
+//        panel.allowedFileTypes = ["dm4", "mrc", "tiff", "tif", "raw"]
+//        panel.begin { _ in }
+//    }
     
     @MainActor
     func open(onSelect: @escaping (URL) -> Void) {

@@ -134,9 +134,9 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 
                 let index = i*columns+j
                 if meshIndicesAlong == 1{
-                    real[index] = Float(j)
-                }else{
                     real[index] = Float(i)
+                }else{
+                    real[index] = Float(j)
                 }
                 
             }

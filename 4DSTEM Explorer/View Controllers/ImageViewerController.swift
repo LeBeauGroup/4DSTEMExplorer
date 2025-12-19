@@ -14,30 +14,36 @@ class ImageViewerController:NSViewController{
     @IBOutlet weak var imageViewer:ImageViewer!
     
     @IBAction func changeBrightness(_ sender:Any){
+        // Ensure we have a valid slider
+        guard let slider = sender as? NSSlider else { return }
         
+        // Ensure the imageViewer has a matrix to work with
+        guard let matrix = imageViewer.matrix else { return }
         
-        let imageRep = imageViewer.matrix.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil)
+        // Obtain an image representation from the matrix. Adjust the call to use labeled parameters if needed.
+        // Assuming signature like: imageRepresentation(part: String, format: MatrixOutput, min: Any?, max: Any?)
+        guard let imageRep = matrix.imageRepresentation(part: "real", format: MatrixOutput.uint16, nil, nil) else { return }
         
-        let cg = imageRep?.cgImage(forProposedRect: nil, context: NSGraphicsContext.current, hints: nil)
+        // Get CGImage from NSImageRep
+        guard let cg = imageRep.cgImage(forProposedRect: nil, context: NSGraphicsContext.current, hints: nil) else { return }
         
-        let filter = CIFilter(name: "CIColorControls");
+        // Create and configure CIFilter
+        guard let filter = CIFilter(name: "CIColorControls") else { return }
+        filter.setValue(slider.floatValue, forKey: kCIInputBrightnessKey)
         
-        let slider = sender as! NSSlider
+        let rawimgData = CIImage(cgImage: cg)
+        filter.setValue(rawimgData, forKey: kCIInputImageKey)
         
-        filter?.setValue(slider.floatValue, forKey: "inputBrightness")
+        // Extract output image
+        guard let outputImage = filter.value(forKey: kCIOutputImageKey) as? CIImage else { return }
         
-        let rawimgData =  CIImage.init(cgImage: cg!)
-        filter?.setValue(rawimgData, forKey: "inputImage")
-        let outpuImage = filter?.value(forKey: "outputImage")
-        
-        let rep = NSCIImageRep.init(ciImage: outpuImage as! CIImage)
-        let nsImage = NSImage.init(size: rep.size)
-        
+        // Create NSImage from CIImage
+        let rep = NSCIImageRep(ciImage: outputImage)
+        let nsImage = NSImage(size: rep.size)
         nsImage.addRepresentation(rep)
-            
-
         
-        imageViewer.image =  nsImage
+        imageViewer.image = nsImage
     }
     
 }
+

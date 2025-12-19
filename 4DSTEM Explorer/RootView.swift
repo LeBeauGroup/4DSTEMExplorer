@@ -1,14 +1,7 @@
 import SwiftUI
 import AppKit
 
-// Fallback definitions if not provided elsewhere in the project
-// Ensure these are available and Hashable for Picker selections
-
-//enum DPCAxis: String, CaseIterable, Identifiable, Hashable { case leftRight, upDown; var id: String { rawValue } }
-//enum CalculationMode: String, CaseIterable, Identifiable, Hashable { case integrate, com, comColor, dpc; var id: String { rawValue } }
-
 struct DetectorOverlay: View {
-    // Inputs from your model
     let shape: DetectorShape
     let inner: CGFloat
     let outer: CGFloat
@@ -18,126 +11,57 @@ struct DetectorOverlay: View {
     var body: some View {
         GeometryReader { geo in
             let viewSize = geo.size
-            // Compute aspect-fit rect for the pattern inside the view
             let imgW = CGFloat(max(patternWidth, 1))
             let imgH = CGFloat(max(patternHeight, 1))
             let imageAspect = imgW / imgH
             let viewAspect = viewSize.width / max(viewSize.height, 1)
             let drawRect: CGRect = {
                 if imageAspect > viewAspect {
-                    // full width, letterbox vertically
                     let drawHeight = viewSize.width / imageAspect
                     let yOffset = (viewSize.height - drawHeight) / 2.0
                     return CGRect(x: 0, y: yOffset, width: viewSize.width, height: drawHeight)
                 } else {
-                    // full height, letterbox horizontally
                     let drawWidth = viewSize.height * imageAspect
                     let xOffset = (viewSize.width - drawWidth) / 2.0
                     return CGRect(x: xOffset, y: 0, width: drawWidth, height: viewSize.height)
                 }
             }()
-
-            // Detector center is at center of pattern (as in DataViewModel.currentDetector())
-            let center = CGPoint(
-                x: drawRect.minX + drawRect.width * 0.5,
-                y: drawRect.minY + drawRect.height * 0.5
-            )
-
-            // Convert radii from pattern pixels to view pixels (scale by drawRect size / pattern size)
-            let scaleX = drawRect.width / imgW
-            let scaleY = drawRect.height / imgH
-            let scale = min(scaleX, scaleY) // uniform scale for circular shapes
-
+            let center = CGPoint(x: drawRect.midX, y: drawRect.midY)
+            let scale = min(drawRect.width / imgW, drawRect.height / imgH)
             let innerR = max(0, inner) * scale
             let outerR = max(0, outer) * scale
 
-            // Build paths for different detector shapes
             ZStack {
                 switch shape {
                 case .bf, .adf:
-                    // Single circle (use outer for BF, inner for ADF or as desired)
                     let r = shape == .bf ? outerR : innerR
-                    Circle()
-                        .stroke(style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .foregroundStyle(Color.accentColor.opacity(0.9))
-                        .frame(width: r * 2, height: r * 2)
-                        .position(center)
-
+                    Circle().stroke(style: StrokeStyle(lineWidth: 2)).foregroundStyle(Color.accentColor.opacity(0.9)).frame(width: r * 2, height: r * 2).position(center)
                 case .af:
-                    // Annulus: region between inner and outer
-                    // Draw two circles to indicate inner and outer bounds
-                    Circle()
-                        .stroke(style: StrokeStyle(lineWidth: 2))
-                        .foregroundStyle(Color.accentColor.opacity(0.9))
-                        .frame(width: innerR * 2, height: innerR * 2)
-                        .position(center)
-                    Circle()
-                        .stroke(style: StrokeStyle(lineWidth: 2))
-                        .foregroundStyle(Color.accentColor.opacity(0.9))
-                        .frame(width: outerR * 2, height: outerR * 2)
-                        .position(center)
-                case .custom:
-                    Rectangle()
-                        .frame(width: 10, height: 10)
-                case .point:
-                    Rectangle()
-                        .frame(width: 10, height: 10)
-
+                    Circle().stroke(style: StrokeStyle(lineWidth: 2)).foregroundStyle(Color.accentColor.opacity(0.9)).frame(width: innerR * 2, height: innerR * 2).position(center)
+                    Circle().stroke(style: StrokeStyle(lineWidth: 2)).foregroundStyle(Color.accentColor.opacity(0.9)).frame(width: outerR * 2, height: outerR * 2).position(center)
+                default: EmptyView()
                 }
-
             }
         }
-        .allowsHitTesting(false) // overlay should not intercept interactions
+        .allowsHitTesting(false)
     }
 }
 
 struct RootView: View {
-    static let sharedModel = DataViewModel()
-    @ObservedObject private var model: DataViewModel
+    @EnvironmentObject private var model: DataViewModel
     @EnvironmentObject private var openPanel: OpenPanelController
 
-    init(model: DataViewModel = RootView.sharedModel) {
-        self._model = ObservedObject(wrappedValue: model)
-    }
-
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    
     var body: some View {
-        VStack(spacing: 8) {
-            header
-            Divider()
-            content
-        }
-        .padding(12)
-        .frame(minWidth: 800, minHeight: 500)
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("4DSTEM Explorer").font(.title).bold()
-                if let url = model.selectedURL {
-                    Text(url.lastPathComponent)
-                        .foregroundColor(.secondary)
-                }
-                Text(model.status)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 8) {
-                Button("Open File…") { openFile() }
-                Button("Quit") { NSApp.terminate(nil) }
-            }
-        }
-    }
-
-    private var content: some View {
-        HStack(alignment:.top, spacing: 12) {
+        
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            // Left Panel
             VStack(alignment: .leading, spacing: 12) {
                 GroupBox("Pattern") {
                     ZStack {
                         if let pb = model.pixelBuffer {
                             PixelBufferView(pixelBuffer: pb)
-
-                            // Overlay the detector shape above the pattern image
                             DetectorOverlay(
                                 shape: model.detectorShape,
                                 inner: model.detectorInnerRadius,
@@ -151,44 +75,64 @@ struct RootView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .frame(width: 256, height: 256)
+                    
+//                    .frame(maxWidth: .infinity)
+                    .aspectRatio(1.0,contentMode: .fit)
                 }
                 detectorSettings
                     .frame(width: 240)
+                Spacer()
+            }.padding(12)
+                .toolbar(removing: .sidebarToggle)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
+        } detail: {
+                // Right Panel: Computed Image
+                GroupBox("Computed Image") {
+                    GeometryReader { geo in
+                        // Compute a stable draw rect that does not depend on stride/pixel content
+                        let imgW = max(CGFloat(model.imageWidth), 1)
+                        let imgH = max(CGFloat(model.imageHeight), 1)
+                        let aspect = imgW / imgH
+                        let containerSize = geo.size
+                        // Fit a rectangle of the image aspect inside the available container
+                        let targetSize: CGSize = {
+                            let containerAspect = containerSize.width / max(containerSize.height, 1)
+                            if aspect > containerAspect {
+                                // width-bound
+                                return CGSize(width: containerSize.width, height: containerSize.width / aspect)
+                            } else {
+                                // height-bound
+                                return CGSize(width: containerSize.height * aspect, height: containerSize.height)
+                            }
+                        }()
+                        let origin = CGPoint(x: (containerSize.width - targetSize.width) / 2,
+                                             y: (containerSize.height - targetSize.height) / 2)
 
-            }
-
-            GroupBox("Computed Image") {
-                ZStack {
-                    if let scan = model.scanPixelBuffer {
-                        ZStack(alignment: .topLeading) {
-                            ClickableImageView(pixelBuffer: scan, onClick: { i, j in
-                                model.select(i: i, j: j)
-                            }, onDrag: { i, j in
-                                model.select(i: i, j: j)
-                            }, onArrowKey: { di, dj in
-                                let newI = max(0, min(model.imageHeight - 1, model.selectedI + di))
-                                let newJ = max(0, min(model.imageWidth - 1, model.selectedJ + dj))
-                                model.select(i: newI, j: newJ)
-                            })
-
-                            // Overlay current selection label
-                            Text("(i: \(model.selectedI), j: \(model.selectedJ))")
-                                .padding(6)
-                                .background(.thinMaterial)
-                                .cornerRadius(6)
-                                .padding(8)
+                        ZStack {
+                            Color.clear
+                            ImageViewerRepresentable()
+                                .environmentObject(model)
+                                // Render the image into the stable rect regardless of stride changes
+                                .frame(width: targetSize.width, height: targetSize.height)
+                                .position(x: origin.x + targetSize.width / 2, y: origin.y + targetSize.height / 2)
+                                .clipped()
                         }
-                    } else {
-                        Text(model.isLoading ? "Loading…" : "Open a file to compute the scan image.")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .foregroundColor(.secondary)
+                        .frame(width: containerSize.width, height: containerSize.height)
+                    }
+                    .frame(minWidth: 400, minHeight: 400)
+                }.padding(12)
+            }
+        .onChange(of: columnVisibility) { _, newValue in
+            if newValue == .detailOnly {
+                    // Use an async call to ensure the UI has finished its current transition
+                    DispatchQueue.main.async {
+                        columnVisibility = .all
                     }
                 }
-                .frame(minWidth: 380, minHeight: 380)
-            }
-
         }
+        
+//        .padding(12)
+//        .frame(minWidth: 800, minHeight: 500)
     }
 
     private var detectorSettings: some View {
@@ -200,159 +144,51 @@ struct RootView: View {
                     Text("AF").tag(DetectorShape.af)
                 }
                 .pickerStyle(.segmented)
-                .onChange(of: model.detectorShape) { oldValue, newValue in
-                    // Recompute when detector shape changes
-                    model.computeScanImage()
-                }
+                .onChange(of: model.detectorShape) { _, _ in model.computeScanImage() }
 
-                // BF: Outer only
-                if model.detectorShape == .bf {
+                if model.detectorShape == .bf || model.detectorShape == .af {
                     HStack {
                         Text("Outer: ")
-                        Slider(
-                            value: Binding(
-                                get: { Double(model.detectorOuterRadius) },
-                                set: { newValue in
-                                    model.detectorOuterRadius = CGFloat(newValue)
-                                    model.computeScanImage(stride: 2)
-                                }
-                            ),
-                            in: 1...Double(max(1, min(model.imageWidth, model.imageHeight))),
-                            onEditingChanged: { isEditing in
-                                if !isEditing {
-                                    model.computeScanImage()
-                                }
-                            }
-                        )
+                        Slider(value: Binding(get: { Double(model.detectorOuterRadius) }, set: { model.detectorOuterRadius = CGFloat($0); model.computeScanImage(interactive: true) }), in: 1...256, onEditingChanged: { if !$0 { model.computeScanImage() }})
                     }
                 }
-
-                // ADF: Inner only
-                if model.detectorShape == .adf {
+                if model.detectorShape == .adf || model.detectorShape == .af {
                     HStack {
                         Text("Inner: ")
-                        Slider(
-                            value: Binding(
-                                get: { Double(model.detectorInnerRadius) },
-                                set: { newValue in
-                                    model.detectorInnerRadius = CGFloat(newValue)
-                                    model.computeScanImage(stride: 2)
-                                }
-                            ),
-                            in: 0...Double(max(1, min(model.imageWidth, model.imageHeight))),
-                            onEditingChanged: { isEditing in
-                                if !isEditing {
-                                    model.computeScanImage()
-                                }
-                            }
-                        )
+                        Slider(value: Binding(get: { Double(model.detectorInnerRadius) }, set: { model.detectorInnerRadius = CGFloat($0); model.computeScanImage(interactive: true) }), in: 0...256, onEditingChanged: { if !$0 { model.computeScanImage() }})
                     }
                 }
 
-                // AF: both Inner and Outer
-                if model.detectorShape == .af {
-                    HStack {
-                        Text("Inner: ")
-                        Slider(
-                            value: Binding(
-                                get: { Double(model.detectorInnerRadius) },
-                                set: { newValue in
-                                    model.detectorInnerRadius = CGFloat(newValue)
-                                    model.computeScanImage(stride: 2)
-                                }
-                            ),
-                            in: 0...Double(max(1, min(model.imageWidth, model.imageHeight))),
-                            onEditingChanged: { isEditing in
-                                if !isEditing {
-                                    model.computeScanImage()
-                                }
-                            }
-                        )
-                    }
-                    HStack {
-                        Text("Outer: ")
-                        Slider(
-                            value: Binding(
-                                get: { Double(model.detectorOuterRadius) },
-                                set: { newValue in
-                                    model.detectorOuterRadius = CGFloat(newValue)
-                                    model.computeScanImage(stride: 2)
-                                }
-                            ),
-                            in: 1...Double(max(1, min(model.imageWidth, model.imageHeight))),
-                            onEditingChanged: { isEditing in
-                                if !isEditing {
-                                    model.computeScanImage()
-                                }
-                            }
-                        )
-                    }
+                Divider()
+
+                Picker("Mode", selection: $model.calculationMode) {
+                    Text("Integrate").tag(CalculationMode.integrate)
+                    Text("COM").tag(CalculationMode.com)
+                    Text("DPC").tag(CalculationMode.dpc)
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: model.calculationMode) { _, _ in model.computeScanImage() }
+
+                if model.calculationMode == .com {
+                    Picker("Axis", selection: Binding<COMAxis>(get: { model.comAxis }, set: { model.comAxis = $0; model.computeScanImage(interactive: true); model.scheduleFullResRecompute() })) {
+                        Text("X").tag(COMAxis.x); Text("Y").tag(COMAxis.y); Text("Color").tag(COMAxis.color)
+                    }.pickerStyle(.segmented)
                 }
 
-                // Model must define CalculationMode, DPCAxis, strideLength, and handle them in computeScanImage()
-                GroupBox("Calculation") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Mode picker: Integrate (sum), COM, COM Color, DPC
-                        Picker("Mode", selection: $model.calculationMode) {
-                            Text("Integrate").tag(CalculationMode.integrate)
-                            Text("COM").tag(CalculationMode.com)
-                            Text("COM Color").tag(CalculationMode.comColor)
-                            Text("DPC").tag(CalculationMode.dpc)
-                        }
-                        .pickerStyle(.segmented)
-                        .onChange(of: model.calculationMode) { (_: CalculationMode, _: CalculationMode) in
-                            model.computeScanImage()
-                        }
-
-                        if model.calculationMode == .com {
-                            // Use explicit Binding to trigger recomputation on set
-                            Picker("COM Axis", selection: Binding<COMAxis>(
-                                get: { model.comAxis },
-                                set: { newValue in
-                                    model.comAxis = newValue
-                                    model.computeScanImage()
-                                }
-                            )) {
-                                Text("X").tag(COMAxis.x)
-                                Text("Y").tag(COMAxis.y)
-                            }
-                            .pickerStyle(.segmented)
-                        }
-
-                        // DPC axis control shown only when DPC mode is active
-                        if model.calculationMode == .dpc {
-                            Picker("DPC Axis", selection: Binding<DPCAxis>(
-                                get: { model.dpcAxis },
-                                set: { newValue in
-                                    model.dpcAxis = newValue
-                                }
-                            )) {
-                                Text("Left–Right").tag(DPCAxis.leftRight)
-                                Text("Up–Down").tag(DPCAxis.upDown)
-                            }
-                            .pickerStyle(.segmented)
-                            .onChange(of: model.dpcAxis) { (_: DPCAxis, _: DPCAxis) in
-                                model.computeScanImage()
-                            }
-                        }
-                    }
+                if model.calculationMode == .dpc {
+                    Picker("DPC Axis", selection: $model.dpcAxis) {
+                        Text("L-R").tag(DPCAxis.leftRight); Text("U-D").tag(DPCAxis.upDown)
+                    }.pickerStyle(.segmented).onChange(of: model.dpcAxis) { _, _ in model.computeScanImage() }
                 }
-                .padding(.top, 4)
-
-//                Button("Recompute") { model.computeScanImage() }
             }
-            .padding(6)
-        }
-    }
-
-    private func openFile() {
-        openPanel.open { url in
-            model.open(url: url)
+            .disabled(model.imageWidth == 0)
+            .padding(4)
         }
     }
 }
 
-#Preview {
-    RootView()
+private extension CGFloat {
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
 }
-
