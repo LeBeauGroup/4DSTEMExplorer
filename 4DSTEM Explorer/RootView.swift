@@ -88,36 +88,12 @@ struct RootView: View {
         } detail: {
                 // Right Panel: Computed Image
                 GroupBox("Computed Image") {
-                    GeometryReader { geo in
-                        // Compute a stable draw rect that does not depend on stride/pixel content
-                        let imgW = max(CGFloat(model.imageWidth), 1)
-                        let imgH = max(CGFloat(model.imageHeight), 1)
-                        let aspect = imgW / imgH
-                        let containerSize = geo.size
-                        // Fit a rectangle of the image aspect inside the available container
-                        let targetSize: CGSize = {
-                            let containerAspect = containerSize.width / max(containerSize.height, 1)
-                            if aspect > containerAspect {
-                                // width-bound
-                                return CGSize(width: containerSize.width, height: containerSize.width / aspect)
-                            } else {
-                                // height-bound
-                                return CGSize(width: containerSize.height * aspect, height: containerSize.height)
-                            }
-                        }()
-                        let origin = CGPoint(x: (containerSize.width - targetSize.width) / 2,
-                                             y: (containerSize.height - targetSize.height) / 2)
-
-                        ZStack {
-                            Color.clear
-                            ImageViewerRepresentable()
-                                .environmentObject(model)
-                                // Render the image into the stable rect regardless of stride changes
-                                .frame(width: targetSize.width, height: targetSize.height)
-                                .position(x: origin.x + targetSize.width / 2, y: origin.y + targetSize.height / 2)
-                                .clipped()
-                        }
-                        .frame(width: containerSize.width, height: containerSize.height)
+                    ZStack {
+                        Color.clear
+                        ImageViewerRepresentable()
+                            .environmentObject(model)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
                     }
                     .frame(minWidth: 400, minHeight: 400)
                 }.padding(12)
