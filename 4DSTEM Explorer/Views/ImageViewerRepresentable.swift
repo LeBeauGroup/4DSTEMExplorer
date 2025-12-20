@@ -45,7 +45,6 @@ struct ImageViewerRepresentable: NSViewRepresentable {
 
     final class Coordinator: NSObject, ImageViewerDelegate {
         var parent: ImageViewerRepresentable
-        var zoom: CGFloat = 1.0
         init(parent: ImageViewerRepresentable) { self.parent = parent }
 
         func averagePatternInRect(_ rect: NSRect?) {
@@ -83,12 +82,14 @@ struct ImageViewerRepresentable: NSViewRepresentable {
             guard let scrollView = (gr.view?.enclosingScrollView) else { return }
             guard let container = scrollView.documentView as? ZoomContainerView else { return }
             let delta = gr.magnification + 1.0
-            zoom = max(0.1, min(8.0, zoom * delta))
-            container.zoom = zoom
+            let current = CGFloat(parent.model.currentScale)
+            let newZoom = max(0.1, min(8.0, current * delta))
+            parent.model.currentScale = Double(newZoom)
+            container.zoom = newZoom
             // Update container frame to scaled content size if we can infer from imageView
             if let imageView = container.subviews.first as? ImageViewer, let img = imageView.image {
                 let baseSize = img.size
-                let scaled = NSSize(width: baseSize.width * zoom, height: baseSize.height * zoom)
+                let scaled = NSSize(width: baseSize.width * newZoom, height: baseSize.height * newZoom)
                 container.setFrameSize(scaled)
             }
         }
@@ -133,27 +134,36 @@ struct ImageViewerRepresentable: NSViewRepresentable {
         if let imageToDisplay {
             let width = imageToDisplay.size.width
             let height = imageToDisplay.size.height
-//            let ciImage = CIImage(cvPixelBuffer: pb)
-//            let rep = NSCIImageRep(ciImage: ciImage)
+            let fullW = CGFloat(max(model.imageWidth, 1))
+            let fullH = CGFloat(max(model.imageHeight, 1))
+            let correctionW = fullW / max(width, 1)
+            let correctionH = fullH / max(height, 1)
+            let correction = correctionW // assume consistent aspect; width-based correction
+            let zoom = CGFloat(model.currentScale) * correction
+            
             let baseSize = NSSize(width: width, height: height)
-//            let nsImage = NSImage(size: baseSize)
-//            nsImage.addRepresentation(rep)
-            imageView.imageScaling = .scaleNone
-            let scaled = NSSize(width: baseSize.width * context.coordinator.zoom, height: baseSize.height * context.coordinator.zoom)
+            let scaled = NSSize(width: baseSize.width * zoom, height: baseSize.height * zoom)
            
-//            imageView.needsDisplay = true
-            
+            imageView.imageScaling = .scaleProportionallyUpOrDown
             imageView.image = imageToDisplay
+            // Apply zoom by resizing the imageView's frame to the scaled size
+            imageView.frame = NSRect(origin: .zero, size: scaled)
+            imageView.needsLayout = true
+            imageView.needsDisplay = true
             
-            imageView.frame = NSRect(origin: NSPoint.zero, size: imageToDisplay.size)
-          imageView.needsDisplay = true
-            
-            container.zoom = context.coordinator.zoom
+            container.zoom = zoom
             container.setFrameSize(scaled)
         } else {
-            imageView.image = model.nsImage()
-            imageView.frame = NSRect(origin: NSPoint.zero, size: model.scanImage?.size ?? NSSize.zero            )
-//            container.setFrameSize(model.scanImage?.size ?? NSSize.zero)
+            let fallbackImage = model.nsImage()
+            imageView.image = fallbackImage
+            let fallbackSize = fallbackImage?.size ?? (model.scanImage?.size ?? .zero)
+            let zoom = CGFloat(model.currentScale)
+            let scaledFallback = NSSize(width: fallbackSize.width * zoom, height: fallbackSize.height * zoom)
+            imageView.frame = NSRect(origin: .zero, size: scaledFallback)
+            imageView.needsLayout = true
+            imageView.needsDisplay = true
+            container.zoom = zoom
+            container.setFrameSize(scaledFallback)
         }
         
         
@@ -166,3 +176,4 @@ struct ImageViewerRepresentable: NSViewRepresentable {
         }
     }
 }
+
