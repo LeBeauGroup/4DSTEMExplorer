@@ -18,37 +18,45 @@ final class CenteringClipView: NSClipView {
 }
 
 final class ZoomContainerView: NSView {
-    var zoom: CGFloat = 1.0 { didSet { applyScale() } }
+    // No longer applying layer-based scaling; leave zoom at 1.0.
+    var zoom: CGFloat = 1.0
     override var isFlipped: Bool { true }
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.anchorPoint = CGPoint(x: 0, y: 0)
-        applyScale()
     }
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         wantsLayer = true
         layer?.anchorPoint = CGPoint(x: 0, y: 0)
-        applyScale()
-    }
-    private func applyScale() {
-        layer?.setAffineTransform(CGAffineTransform(scaleX: zoom, y: zoom))
     }
 }
 
 // SwiftUI wrapper for ImageViewer inside an NSScrollView with a centering clip view
 struct ImageViewerRepresentable: NSViewRepresentable {
     @EnvironmentObject var model: DataViewModel
-    var imageView:ImageViewer?
+    var imageView: ImageViewer?
+    // Optional callback to observe magnification changes without touching the model
+    var onMagnificationChanged: ((CGFloat) -> Void)?
     
+    // External triggers from toolbar/buttons; bump the ID to perform action
+    var zoomToFitRequestID: UUID?
+    var zoomInRequestID: UUID?
+    var zoomOutRequestID: UUID?
 
+    @MainActor
     final class Coordinator: NSObject, ImageViewerDelegate {
         var parent: ImageViewerRepresentable
+        var currentScale: Double = 1.0
+        weak var scrollView: NSScrollView?
+        private func notifyMagnificationChanged(_ value: CGFloat) {
+            parent.onMagnificationChanged?(value)
+        }
+
         init(parent: ImageViewerRepresentable) { self.parent = parent }
 
         func averagePatternInRect(_ rect: NSRect?) {
-            // Convert rect in image points to model image-space (i,j) rect if needed
             guard let model = parent.model as DataViewModel? else { return }
             guard let rect = rect else {
                 model.selectionRect = nil
@@ -78,19 +86,60 @@ struct ImageViewerRepresentable: NSViewRepresentable {
             model.select(i: i, j: j)
         }
 
-        @objc func handleMagnify(_ gr: NSMagnificationGestureRecognizer) {
+        @objc
+        func handleMagnify(_ gr: NSMagnificationGestureRecognizer) {
             guard let scrollView = (gr.view?.enclosingScrollView) else { return }
-            guard let container = scrollView.documentView as? ZoomContainerView else { return }
-            let delta = gr.magnification + 1.0
-            let current = CGFloat(parent.model.currentScale)
-            let newZoom = max(0.1, min(8.0, current * delta))
-            parent.model.currentScale = Double(newZoom)
-            container.zoom = newZoom
-            // Update container frame to scaled content size if we can infer from imageView
-            if let imageView = container.subviews.first as? ImageViewer, let img = imageView.image {
-                let baseSize = img.size
-                let scaled = NSSize(width: baseSize.width * newZoom, height: baseSize.height * newZoom)
-                container.setFrameSize(scaled)
+
+            // Multiplicative/exponential scaling applied to NSScrollView.magnification
+            let k: CGFloat = 0.8 // tune 0.6...1.2 to taste
+            let delta = gr.magnification
+            let current = scrollView.magnification
+            let proposed = current * exp(k * delta)
+            let clamped = min(max(proposed, scrollView.minMagnification), scrollView.maxMagnification)
+
+            if clamped != current {
+                scrollView.magnification = clamped
+                currentScale = Double(clamped)
+                notifyMagnificationChanged(clamped)
+            }
+
+            // Reset so magnification changes are incremental
+            gr.magnification = 0
+        }
+        
+        func zoom(by factor: CGFloat) {
+            guard let scrollView else { return }
+            let current = scrollView.magnification
+            let proposed = current * factor
+            let clamped = min(max(proposed, scrollView.minMagnification), scrollView.maxMagnification)
+            if clamped != current {
+                scrollView.magnification = clamped
+                currentScale = Double(clamped)
+                notifyMagnificationChanged(clamped)
+            }
+        }
+
+        func zoomIn() { zoom(by: 1.25) }
+        func zoomOut() { zoom(by: 0.8) }
+
+        func zoomToFitIfPossible() {
+            guard let scrollView = scrollView,
+                  let container = scrollView.documentView as? NSView,
+                  let imageView = container.subviews.first as? NSImageView else { return }
+            // Reuse fit logic inline to avoid needing parent method
+            guard let img = imageView.image else { return }
+            let imageSize = img.size
+            guard imageSize.width > 0, imageSize.height > 0 else { return }
+            let clipSize = scrollView.contentView.bounds.size
+            guard clipSize.width > 0, clipSize.height > 0 else { return }
+            let fitW = clipSize.width / imageSize.width
+            let fitH = clipSize.height / imageSize.height
+            var fit = min(fitW, fitH)
+            fit = min(max(fit, scrollView.minMagnification), scrollView.maxMagnification)
+            if scrollView.magnification != fit {
+                scrollView.magnification = fit
+                currentScale = Double(fit)
+                notifyMagnificationChanged(fit)
             }
         }
     }
@@ -99,14 +148,24 @@ struct ImageViewerRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
+        context.coordinator.scrollView = scrollView
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
+
+        // Enable native magnification and panning
+        scrollView.allowsMagnification = true
+        scrollView.minMagnification = 0.1
+        scrollView.maxMagnification = 8.0
+        scrollView.magnification = 1.0
+
         let clip = CenteringClipView(frame: NSRect.zero)
         clip.drawsBackground = false
         scrollView.contentView = clip
 
         let container = ZoomContainerView(frame: NSRect.zero)
+
         let imageView = ImageViewer(frame: NSRect.zero)
         imageView.imageScaling = .scaleNone
         imageView.delegate = context.coordinator
@@ -114,7 +173,7 @@ struct ImageViewerRepresentable: NSViewRepresentable {
         imageView.selectMode = model.selectionMode == .marquee ? .marquee : (model.selectionMode == .point ? .point : .none)
         container.addSubview(imageView)
 
-        // Magnification gesture
+        // Magnification gesture -> adjust scrollView.magnification
         let mag = NSMagnificationGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMagnify(_:)))
         container.addGestureRecognizer(mag)
         
@@ -122,51 +181,88 @@ struct ImageViewerRepresentable: NSViewRepresentable {
         return scrollView
     }
 
+    private func fitMagnification(scrollView: NSScrollView, container: NSView, imageView: NSImageView, coordinator: Coordinator) {
+        guard let img = imageView.image else { return }
+        let imageSize = img.size
+        guard imageSize.width > 0, imageSize.height > 0 else { return }
+
+        // Visible area inside the contentView
+        let clipSize = scrollView.contentView.bounds.size
+        guard clipSize.width > 0, clipSize.height > 0 else { return }
+
+        // Compute fit while preserving aspect
+        let fitW = clipSize.width / imageSize.width
+        let fitH = clipSize.height / imageSize.height
+        var fit = min(fitW, fitH)
+
+        // Clamp to allowed range
+        fit = min(max(fit, scrollView.minMagnification), scrollView.maxMagnification)
+
+        // Apply
+        if scrollView.magnification != fit {
+            scrollView.magnification = fit
+            coordinator.currentScale = Double(fit)
+            coordinator.parent.onMagnificationChanged?(fit)
+        }
+//        if CGFloat(scro.currentScale) != fit {
+//            currentScale = Double(fit)
+//        }
+    }
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let container = scrollView.documentView as? ZoomContainerView,
               let imageView = container.subviews.first as? ImageViewer else { return }
-        // Update selection mode based on model
-//
-//        imageView.selectMode = model.selectionMode == .marquee ? .marquee : (model.selectionMode == .point ? .point : .none)
-      
+
+        // Handle external toolbar triggers by observing request IDs
+        if let id = zoomToFitRequestID { _ = id; context.coordinator.zoomToFitIfPossible() }
+        if let id = zoomInRequestID { _ = id; context.coordinator.zoomIn() }
+        if let id = zoomOutRequestID { _ = id; context.coordinator.zoomOut() }
+
+        // Removed sync magnification with model to avoid interference
+
+        // Update the image and set base (unmagnified) sizes; NSScrollView scales visually
         let imageToDisplay = model.nsImage()
+        var didSetImage = false
         
         if let imageToDisplay {
-            let width = imageToDisplay.size.width
-            let height = imageToDisplay.size.height
-            let fullW = CGFloat(max(model.imageWidth, 1))
-            let fullH = CGFloat(max(model.imageHeight, 1))
-            let correctionW = fullW / max(width, 1)
-            let correctionH = fullH / max(height, 1)
-            let correction = correctionW // assume consistent aspect; width-based correction
-            let zoom = CGFloat(model.currentScale) * correction
-            
-            let baseSize = NSSize(width: width, height: height)
-            let scaled = NSSize(width: baseSize.width * zoom, height: baseSize.height * zoom)
-           
-            imageView.imageScaling = .scaleProportionallyUpOrDown
+            imageView.imageScaling = .scaleNone
             imageView.image = imageToDisplay
-            // Apply zoom by resizing the imageView's frame to the scaled size
-            imageView.frame = NSRect(origin: .zero, size: scaled)
+
+            // Base (unmagnified) size
+            let baseSize = imageToDisplay.size
+            imageView.frame = NSRect(origin: .zero, size: baseSize)
+
+            // Ensure container is at least the base size (document view content size)
+            if container.frame.size != baseSize {
+                container.setFrameSize(baseSize)
+            }
+
             imageView.needsLayout = true
             imageView.needsDisplay = true
-            
-            container.zoom = zoom
-            container.setFrameSize(scaled)
+            didSetImage = true
         } else {
+            // Fallback content size if needed
             let fallbackImage = model.nsImage()
             imageView.image = fallbackImage
             let fallbackSize = fallbackImage?.size ?? (model.scanImage?.size ?? .zero)
-            let zoom = CGFloat(model.currentScale)
-            let scaledFallback = NSSize(width: fallbackSize.width * zoom, height: fallbackSize.height * zoom)
-            imageView.frame = NSRect(origin: .zero, size: scaledFallback)
+            imageView.frame = NSRect(origin: .zero, size: fallbackSize)
+            if container.frame.size != fallbackSize {
+                container.setFrameSize(fallbackSize)
+            }
             imageView.needsLayout = true
             imageView.needsDisplay = true
-            container.zoom = zoom
-            container.setFrameSize(scaledFallback)
         }
-        
-        
+
+        // Auto-fit on first image set or when a zoom-to-fit request occurs
+        if didSetImage {
+            fitMagnification(scrollView: scrollView, container: container, imageView: imageView, coordinator: context.coordinator)
+        }
+
+        // If a request ID changed since last update, perform fit (SwiftUI will call updateNSView on change)
+//        _ = model.zoomToFitRequestID
+//        if imageView.image != nil {
+//            fitMagnification(scrollView: scrollView, container: container, imageView: imageView)
+//        }
 
         // Reflect model selection rect if any
         if let r = model.selectionRect {
@@ -177,3 +273,8 @@ struct ImageViewerRepresentable: NSViewRepresentable {
     }
 }
 
+private extension CGFloat {
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
