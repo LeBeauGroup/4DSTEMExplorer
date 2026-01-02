@@ -26,33 +26,27 @@ struct FourDSTEMExplorerApp: App {
     // Use StateObject for model ownership at the app root
     @StateObject private var model = DataViewModel()
     @StateObject private var openPanel = OpenPanelController()
-    // Local state for user-editable scale text field (percent formatted)
-    @State private var scale: Double = 1.0
 
     var body: some Scene {
         WindowGroup {
             RootView()
-            
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
-
                 .toolbar {
-                    
-                    
                     ToolbarItemGroup(placement: .automatic) {
 
                         // Export Menu
-                        Menu {
+                        Menu(content: {
                             Button("Image") {
                                 model.exportImage()
                             }
                             Button("Pattern") {
                                 model.exportPattern()
                             }
-                        } label: {
+                        }, label: {
                             Image(systemName: "square.and.arrow.up")
-                        }
+                        })
 
                         // Selection Mode
                         Picker("", selection: $model.selectionMode) {
@@ -76,47 +70,50 @@ struct FourDSTEMExplorerApp: App {
                         // Zoom Controls
                         Button {
                             model.zoomOut()
-                            scale = model.currentScale
                         } label: {
                             Image(systemName: "minus.magnifyingglass")
                         }
 
                         Button {
                             model.zoomIn()
-                            scale = model.currentScale
                         } label: {
                             Image(systemName: "plus.magnifyingglass")
                         }
 
-                        // Scale TextField
-                        TextField("Scale", value: $scale, format: .percent)
+                        // Zoom to fit button
+                        Button {
+                            model.zoomToFit()
+                        } label: {
+                            Image(systemName: "arrow.down.right.and.arrow.up.left") // a common "fit" icon
+                        }
+                        .help("Zoom to fit")
+
+                        // Scale TextField bound directly to the model, rounded to nearest percent
+                        TextField("Scale", value: $model.currentScale, format: .percent.precision(.fractionLength(0)))
                             .frame(width: 70)
                             .textFieldStyle(.roundedBorder)
-                            .onSubmit {
-                                model.setScale(scale)
-                            }
-                        
-
                     }
                     ToolbarItem() {
-                        
                         if model.isLoading {
                             VStack(alignment: .leading, spacing: 2) {
-                                ProgressView(value: model.progress, total: 1.0) // Determinate
-                                    .progressViewStyle(.linear)
-                                    .controlSize(.small)
-                                    .frame(width: 100)
-                                
-                                    .onReceive(NotificationCenter.default.publisher(for: .taskProgressUpdated)) { notification in
-                                        // Extract the value from userInfo
-                                        if let progress = notification.object as? Double {
-                                            model.progress = progress
-                                        }
+                                Group {
+                                    if model.progress > 0 {
+                                        ProgressView(value: model.progress, total: 1.0)
+                                            .progressViewStyle(.linear)
+                                    } else {
+                                        ProgressView()
+                                            .progressViewStyle(.linear)
                                     }
-                                
+                                }
+                                .controlSize(.small)
+                                .frame(width: 100)
+                                .onReceive(NotificationCenter.default.publisher(for: .taskProgressUpdated)) { notification in
+                                    if let progress = notification.object as? Double {
+                                        model.progress = min(max(progress, 0.0), 1.0)
+                                    }
+                                }
                             }
                         }
-//                        Spacer()
                     }
                 }
         }
@@ -125,4 +122,3 @@ struct FourDSTEMExplorerApp: App {
         }
     }
 }
-

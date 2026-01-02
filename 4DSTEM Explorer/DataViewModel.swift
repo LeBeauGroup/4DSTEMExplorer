@@ -31,8 +31,8 @@ enum COMAxis:  Int, Hashable {
 
 //    var id: String { rawValue } }
 
-
-final class DataViewModel: NSObject, ObservableObject {
+@MainActor
+final class DataViewModel: NSObject, @MainActor STEMDataControllerDelegate, @MainActor STEMDataControllerProgressDelegate, ObservableObject {
     // Drag/continuous update support
     private var lastDragUpdate: TimeInterval = 0
     private let dragUpdateInterval: TimeInterval = 0.012 // ~83 Hz
@@ -46,7 +46,12 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastProgressTick: Int = 0
     @Published var pixelBuffer: CVPixelBuffer?
-    @Published var scanPixelBuffer: CVPixelBuffer?
+    @Published var scanPixelBuffer: CVPixelBuffer? {
+        didSet {
+            // Update cached image only when identity changes
+            updateCachedScanImageIfNeeded(from: scanPixelBuffer)
+        }
+    }
     @Published var scanImage: NSImage?
     @Published var imageWidth: Int = 0
     @Published var imageHeight: Int = 0
@@ -66,6 +71,7 @@ final class DataViewModel: NSObject, ObservableObject {
     // Current zoom scale (0.0 ... 1.0 for percent formatting)
     @Published var currentScale: Double = 1.0
 
+
     @Published var calculationMode: CalculationMode = .integrate
     @Published var strideLength: Int = 1
     @Published var dpcAxis: DPCAxis = .leftRight
@@ -79,6 +85,10 @@ final class DataViewModel: NSObject, ObservableObject {
     func zoomIn() { currentScale *= 1.1 }
     func zoomOut() { currentScale /= 1.1 }
     func setScale(_ scale: Double) { currentScale = scale }
+    
+    func zoomToFit(){
+        
+        currentScale}
 
     // MARK: - Drag-driven selection updates
     func beginDrag() {
@@ -105,6 +115,9 @@ final class DataViewModel: NSObject, ObservableObject {
     ///   - viewSize: The size of the view that renders the scan image.
     ///   - throttle: If true, limits update rate to `dragUpdateInterval`.
     func updateSelection(at location: CGPoint, in viewSize: CGSize, throttle: Bool = true) {
+        // Avoid reading patterns while data is loading
+        if isLoading { return }
+
         let now = CACurrentMediaTime()
         if throttle {
             if now - lastDragUpdate < dragUpdateInterval { return }
@@ -153,48 +166,69 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
     private let dataController = STEMDataController()
-    private var progressObserver: NSObjectProtocol?
     private var imageUpdateObserver: NSObjectProtocol?
+
+    // MARK: - Cached NSImage for scanPixelBuffer
+    private var cachedScanImage: NSImage?
+    private var lastScanPixelBufferIdentity: UnsafeMutableRawPointer?
+
+    private func updateCachedScanImageIfNeeded(from pixelBuffer: CVPixelBuffer?) {
+        // Determine identity pointer for comparison
+        let identity: UnsafeMutableRawPointer? = pixelBuffer.map { Unmanaged.passUnretained($0).toOpaque() }
+        if identity == lastScanPixelBufferIdentity {
+            // No change in identity; keep cache as-is
+            return
+        }
+        lastScanPixelBufferIdentity = identity
+
+        // Rebuild cache if new pixel buffer exists; otherwise clear cache
+        if let pb = pixelBuffer {
+            cachedScanImage = buildNSImage(from: pb)
+        } else {
+            cachedScanImage = nil
+        }
+    }
+
+    private func buildNSImage(from pixelBuffer: CVPixelBuffer) -> NSImage? {
+        // 1. Create a CIImage from the pixel buffer
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+
+        // 2. Initialize a CIContext for rendering
+        let context = CIContext(options: nil)
+
+        // 3. Create a CGImage from the CIImage
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        let extent = CGRect(x: 0, y: 0, width: width, height: height)
+
+        guard let cgImage = context.createCGImage(ciImage, from: extent) else {
+            return nil
+        }
+
+        // 4. Create the final NSImage
+        return NSImage(cgImage: cgImage, size: NSSize(width: width, height: height))
+    }
 
     override init() {
         super.init()
         dataController.delegate = self
         dataController.progressdelegate = self
 
-        progressObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name("updateProgress"),
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let self = self else { return }
-            if let tick = note.object as? Int {
-                self.lastProgressTick = tick
-                if self.isLoading {
-                    self.status = "Loading… (tick: \(tick))"
-                    self.progress = 0
-                }
-            }
-        }
         imageUpdateObserver = NotificationCenter.default.addObserver(
             forName: STEMDataController.imageDidUpdateNotification,
             object: nil,
             queue: .main
         ) { [weak self] note in
-            // Use the NSImage posted by STEMDataController in userInfo["image"]
+            guard let self = self else { return }
             if let img = note.userInfo?["image"] as? NSImage {
-                self?.scanImage = img
-            } else {
-                #if DEBUG
-                NSLog("imageDidUpdateNotification missing NSImage in userInfo['image'] (object: %@, keys: %@)", String(describing: type(of: note.object as Any)), String(describing: note.userInfo?.keys))
-                #endif
+                Task { @MainActor in
+                    self.scanImage = img
+                }
             }
         }
     }
 
     deinit {
-        if let obs = progressObserver {
-            NotificationCenter.default.removeObserver(obs)
-        }
         if let obs = imageUpdateObserver {
             NotificationCenter.default.removeObserver(obs)
         }
@@ -392,6 +426,7 @@ final class DataViewModel: NSObject, ObservableObject {
     func open(url: URL) {
         selectedURL = url
         status = "Preparing to load \(url.lastPathComponent)…"
+        progress = 0.0
         isLoading = true
         dataController.filePath = url
         if url.pathExtension.lowercased() == "raw" {
@@ -478,38 +513,23 @@ final class DataViewModel: NSObject, ObservableObject {
 #endif
     
     func nsImage() -> NSImage? {
-        if let pixelBuffer = self.scanPixelBuffer{
-            // 1. Create a CIImage from the pixel buffer
-            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            
-            // 2. Initialize a CIContext for rendering
-            let context = CIContext(options: nil)
-            
-            // 3. Create a CGImage from the CIImage
-            let width = CVPixelBufferGetWidth(pixelBuffer)
-            let height = CVPixelBufferGetHeight(pixelBuffer)
-            let extent = CGRect(x: 0, y: 0, width: width, height: height)
-            
-            guard let cgImage = context.createCGImage(ciImage, from: extent) else {
-                return nil
-            }
-            
-            // 4. Create the final NSImage
-            return NSImage(cgImage: cgImage, size: NSSize(width: width, height: height))
+        // Return cached image; lazily build if missing but we have a pixel buffer
+//        if let cached = cachedScanImage {
+//            return cached
+//        }
+        if let pb = self.scanPixelBuffer {
+            let built = buildNSImage(from: pb)
+            cachedScanImage = built
+            lastScanPixelBufferIdentity = Unmanaged.passUnretained(pb).toOpaque()
+            return built
         }
         return nil
-        
     }
 
-//    func computeScanImage() {
-//        let pW = self.dataController.patternSize.width
-//        let pH = self.dataController.patternSize.height
-//        if pW == 0 || pH == 0 { return }
-//        let det = currentDetector()
-//        let mat = self.dataController.integrating(det, strideLength: 1)
-//        self.scanPixelBuffer = makePixelBuffer(from: mat)
-//    }
     func computeScanImage(stride: Int = 0, interactive: Bool = false) {
+        // Do not compute while data is loading; wait until fully loaded
+        if isLoading { return }
+
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return }
@@ -522,35 +542,44 @@ final class DataViewModel: NSObject, ObservableObject {
         } else {
             strideLen = max(1, baseStride)
         }
-        let mat: Matrix
-        switch calculationMode {
-        case .integrate:
-            mat = self.dataController.integrating(det, strideLength: strideLen)
-        case .com:
-            switch self.comAxis {
-            case .x, .y:
-                mat = self.dataController.com(det, strideLength: strideLen, xy: self.comAxis)
-            case .color:
-                if let pb = self.dataController.comColor(det, strideLength: strideLen) {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.scanPixelBuffer = pb
-                    }
-                } else {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.scanPixelBuffer = nil
-                    }
+
+        // Offload heavy computation to a background task, then publish result on main
+        Task.detached { [det, strideLen, calculationMode = self.calculationMode, dpcAxis = self.dpcAxis, comAxis = self.comAxis, controller = self.dataController] in
+            let matOrPB: Either<Matrix, CVPixelBuffer?>
+            switch calculationMode {
+            case .integrate:
+                let mat = controller.integrating(det, strideLength: strideLen)
+                matOrPB = .left(mat)
+            case .com:
+                switch comAxis {
+                case .x, .y:
+                    let mat = controller.com(det, strideLength: strideLen, xy: comAxis)
+                    matOrPB = .left(mat)
+                case .color:
+                    let pb = controller.comColor(det, strideLength: strideLen)
+                    matOrPB = .right(pb)
                 }
-                return
+            case .dpc:
+                let lrud = (dpcAxis == .leftRight) ? 1 : 0
+                let mat = controller.dpc(det, strideLength: strideLen, lrud: lrud)
+                matOrPB = .left(mat)
             }
-        case .dpc:
-            // lrud: 1 = left-right, 0 = up-down (per STEMDataController.dpc)
-            let lrud = (dpcAxis == .leftRight) ? 1 : 0
-            mat = self.dataController.dpc(det, strideLength: strideLen, lrud: lrud)
+
+            await MainActor.run {
+                switch matOrPB {
+                case .left(let mat):
+                    self.scanPixelBuffer = self.makePixelBuffer(from: mat)
+                case .right(let pb):
+                    self.scanPixelBuffer = pb
+                }
+            }
         }
-        self.scanPixelBuffer = makePixelBuffer(from: mat)
     }
 
     func select(i: Int, j: Int) {
+        // Avoid reading patterns while data is loading
+        if isLoading { return }
+
         self.selectedI = max(0, min(i, max(0, self.dataController.imageSize.height - 1)))
         self.selectedJ = max(0, min(j, max(0, self.dataController.imageSize.width - 1)))
 
@@ -566,11 +595,13 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
     func beginMarquee(atI i0: Int, j j0: Int) {
+        if isLoading { return }
         selectionRect = CGRect(x: j0, y: i0, width: 0, height: 0)
         updatePatternForCurrentSelection(interactive: true)
     }
 
     func updateMarquee(toI i1: Int, j j1: Int) {
+        if isLoading { return }
         guard var rect = selectionRect else { return }
         rect.size.width = CGFloat(j1) - rect.origin.x
         rect.size.height = CGFloat(i1) - rect.origin.y
@@ -579,11 +610,13 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
     func endMarquee(atI i1: Int, j j1: Int) {
+        if isLoading { return }
         updateMarquee(toI: i1, j: j1)
         updatePatternForCurrentSelection(interactive: false)
     }
 
     func updatePatternForCurrentSelection(interactive: Bool = false) {
+        if isLoading { return }
         guard imageWidth > 0, imageHeight > 0 else { return }
 
         switch selectionMode {
@@ -759,8 +792,9 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 }
 
-extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressDelegate {
+extension DataViewModel {
     func didFinishLoadingData() {
+        // Now the dataset is fully loaded; it is safe to compute derived images.
         isLoading = false
         if let url = selectedURL {
             status = "Loaded: \(url.lastPathComponent)"
@@ -789,6 +823,8 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
             self.dpcAxis = .leftRight
             self.comAxis = .x
             self.computeScanImage()
+            // Request zoom-to-fit after first image is computed
+            self.zoomToFit()
         }
     }
 
@@ -798,3 +834,7 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
     }
 }
 
+private enum Either<L, R> {
+    case left(L)
+    case right(R)
+}

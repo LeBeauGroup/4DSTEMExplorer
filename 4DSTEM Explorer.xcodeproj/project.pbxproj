@@ -18,7 +18,6 @@
 		A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A560204E2E38106B00BD8CB8 /* BinaryReader.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
-		A56A48442EF4D60300052EE6 /* ZoomableScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56A48432EF4D60300052EE6 /* ZoomableScrollView.swift */; };
 		A56A484D2EF590EF00052EE6 /* ImageViewerRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56A484C2EF590EF00052EE6 /* ImageViewerRepresentable.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
@@ -77,7 +76,6 @@
 		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
 		A56918EA1FEDB2B000C0EF70 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
-		A56A48432EF4D60300052EE6 /* ZoomableScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableScrollView.swift; sourceTree = "<group>"; };
 		A56A484C2EF590EF00052EE6 /* ImageViewerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerRepresentable.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
@@ -195,7 +193,6 @@
 				BD91DC582EF359700065E76D /* ClickableImageView.swift */,
 				BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */,
 				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
-				A56A48432EF4D60300052EE6 /* ZoomableScrollView.swift */,
 				BD92F6552EF5B5540002E0BA /* ScanImageView.swift */,
 			);
 			path = "4DSTEM Explorer";
@@ -461,7 +458,6 @@
 				BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
 				A5219B131FF41936006D4044 /* PatternViewer.swift in Sources */,
-				A56A48442EF4D60300052EE6 /* ZoomableScrollView.swift in Sources */,
 				BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
