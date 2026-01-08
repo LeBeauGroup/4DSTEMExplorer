@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 
+
+
 final class CenteringClipView: NSClipView {
     override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var rect = super.constrainBoundsRect(proposedBounds)
@@ -40,7 +42,7 @@ final class ZoomContainerView: NSView {
 // SwiftUI wrapper for ImageViewer inside an NSScrollView with a centering clip view
 struct ImageViewerRepresentable: NSViewRepresentable {
     @EnvironmentObject var model: DataViewModel
-    var imageView:ImageViewer?
+    var imageView:ImageViewer = ImageViewer()
     
 
     final class Coordinator: NSObject, ImageViewerDelegate {
@@ -119,54 +121,85 @@ struct ImageViewerRepresentable: NSViewRepresentable {
         container.addGestureRecognizer(mag)
         
         scrollView.documentView = container
+        
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let container = scrollView.documentView as? ZoomContainerView,
               let imageView = container.subviews.first as? ImageViewer else { return }
-        // Update selection mode based on model
-//
-//        imageView.selectMode = model.selectionMode == .marquee ? .marquee : (model.selectionMode == .point ? .point : .none)
-      
+
         let imageToDisplay = model.nsImage()
         
-        if let imageToDisplay {
-            let width = imageToDisplay.size.width
-            let height = imageToDisplay.size.height
-            let fullW = CGFloat(max(model.imageWidth, 1))
-            let fullH = CGFloat(max(model.imageHeight, 1))
-            let correctionW = fullW / max(width, 1)
-            let correctionH = fullH / max(height, 1)
-            let correction = correctionW // assume consistent aspect; width-based correction
-            let zoom = CGFloat(model.currentScale) * correction
+        let zoomToFitEnabled: Bool = (self.model as DataViewModel?)?.zoomToFitEnabled ?? false
+        var zoom: CGFloat
+        
+        // Check if zoom-to-fit is enabled in the model
+        if zoomToFitEnabled, let imageToDisplay {
+            // Compute the fit scale for the current scrollView content area
+            let scrollArea = scrollView.contentView.bounds.size
+            let imageSize = imageToDisplay.size
+            let fitScaleW = scrollArea.width / max(imageSize.width, 1)
+            let fitScaleH = scrollArea.height / max(imageSize.height, 1)
+            let fitScale = min(fitScaleW, fitScaleH)
+            // Removed model.lastFitScale assignment as requested
             
-            let baseSize = NSSize(width: width, height: height)
-            let scaled = NSSize(width: baseSize.width * zoom, height: baseSize.height * zoom)
-           
+            zoom = fitScale
+            
+            // Apply zoom without modifying model.currentScale
+            container.zoom = zoom
+            
+            // Update container frame to scaled content size
+            let scaled = NSSize(width: imageSize.width * zoom, height: imageSize.height * zoom)
+            container.setFrameSize(scaled)
+
+            // Set imageView frame and image
             imageView.imageScaling = .scaleProportionallyUpOrDown
             imageView.image = imageToDisplay
-            // Apply zoom by resizing the imageView's frame to the scaled size
             imageView.frame = NSRect(origin: .zero, size: scaled)
             imageView.needsLayout = true
             imageView.needsDisplay = true
             
-            container.zoom = zoom
-            container.setFrameSize(scaled)
         } else {
-            let fallbackImage = model.nsImage()
-            imageView.image = fallbackImage
-            let fallbackSize = fallbackImage?.size ?? (model.scanImage?.size ?? .zero)
-            let zoom = CGFloat(model.currentScale)
-            let scaledFallback = NSSize(width: fallbackSize.width * zoom, height: fallbackSize.height * zoom)
-            imageView.frame = NSRect(origin: .zero, size: scaledFallback)
-            imageView.needsLayout = true
-            imageView.needsDisplay = true
-            container.zoom = zoom
-            container.setFrameSize(scaledFallback)
+            // Use the current scale from the model if zoomToFit is not enabled
+            zoom = CGFloat(model.currentScale)
+            
+            if let imageToDisplay {
+                let width = imageToDisplay.size.width
+                let height = imageToDisplay.size.height
+                let fullW = CGFloat(max(model.imageWidth, 1))
+                let fullH = CGFloat(max(model.imageHeight, 1))
+                let correctionW = fullW / max(width, 1)
+                let correctionH = fullH / max(height, 1)
+                let correction = correctionW // assume consistent aspect; width-based correction
+                
+                let baseSize = NSSize(width: width, height: height)
+                let scaled = NSSize(width: baseSize.width * zoom, height: baseSize.height * zoom)
+                let scaledRect = NSRect(origin: imageView.frame.origin, size: scaled)
+
+               
+                imageView.imageScaling = .scaleProportionallyUpOrDown
+                imageView.image = imageToDisplay
+                // Apply zoom by resizing the imageView's frame to the scaled size
+                imageView.frame = NSRect(origin: .zero, size: scaled)
+                imageView.needsLayout = true
+                imageView.needsDisplay = true
+                
+                container.zoom = zoom
+                container.setFrameSize(scaled)
+
+            } else {
+                let fallbackImage = model.nsImage()
+                imageView.image = fallbackImage
+                let fallbackSize = fallbackImage?.size ?? (model.scanImage?.size ?? .zero)
+                let scaledFallback = NSSize(width: fallbackSize.width * zoom, height: fallbackSize.height * zoom)
+                imageView.frame = NSRect(origin: .zero, size: scaledFallback)
+                imageView.needsLayout = true
+                imageView.needsDisplay = true
+                container.zoom = zoom
+                container.setFrameSize(scaledFallback)
+            }
         }
-        
-        
 
         // Reflect model selection rect if any
         if let r = model.selectionRect {

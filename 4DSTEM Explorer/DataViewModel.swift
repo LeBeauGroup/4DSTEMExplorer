@@ -65,6 +65,10 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var selectionMode: SelectionMode = .point
     // Current zoom scale (0.0 ... 1.0 for percent formatting)
     @Published var currentScale: Double = 1.0
+    // When true, the ImageViewerRepresentable will compute and apply a fit-to-window zoom without changing currentScale.
+    @Published var zoomToFitEnabled: Bool = true
+    // Stores the last computed fit-to-window scale so we can seed currentScale when exiting zoom-to-fit.
+    @Published var lastFitScale: Double = 1.0
 
     @Published var calculationMode: CalculationMode = .integrate
     @Published var strideLength: Int = 1
@@ -76,9 +80,21 @@ final class DataViewModel: NSObject, ObservableObject {
     func exportPattern() { /* TODO: implement */ }
 
     // Zoom controls used by the toolbar
-    func zoomIn() { currentScale *= 1.1 }
-    func zoomOut() { currentScale /= 1.1 }
-    func setScale(_ scale: Double) { currentScale = scale }
+    func zoomIn() {
+        if zoomToFitEnabled { currentScale = lastFitScale }
+        zoomToFitEnabled = false
+        currentScale *= 1.1
+    }
+    func zoomOut() {
+        if zoomToFitEnabled { currentScale = lastFitScale }
+        zoomToFitEnabled = false
+        currentScale /= 1.1
+    }
+    func setScale(_ scale: Double) {
+        if zoomToFitEnabled { currentScale = lastFitScale }
+        zoomToFitEnabled = false
+        currentScale = scale
+    }
 
     // MARK: - Drag-driven selection updates
     func beginDrag() {
@@ -157,9 +173,15 @@ final class DataViewModel: NSObject, ObservableObject {
     private var imageUpdateObserver: NSObjectProtocol?
 
     override init() {
+        
+        strideLength = 1
+        
         super.init()
+        
         dataController.delegate = self
         dataController.progressdelegate = self
+        
+        
 
         progressObserver = NotificationCenter.default.addObserver(
             forName: Notification.Name("updateProgress"),
@@ -509,19 +531,22 @@ final class DataViewModel: NSObject, ObservableObject {
 //        let mat = self.dataController.integrating(det, strideLength: 1)
 //        self.scanPixelBuffer = makePixelBuffer(from: mat)
 //    }
-    func computeScanImage(stride: Int = 0, interactive: Bool = false) {
+    func computeScanImage(interactive: Bool = false) {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return }
         let det = currentDetector()
 
-        let baseStride = (stride > 0) ? stride : self.strideLength
+//        let baseStride = (stride > 0) ? stride : self.strideLength
+        
         let strideLen: Int
+        
         if interactive {
             strideLen = max(1, dynamicStrideForTargetGrid())
         } else {
-            strideLen = max(1, baseStride)
+            strideLen = 1
         }
+                
         let mat: Matrix
         switch calculationMode {
         case .integrate:
@@ -534,10 +559,18 @@ final class DataViewModel: NSObject, ObservableObject {
                 if let pb = self.dataController.comColor(det, strideLength: strideLen) {
                     DispatchQueue.main.async { [weak self] in
                         self?.scanPixelBuffer = pb
+
+                        
+                        
+                        if let image = self?.nsImage(){
+                            self?.scanImage = self?.scaleStrideImage(image, strideLen)
+
+                        }
                     }
                 } else {
                     DispatchQueue.main.async { [weak self] in
                         self?.scanPixelBuffer = nil
+                        self?.scanImage = nil
                     }
                 }
                 return
@@ -548,6 +581,43 @@ final class DataViewModel: NSObject, ObservableObject {
             mat = self.dataController.dpc(det, strideLength: strideLen, lrud: lrud)
         }
         self.scanPixelBuffer = makePixelBuffer(from: mat)
+
+        var tempImage = self.nsImage()
+        
+        if let image = tempImage{
+            tempImage = scaleStrideImage(image, strideLen)
+
+        }
+
+        self.scanImage = tempImage
+        
+        
+        
+        
+    }
+    
+    private func scaleStrideImage(_ image: NSImage,_ stride:Int) -> NSImage?{
+        if stride != 1{
+            let tempSize = image.size
+            print(tempSize)
+            let newSize = NSSize(width: tempSize.width * CGFloat(stride), height: tempSize.height * CGFloat(stride))
+            let newImage = NSImage(size: newSize)
+            print(newSize, tempSize)
+            newImage.lockFocus()
+            
+            // Draw the source image into the new size rectangle
+            image.draw(in: NSRect(origin: .zero, size: newSize),
+                       from: NSRect(origin: .zero, size: image.size),
+                       operation: .sourceOver,
+                       fraction: 1.0)
+            
+            newImage.unlockFocus()
+            return newImage
+        }else{
+            return image
+        }
+            
+        
     }
 
     func select(i: Int, j: Int) {

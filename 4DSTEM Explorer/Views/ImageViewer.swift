@@ -503,7 +503,7 @@ class ImageViewer: NSImageView {
             scaleFactor = 1.0
         }
         
-        return scaleFactor
+        return 1.0
         
     }
     
