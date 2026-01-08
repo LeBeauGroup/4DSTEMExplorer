@@ -75,15 +75,15 @@ struct FourDSTEMExplorerApp: App {
 
                         // Zoom Controls
                         Button {
-                            model.zoomOut()
-                            scale = model.currentScale
+                            NotificationCenter.default.post(name: .zoomOut, object: nil)
+//                            scale = model.currentScale
                         } label: {
                             Image(systemName: "minus.magnifyingglass")
                         }
 
                         Button {
-                            model.zoomIn()
-                            scale = model.currentScale
+                            NotificationCenter.default.post(name: .zoomIn, object: nil)
+//                            scale = model.currentScale
                         } label: {
                             Image(systemName: "plus.magnifyingglass")
                         }

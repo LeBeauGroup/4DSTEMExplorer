@@ -685,7 +685,6 @@ class STEMDataController: NSObject {
         DispatchQueue.global().async(execute: dwi!)
     }
     
-    
     func openFileHandle(url:URL){
        
         let bufferStream:FileHandle?
@@ -1130,6 +1129,7 @@ func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
     return (strideWidth, strideHeight)
 }
+
 
 
 
