@@ -708,14 +708,16 @@ class STEMDataController: NSObject {
         
         let patternPixels = self.patternPixels
         
-        let adder = [Float].init(repeating: 0.0, count: patternPixels)
-        let adderPointer =  UnsafeMutablePointer(mutating: adder)
+        // Allocate a mutable buffer for accumulation to avoid dangling pointers
+        let adderPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        adderPointer.initialize(repeating: 0.0, count: patternPixels)
         
         let starti = Int(rect.origin.y)
         let startj = Int(rect.origin.x)
         
-        let endi = starti + Int(rect.size.height)
-        let endj = startj + Int(rect.size.width)
+        let endi = starti + Int(floor(rect.size.height))
+        let endj = startj + Int(floor(rect.size.width))
+        print(starti, endi)
         
         var strideDirectioni = 1
         var strideDirectionj = 1
@@ -749,7 +751,12 @@ class STEMDataController: NSObject {
         
         vDSP_vsmul(adderPointer, 1, &avgScaleFactor, adderPointer, 1, UInt(patternPixels))
         
-        return Matrix.init(array: adder, patternSize.height, patternSize.width)
+        // Materialize result array safely and deallocate buffer
+        let adderArray = Array(UnsafeBufferPointer(start: adderPointer, count: patternPixels))
+        adderPointer.deinitialize(count: patternPixels)
+        adderPointer.deallocate()
+        
+        return Matrix.init(array: adderArray, patternSize.height, patternSize.width)
 
         
     }
@@ -1129,6 +1136,7 @@ func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
     return (strideWidth, strideHeight)
 }
+
 
 
 
