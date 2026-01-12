@@ -28,10 +28,11 @@ struct FourDSTEMExplorerApp: App {
     @StateObject private var openPanel = OpenPanelController()
     // Local state for user-editable scale text field (percent formatted)
     @State private var scale: Double = 1.0
-
+    @State private var selectionMode: InteractiveMarkerView.SelectionMode = .point
+    
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(selectionMode: $selectionMode)
             
                 .environmentObject(model)
                 .environmentObject(openPanel)
@@ -55,13 +56,13 @@ struct FourDSTEMExplorerApp: App {
                         }
 
                         // Selection Mode
-                        Picker("", selection: $model.selectionMode) {
-                            Image(systemName: "scope").tag(SelectionMode.point)
-                            Image(systemName: "rectangle.dashed").tag(SelectionMode.marquee)
+                        Picker("", selection: $selectionMode) {
+                            Image(systemName: "scope").tag( InteractiveMarkerView.SelectionMode.point)
+                            Image(systemName: "rectangle.dashed").tag(InteractiveMarkerView.SelectionMode.marquee)
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 120)
-                        .onChange(of: model.selectionMode) { _, newMode in
+                        .onChange(of: selectionMode) { _, newMode in
                             switch newMode {
                             case .point:
                                 // Clear any marquee and show the single pattern at the current selection

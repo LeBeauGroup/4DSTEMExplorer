@@ -37,7 +37,7 @@ final class DataViewModel: NSObject, ObservableObject {
     private var lastDragUpdate: TimeInterval = 0
     private let dragUpdateInterval: TimeInterval = 0.012 // ~83 Hz
     @Published var isDragging: Bool = false
-
+    var marquee: CGRect? = nil
     private var fullResRecomputeWorkItem: DispatchWorkItem?
 
     @Published var selectedURL: URL?
@@ -637,7 +637,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
     func beginMarquee(atI i0: Int, j j0: Int) {
         selectionRect = CGRect(x: j0, y: i0, width: 0, height: 0)
-        updatePatternForCurrentSelection(interactive: true)
+        updatePatternForCurrentSelection()
     }
 
     func updateMarquee(toI i1: Int, j j1: Int) {
@@ -645,16 +645,18 @@ final class DataViewModel: NSObject, ObservableObject {
         rect.size.width = CGFloat(j1) - rect.origin.x
         rect.size.height = CGFloat(i1) - rect.origin.y
         selectionRect = rect
-        updatePatternForCurrentSelection(interactive: true)
+        updatePatternForCurrentSelection()
     }
 
     func endMarquee(atI i1: Int, j j1: Int) {
         updateMarquee(toI: i1, j: j1)
-        updatePatternForCurrentSelection(interactive: false)
+        updatePatternForCurrentSelection()
     }
 
-    func updatePatternForCurrentSelection(interactive: Bool = false) {
+    func updatePatternForCurrentSelection() {
         guard imageWidth > 0, imageHeight > 0 else { return }
+        
+        selectionMode = .marquee
 
         switch selectionMode {
         case .point:
@@ -665,23 +667,22 @@ final class DataViewModel: NSObject, ObservableObject {
             }
 
         case .marquee:
-            guard var rect = selectionRect else { return }
-            rect = normalizedRect(rect, maxWidth: imageWidth, maxHeight: imageHeight)
-            if rect.width <= 0.0 || rect.height <= 0.0 {
-                if let m = self.dataController.pattern(Int(rect.origin.y), Int(rect.origin.x)) {
-                    self.pixelBuffer = makePixelBuffer(from: m)
-                } else {
-                    self.pixelBuffer = nil
-                }
-                return
-            }
-            let avg = self.dataController.averagePattern(rect: NSRect(
-                x: rect.origin.x,
-                y: rect.origin.y,
-                width: rect.size.width,
-                height: rect.size.height
-            ))
-            self.pixelBuffer = makePixelBuffer(from: avg)
+            guard var rect = marquee else { return }
+//            rect = normalizedRect(rect, maxWidth: imageWidth, maxHeight: imageHeight)
+            rect.origin.y = scanImage!.size.height - rect.origin.y-rect.height
+            print(rect)
+//            if let m = self.dataController.pattern(Int(rect.origin.y), Int(rect.origin.x)){
+//                self.pixelBuffer = makePixelBuffer(from: m)
+//            } else {
+//                self.pixelBuffer = nil
+//            }
+//                return
+//            }
+    
+
+                let avg = self.dataController.averagePattern(rect: rect)
+                   self.pixelBuffer = makePixelBuffer(from: avg)
+
         }
     }
 

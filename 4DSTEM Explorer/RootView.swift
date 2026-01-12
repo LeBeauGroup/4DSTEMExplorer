@@ -61,6 +61,8 @@ struct RootView: View {
     @State private var points = [CGPoint(x: 0, y: 0)]
     @State private var marquee:CGRect?
     @State private var currentImage: NSImage?
+    @Binding var selectionMode: InteractiveMarkerView.SelectionMode
+    @State var lastPoint: CGPoint?
     
     var body: some View {
         
@@ -98,11 +100,12 @@ struct RootView: View {
                 // Right Panel: Computed Image
             GroupBox("Computed Image") {
                 if let img = model.scanImage {
-                    ZoomableImageView(image: img , markers: $points, marquee: $marquee)
+                    ZoomableImageView(image: img , lastPoint:$lastPoint, marquee: $marquee, selectionMode: $selectionMode)
                         .onChange(of: img, {
                         })
                         .onChange(of: marquee) { newValue in
-                            model.selectionRect = newValue
+                            model.marquee = newValue
+                            model.updatePatternForCurrentSelection()
 
                         }
                 } else {
