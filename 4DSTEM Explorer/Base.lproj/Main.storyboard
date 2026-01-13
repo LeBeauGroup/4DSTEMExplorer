@@ -433,10 +433,10 @@
                                 <rect key="frame" x="0.0" y="0.0" width="371" height="485"/>
                                 <autoresizingMask key="autoresizingMask"/>
                                 <clipView key="contentView" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="KBZ-oA-Dpm">
-                                    <rect key="frame" x="1" y="1" width="352" height="466"/>
+                                    <rect key="frame" x="1" y="1" width="369" height="483"/>
                                     <subviews>
                                         <view ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sLZ-qB-aXg">
-                                            <rect key="frame" x="0.0" y="-17" width="256" height="480"/>
+                                            <rect key="frame" x="0.0" y="0.0" width="256" height="480"/>
                                             <subviews>
                                                 <imageView horizontalCompressionResistancePriority="1000" verticalCompressionResistancePriority="1000" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oQa-mo-g57" customClass="PatternViewer" customModule="_DSTEM_Explorer" customModuleProvider="target">
                                                     <rect key="frame" x="0.0" y="214" width="256" height="256"/>
@@ -599,11 +599,11 @@
                                     </constraints>
                                 </clipView>
                                 <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="2w6-wZ-NSN">
-                                    <rect key="frame" x="1" y="467" width="352" height="17"/>
+                                    <rect key="frame" x="1" y="467" width="369" height="17"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                                 <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="wEs-IC-vZx">
-                                    <rect key="frame" x="353" y="1" width="17" height="466"/>
+                                    <rect key="frame" x="353" y="1" width="17" height="483"/>
                                     <autoresizingMask key="autoresizingMask"/>
                                 </scroller>
                             </scrollView>

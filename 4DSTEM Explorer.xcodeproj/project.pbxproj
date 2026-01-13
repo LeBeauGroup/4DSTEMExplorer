@@ -18,19 +18,16 @@
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
-		A5C7FC012F0B0D30000E4913 /* ZoomableComputedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C7FC002F0B0D30000E4913 /* ZoomableComputedImageView.swift */; };
 		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
 		BD004F2B2F0EFF3E00B7846D /* scan_x100_y100_Int.png in Resources */ = {isa = PBXBuildFile; fileRef = BD004F2A2F0EFF3E00B7846D /* scan_x100_y100_Int.png */; };
-		BD1BA3822F1026020055669F /* interactive.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1BA3812F1025B00055669F /* interactive.swift */; };
+		BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1BA3812F1025B00055669F /* ZoomableImageView.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
 		BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */; };
 		BD5D94602EF346F600EE1173 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945F2EF346F600EE1173 /* RootView.swift */; };
 		BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94612EF3477A00EE1173 /* DataViewModel.swift */; };
 		BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94632EF3480500EE1173 /* PixelBufferView.swift */; };
-		BD91DC592EF359700065E76D /* ClickableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC582EF359700065E76D /* ClickableImageView.swift */; };
 		BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */; };
 		BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */; };
-		BD92F6562EF5B5540002E0BA /* ScanImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD92F6552EF5B5540002E0BA /* ScanImageView.swift */; };
 		BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 		BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 /* End PBXBuildFile section */
@@ -80,16 +77,13 @@
 		A56A484C2EF590EF00052EE6 /* ImageViewerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerRepresentable.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
-		A5C7FBFE2F0AF4F4000E4913 /* CalculatedImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatedImageView.swift; sourceTree = "<group>"; };
-		A5C7FC002F0B0D30000E4913 /* ZoomableComputedImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableComputedImageView.swift; sourceTree = "<group>"; };
-		A5C7FC032F0B11E5000E4913 /* ZoomableScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableScrollView.swift; sourceTree = "<group>"; };
 		A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMImageEntryStructs.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
 		BD004F262F0EF1BA00B7846D /* Scrollview.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = Scrollview.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		BD004F272F0EFD0C00B7846D /* test.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = test.swift; sourceTree = "<group>"; };
 		BD004F2A2F0EFF3E00B7846D /* scan_x100_y100_Int.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = scan_x100_y100_Int.png; sourceTree = "<group>"; };
-		BD1BA3812F1025B00055669F /* interactive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = interactive.swift; sourceTree = "<group>"; };
+		BD1BA3812F1025B00055669F /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
 		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
 		BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Digital Micrograph file format.html"; sourceTree = "<group>"; };
@@ -98,10 +92,8 @@
 		BD5D945F2EF346F600EE1173 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BD5D94612EF3477A00EE1173 /* DataViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViewModel.swift; sourceTree = "<group>"; };
 		BD5D94632EF3480500EE1173 /* PixelBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBufferView.swift; sourceTree = "<group>"; };
-		BD91DC582EF359700065E76D /* ClickableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickableImageView.swift; sourceTree = "<group>"; };
 		BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMMenuCommands.swift; sourceTree = "<group>"; };
 		BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelController.swift; sourceTree = "<group>"; };
-		BD92F6552EF5B5540002E0BA /* ScanImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanImageView.swift; sourceTree = "<group>"; };
 		BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalMicrographReader.swift; sourceTree = "<group>"; };
 		BDC9507F2E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DM4; sourceTree = BUILT_PRODUCTS_DIR; };
 		BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "4DSTEM ExploreTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,7 +101,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		BDC950802E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DM4; sourceTree = "<group>"; };
 		BDEB43872ECE430C0000F7B1 /* 4DSTEM Explore */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "4DSTEM Explore"; sourceTree = "<group>"; };
 		BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "4DSTEM ExploreTests"; sourceTree = "<group>"; };
 		BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "4DSTEM ExploreUITests"; sourceTree = "<group>"; };
@@ -150,12 +141,9 @@
 		A51FEFA31FEC48FD00A8A5EC = {
 			isa = PBXGroup;
 			children = (
-				BD1BA3812F1025B00055669F /* interactive.swift */,
 				BD004F272F0EFD0C00B7846D /* test.swift */,
 				BD004F262F0EF1BA00B7846D /* Scrollview.playground */,
-				BDEB43812ECE42B30000F7B1 /* New ui */,
 				A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */,
-				BDC950802E2FCB7400F061E4 /* DM4 */,
 				BDEB43872ECE430C0000F7B1 /* 4DSTEM Explore */,
 				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
 				BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
@@ -199,16 +187,12 @@
 				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
 				BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */,
 				BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */,
+				BD1BA3812F1025B00055669F /* ZoomableImageView.swift */,
 				BD5D945F2EF346F600EE1173 /* RootView.swift */,
 				BD5D94612EF3477A00EE1173 /* DataViewModel.swift */,
-				A5C7FC032F0B11E5000E4913 /* ZoomableScrollView.swift */,
-				A5C7FBFE2F0AF4F4000E4913 /* CalculatedImageView.swift */,
 				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
-				BD91DC582EF359700065E76D /* ClickableImageView.swift */,
 				BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */,
 				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
-				BD92F6552EF5B5540002E0BA /* ScanImageView.swift */,
-				A5C7FC002F0B0D30000E4913 /* ZoomableComputedImageView.swift */,
 			);
 			path = "4DSTEM Explorer";
 			sourceTree = "<group>";
@@ -254,13 +238,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		BDEB43812ECE42B30000F7B1 /* New ui */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = "New ui";
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -294,9 +271,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				BDC950802E2FCB7400F061E4 /* DM4 */,
 			);
 			name = DM4;
 			packageProductDependencies = (
@@ -459,7 +433,6 @@
 				BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */,
 				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
-				BD92F6562EF5B5540002E0BA /* ScanImageView.swift in Sources */,
 				BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */,
 				BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */,
 				BD5D94602EF346F600EE1173 /* RootView.swift in Sources */,
@@ -468,9 +441,7 @@
 				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
-				BD91DC592EF359700065E76D /* ClickableImageView.swift in Sources */,
-				BD1BA3822F1026020055669F /* interactive.swift in Sources */,
-				A5C7FC012F0B0D30000E4913 /* ZoomableComputedImageView.swift in Sources */,
+				BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */,
 				BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
 				A5219B131FF41936006D4044 /* PatternViewer.swift in Sources */,

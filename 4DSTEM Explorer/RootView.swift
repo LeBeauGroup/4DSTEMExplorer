@@ -7,6 +7,9 @@ struct DetectorOverlay: View {
     let outer: CGFloat
     let patternWidth: Int
     let patternHeight: Int
+    @State private var centerViewPoint: CGPoint? = nil
+    let onCenterChange: (CGPoint, Bool) -> Void
+    let imageSizeProvider: () -> (width: Int, height: Int)
 
     var body: some View {
         GeometryReader { geo in
@@ -26,7 +29,8 @@ struct DetectorOverlay: View {
                     return CGRect(x: xOffset, y: 0, width: drawWidth, height: viewSize.height)
                 }
             }()
-            let center = CGPoint(x: drawRect.midX, y: drawRect.midY)
+            let defaultCenter = CGPoint(x: drawRect.midX, y: drawRect.midY)
+            let center = centerViewPoint ?? defaultCenter
             let scale = min(drawRect.width / imgW, drawRect.height / imgH)
             let innerR = max(0, inner) * scale
             let outerR = max(0, outer) * scale
@@ -42,8 +46,37 @@ struct DetectorOverlay: View {
                 default: EmptyView()
                 }
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // Clamp to drawRect
+                        let x = min(max(value.location.x, drawRect.minX), drawRect.maxX)
+                        let y = min(max(value.location.y, drawRect.minY), drawRect.maxY)
+                        centerViewPoint = CGPoint(x: x, y: y)
+                        // Map to image indices and notify
+                        let imgW = max(patternWidth, 1)
+                        let imgH = max(patternHeight, 1)
+                        let normX = (x - drawRect.minX) / max(drawRect.width, 1)
+                        let normY = (y - drawRect.minY) / max(drawRect.height, 1)
+                        let j = Int(round(normX * CGFloat(max(imgW - 1, 0))))
+                        let i = Int(round((1 - normY) * CGFloat(max(imgH - 1, 0))))
+                        onCenterChange(CGPoint(x: j, y: i), true)
+                    }
+                    .onEnded { _ in
+                        // Final notification on end
+                        let x = min(max((centerViewPoint ?? defaultCenter).x, drawRect.minX), drawRect.maxX)
+                        let y = min(max((centerViewPoint ?? defaultCenter).y, drawRect.minY), drawRect.maxY)
+                        let normX = (x - drawRect.minX) / max(drawRect.width, 1)
+                        let normY = (y - drawRect.minY) / max(drawRect.height, 1)
+                        let imgW = max(patternWidth, 1)
+                        let imgH = max(patternHeight, 1)
+                        let j = Int(round(normX * CGFloat(max(imgW - 1, 0))))
+                        let i = Int(round((1 - normY) * CGFloat(max(imgH - 1, 0))))
+                        onCenterChange(CGPoint(x: j, y: i), false)
+                    }
+            )
         }
-        .allowsHitTesting(false)
     }
 }
 
@@ -63,7 +96,8 @@ struct RootView: View {
     @State private var currentImage: NSImage?
     @Binding var selectionMode: InteractiveMarkerView.SelectionMode
     @State var lastPoint: CGPoint?
-    
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -78,7 +112,13 @@ struct RootView: View {
                                 inner: model.detectorInnerRadius,
                                 outer: model.detectorOuterRadius,
                                 patternWidth: model.patternSize.width,
-                                patternHeight: model.patternSize.height
+                                patternHeight: model.patternSize.height,
+                                onCenterChange: { point,interactive  in
+                                    model.detectorCenter = point
+                                    model.computeScanImage(interactive: interactive)
+
+                                },
+                                imageSizeProvider: { (width: model.imageWidth, height: model.imageHeight) }
                             )
                         } else {
                             Text(model.isLoading ? "Loading…" : "Select a point in the computed image.")
@@ -103,11 +143,42 @@ struct RootView: View {
                     ZoomableImageView(image: img , lastPoint:$lastPoint, marquee: $marquee, selectionMode: $selectionMode)
                         .onChange(of: img, {
                         })
+                        .onChange(of: lastPoint){ point in
+                            model.selectedI = model.imageHeight - Int(floor(point?.y ?? 0))
+                            model.selectedJ = Int(floor(point?.x ?? 0))
+//                            print(model.selectedI, model.selectedJ)
+
+                            model.updatePatternForCurrentSelection()
+                        }
                         .onChange(of: marquee) { newValue in
                             model.marquee = newValue
                             model.updatePatternForCurrentSelection()
 
                         }
+                        .focusable()                  // 1) Make focusable
+                        .focused($isFocused)          // 2) Bind focus state
+                        .focusEffectDisabled(true)
+                        .onAppear { isFocused = true } // 3) Give it focus when it appears
+//                        .onKeyPress(.leftArrow) {
+//                            lastPoint?.x -= 1
+//                            
+//                            return .handled
+//                        }
+//                        .onKeyPress(.rightArrow) {
+//                            lastPoint?.x += 1
+//                            return .handled
+//                        }
+//                        .onKeyPress(.upArrow) {
+//                            lastPoint?.y += 1
+//                            return .handled
+//                        }
+//                        .onKeyPress(.downArrow) {
+//                            lastPoint?.y -= 1
+//                            return .handled
+//                        }
+                    
+                    
+
                 } else {
                     Text("No Image Loaded")
                 }

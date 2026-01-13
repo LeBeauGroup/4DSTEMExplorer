@@ -23,16 +23,20 @@ struct NoTrackProgressStyle: ProgressViewStyle {
 
 @main
 struct FourDSTEMExplorerApp: App {
+
+    @State private var selectionMode: InteractiveMarkerView.SelectionMode = .point
     // Use StateObject for model ownership at the app root
     @StateObject private var model = DataViewModel()
+
     @StateObject private var openPanel = OpenPanelController()
     // Local state for user-editable scale text field (percent formatted)
     @State private var scale: Double = 1.0
-    @State private var selectionMode: InteractiveMarkerView.SelectionMode = .point
-    
+
+
     var body: some Scene {
         WindowGroup {
             RootView(selectionMode: $selectionMode)
+
             
                 .environmentObject(model)
                 .environmentObject(openPanel)
@@ -66,10 +70,12 @@ struct FourDSTEMExplorerApp: App {
                             switch newMode {
                             case .point:
                                 // Clear any marquee and show the single pattern at the current selection
+                                model.selectionMode = .point
                                 model.selectionRect = nil
                                 model.updatePatternForCurrentSelection()
                             case .marquee:
                                 // Initialize a 1×1 marquee at the current selection for immediate feedback
+                                model.selectionMode = .marquee
                                 model.beginMarquee(atI: model.selectedI, j: model.selectedJ)
                             }
                         }
