@@ -7,10 +7,10 @@ import SwiftUI
 
 // Temporary local definitions to make the toolbar compile.
 // If your project already defines these elsewhere, you can remove these and import/use the shared ones.
-enum SelectionMode: Hashable {
-    case point
-    case marquee
-}
+//enum SelectionMode: Hashable {
+//    case point
+//    case marquee
+//}
 
 enum CalculationMode: Hashable {
     case integrate
@@ -60,9 +60,10 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var detectorType: DetectorType = .integrating
     @Published var detectorInnerRadius: CGFloat = 0
     @Published var detectorOuterRadius: CGFloat = 10
+    @Published var detectorCenter: CGPoint = .zero
     
     // Selection mode used by the Picker in the toolbar
-    @Published var selectionMode: SelectionMode = .point
+    @Published var selectionMode: InteractiveMarkerView.SelectionMode = .point
     // Current zoom scale (0.0 ... 1.0 for percent formatting)
     @Published var currentScale: Double = 1.0
     // When true, the ImageViewerRepresentable will compute and apply a fit-to-window zoom without changing currentScale.
@@ -453,7 +454,10 @@ final class DataViewModel: NSObject, ObservableObject {
     private func currentDetector() -> Detector {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
-        let center = NSPoint(x: CGFloat(pW) / 2.0, y: CGFloat(pH) / 2.0)
+        let center = NSPoint(x: max(0, min(CGFloat(pW - 1), detectorCenter.x)),
+                             y: max(0, min(CGFloat(pH - 1), detectorCenter.y)))
+        
+        
         let radii = DetectorRadii(inner: detectorInnerRadius, outer: detectorOuterRadius)
         return Detector(shape: detectorShape, type: detectorType, center: center, radii: radii, size: NSSize(width: pW, height: pH))
     }
@@ -656,7 +660,6 @@ final class DataViewModel: NSObject, ObservableObject {
     func updatePatternForCurrentSelection() {
         guard imageWidth > 0, imageHeight > 0 else { return }
         
-        selectionMode = .marquee
 
         switch selectionMode {
         case .point:
@@ -665,20 +668,11 @@ final class DataViewModel: NSObject, ObservableObject {
             } else {
                 self.pixelBuffer = nil
             }
-
         case .marquee:
             guard var rect = marquee else { return }
-//            rect = normalizedRect(rect, maxWidth: imageWidth, maxHeight: imageHeight)
+
             rect.origin.y = scanImage!.size.height - rect.origin.y-rect.height
-            print(rect)
-//            if let m = self.dataController.pattern(Int(rect.origin.y), Int(rect.origin.x)){
-//                self.pixelBuffer = makePixelBuffer(from: m)
-//            } else {
-//                self.pixelBuffer = nil
-//            }
-//                return
-//            }
-    
+
 
                 let avg = self.dataController.averagePattern(rect: rect)
                    self.pixelBuffer = makePixelBuffer(from: avg)
@@ -842,6 +836,7 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
         self.imageHeight = self.dataController.imageSize.height
         self.patternSize.width = self.dataController.patternSize.width
         self.patternSize.height = self.dataController.patternSize.height
+        self.detectorCenter = CGPoint(x: CGFloat(self.patternSize.width) / 2.0, y: CGFloat(self.patternSize.height) / 2.0)
         if let m = dataController.pattern(0, 0) {
             self.pixelBuffer = makePixelBuffer(from: m)
 //            self.computeScanImage()

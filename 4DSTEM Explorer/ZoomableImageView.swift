@@ -56,6 +56,7 @@ override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
 // 1. The SwiftUI Wrapper
 struct ZoomableImageView: NSViewRepresentable {
     let image: NSImage
+    
     @Binding var lastPoint:CGPoint?
     @Binding var marquee: CGRect?
     @Binding var selectionMode: InteractiveMarkerView.SelectionMode
@@ -122,21 +123,7 @@ struct ZoomableImageView: NSViewRepresentable {
             marquee = nil
         }
 
-        
-//        if isFirstLoad{
-//            DispatchQueue.main.async {
-//                // This fits the documentView (your image container) perfectly into the scroll view
-//                nsView.magnify(toFit: nsView.documentView?.frame ?? .zero)
-//            }
-//            context.coordinator.isFirstLoad = false
-//        }
-//            
-        
-        // Sync markers if they change from external SwiftUI buttons/logic
-        if let docView = nsView.documentView as? InteractiveMarkerView {
-            docView.updateSelectionMode(selectionMode)
-            docView.updateLastPoint(lastPoint)
-        }
+
     }
     
     class Coordinator: NSObject {
@@ -197,6 +184,14 @@ class InteractiveMarkerView: NSView {
     private enum DragMode { case none, move, resize(MarqueeShapeView.HandlePosition) }
     private var dragMode: DragMode = .none
     private var lastDragPoint: NSPoint?
+    
+    override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // Ensure the view can receive key events when appropriate
+        self.window?.makeFirstResponder(self)
+    }
 
     init(image:NSImage,  marquee: Binding<CGRect?>, selectionMode: Binding<SelectionMode>, lastPoint: Binding<CGPoint?>) {
         self.selectionBinding = marquee
@@ -221,7 +216,8 @@ class InteractiveMarkerView: NSView {
           marqueeView.isHidden = true
           self.addSubview(marqueeView)
       }
-//    
+    
+//
 //    init(imageName: String, markers: Binding<[CGPoint]>) {
 //        self.imageName = imageName
 //        self.markersBinding = markers
@@ -233,6 +229,7 @@ class InteractiveMarkerView: NSView {
 
     // Capture click, convert coordinates, and update SwiftUI state
     override func mouseDown(with event: NSEvent) {
+        self.window?.makeFirstResponder(self)
         
         let clickPoint = self.convert(event.locationInWindow, from: nil)
         
@@ -276,10 +273,11 @@ class InteractiveMarkerView: NSView {
         }
     }
     
+   
     func updateImage(_ newImage: NSImage) {
          self.image = newImage
         
-        print(newImage.size)
+//        print(newImage.size)
         let scaledSize = NSSize(width: newImage.size.width , height: newImage.size.height)
         let newFrame = NSRect(origin: .zero, size: scaledSize)
          
@@ -293,12 +291,84 @@ class InteractiveMarkerView: NSView {
          marqueeView.isHidden = true
      }
     
-    override func mouseDragged(with event: NSEvent) {
-        let currentPoint = self.convert(event.locationInWindow, from: nil)
-        if selectionModeBinding.wrappedValue == .point {
+    override func keyDown(with event: NSEvent) {
+        // Determine movement delta for arrow keys
+        var dx: CGFloat = 0
+        var dy: CGFloat = 0
+        switch event.keyCode {
+        case 123: // left arrow
+            dx = -1
+        case 124: // right arrow
+            dx = 1
+        case 125: // down arrow
+            dy = -1
+        case 126: // up arrow
+            dy = 1
+        default:
+            super.keyDown(with: event)
             return
         }
+
+        // If Shift is held, move by 10 pixels instead of 1
+        let isShift = event.modifierFlags.contains(.shift)
+        let step: CGFloat = isShift ? 10 : 1
+        dx *= step
+        dy *= step
+
+        let imageBounds = self.bounds
+
+        if selectionModeBinding.wrappedValue == .point {
+            // Move the point by step pixels per arrow press
+            guard var p = lastPointBinding.wrappedValue else { return }
+            p.x += dx
+            p.y += dy
+            // Clamp to bounds
+            p.x = max(imageBounds.minX, min(imageBounds.maxX, p.x))
+            p.y = max(imageBounds.minY, min(imageBounds.maxY, p.y))
+            lastPointBinding.wrappedValue = p
+            self.subviews.filter { $0 is MarkerCircle }.forEach { $0.removeFromSuperview() }
+            drawMarker(at: p)
+            return
+        }
+
+        if selectionModeBinding.wrappedValue == .marquee {
+            // Move the marquee origin by step pixels per arrow press, keep entire rect inside image
+            var rect = marqueeView.frame
+            var newOrigin = rect.origin
+            newOrigin.x += dx
+            newOrigin.y += dy
+            // Clamp so the entire marquee stays within the image bounds
+            newOrigin.x = max(imageBounds.minX, min(imageBounds.maxX - rect.size.width, newOrigin.x))
+            newOrigin.y = max(imageBounds.minY, min(imageBounds.maxY - rect.size.height, newOrigin.y))
+            rect.origin = newOrigin
+            marqueeView.setFrameOrigin(newOrigin)
+            selectionBinding.wrappedValue = rect
+            return
+        }
+
+        // Fallback
+        super.keyDown(with: event)
+    }
+    
+    override func mouseDragged(with event: NSEvent) {
+        let currentPoint = self.convert(event.locationInWindow, from: nil)
+
         let imageBounds = self.bounds // Assuming view matches image size
+
+        if selectionModeBinding.wrappedValue == .point {
+            var newPoint = NSPoint(x: currentPoint.x - dragOffset.width,
+                                    y: currentPoint.y - dragOffset.height)
+            
+            // Clamp origin so the entire box stays inside the image
+            newPoint.x = max(0, min(imageBounds.width - marqueeView.frame.width, newPoint.x))
+            newPoint.y = max(0, min(imageBounds.height - marqueeView.frame.height, newPoint.y))
+            
+            lastPointBinding.wrappedValue = newPoint
+            self.subviews.filter { $0 is MarkerCircle }.forEach { $0.removeFromSuperview() }
+            drawMarker(at: newPoint)
+            return
+        }
+
 
         switch dragMode {
         case .move:
@@ -456,7 +526,7 @@ class InteractiveMarkerView: NSView {
     }
 
     private func drawMarker(at point: NSPoint) {
-        let markerSize = 2.0
+        let markerSize = 4.0
         let offset = markerSize / 2.0
         let marker = MarkerCircle(frame: NSRect(x: point.x - offset, y: point.y - offset, width: markerSize, height: markerSize))
         self.addSubview(marker)
