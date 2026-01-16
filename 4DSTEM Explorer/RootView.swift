@@ -144,7 +144,7 @@ struct RootView: View {
                         .onChange(of: img, {
                         })
                         .onChange(of: lastPoint){ point in
-                            model.selectedI = model.imageHeight - Int(floor(point?.y ?? 0))
+                            model.selectedI = Int(floor(point?.y ?? 0))
                             model.selectedJ = Int(floor(point?.x ?? 0))
 //                            print(model.selectedI, model.selectedJ)
 
@@ -158,27 +158,32 @@ struct RootView: View {
                         .focusable()                  // 1) Make focusable
                         .focused($isFocused)          // 2) Bind focus state
                         .focusEffectDisabled(true)
-                        .onAppear { isFocused = true } // 3) Give it focus when it appears
-//                        .onKeyPress(.leftArrow) {
-//                            lastPoint?.x -= 1
-//                            
-//                            return .handled
-//                        }
-//                        .onKeyPress(.rightArrow) {
-//                            lastPoint?.x += 1
-//                            return .handled
-//                        }
-//                        .onKeyPress(.upArrow) {
-//                            lastPoint?.y += 1
-//                            return .handled
-//                        }
-//                        .onKeyPress(.downArrow) {
-//                            lastPoint?.y -= 1
-//                            return .handled
-//                        }
+                        .onAppear { isFocused = true } 
                     
-                    
+                    if selectionMode == .point{
+                        Text({
+                            if let p = lastPoint {
+                                return String(format: "(x: %.0f, y: %.0f)", p.x, p.y)
+                            } else {
+                                return "(x: –, y: –)"
+                            }
+                        }())
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }else if selectionMode == .marquee {
+                        Text({
+                            if let rect = marquee {
+                                return "\(rect.minX), \(rect.minY), \(rect.width), \(rect.height)"
+                            
 
+                            } else {
+                                return "(x: –, y: –)"
+                            }
+                        }())
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                    
                 } else {
                     Text("No Image Loaded")
                 }

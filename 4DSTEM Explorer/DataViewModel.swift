@@ -77,8 +77,38 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var comAxis: COMAxis = .x
 
     // Export actions used by the toolbar
-    func exportImage() { /* TODO: implement */ }
-    func exportPattern() { /* TODO: implement */ }
+    func exportImage() {
+        
+        if let img = self.scanImage{
+            
+           let imgData = img.tiffRepresentation
+            
+            let savePanel = NSSavePanel()
+            savePanel.allowedContentTypes = [.tiff]
+            savePanel.canCreateDirectories = true
+            savePanel.nameFieldStringValue = "MyImage.tiff"
+
+            savePanel.begin { result in
+                if result == .OK, let url = savePanel.url {
+                    do {
+                        try imgData?.write(to: url)
+//                            return true
+                        } catch {
+                            print("Failed to save image: \(error)")
+//                            return false
+                        }
+//                    print(success ? "Saved!" : "Failed!")
+                }
+            }
+        }
+}
+    func exportPattern() {
+//        if let img = self.scanImage{
+//            
+//            img.save(img.name + "_pattern.tif", type: .tiff)
+//        }
+
+    }
 
     // Zoom controls used by the toolbar
     func zoomIn() {
@@ -414,6 +444,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
     func open(url: URL) {
         selectedURL = url
+        
         status = "Preparing to load \(url.lastPathComponent)…"
         isLoading = true
         dataController.filePath = url
@@ -670,9 +701,7 @@ final class DataViewModel: NSObject, ObservableObject {
             }
         case .marquee:
             guard var rect = marquee else { return }
-
-            rect.origin.y = scanImage!.size.height - rect.origin.y-rect.height
-
+//
 
                 let avg = self.dataController.averagePattern(rect: rect)
                    self.pixelBuffer = makePixelBuffer(from: avg)
@@ -680,6 +709,7 @@ final class DataViewModel: NSObject, ObservableObject {
         }
     }
 
+    
     private func normalizedRect(_ rect: CGRect, maxWidth: Int, maxHeight: Int) -> CGRect {
         var r = rect
         if r.width < 0 { r.origin.x += r.width; r.size.width = -r.width }
