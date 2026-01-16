@@ -362,10 +362,12 @@ class STEMDataController: NSObject {
         return false
     }
     
-    func nudgeDropboxDownload(url: URL) {
+    func nudgeDownload(url: URL) {
         let coordinator = NSFileCoordinator()
         var error: NSError?
+        
         coordinator.coordinate(readingItemAt: url, options: [], error: &error) { _ in
+                print("test")
             // No-op — access itself is the trigger
         }
     }
@@ -373,19 +375,19 @@ class STEMDataController: NSObject {
     func openFile(url: URL) throws {
         
         
-        if isDropboxFile(url) {
-            nudgeDropboxDownload(url: url)
+//        if isDropboxFile(url) {
+            nudgeDownload(url: url)
             // ...
-        } else if (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true {
-#if DEBUG
-            print("Detected iCloud file")
-#endif
-            // Use `startDownloadingUbiquitousItem(at:)` and check download status
-        } else {
-#if DEBUG
-            print("Not iCloud or Dropbox")
-#endif
-        }
+//        } else if (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true {
+//#if DEBUG
+//            print("Detected iCloud file")
+//#endif
+//            // Use `startDownloadingUbiquitousItem(at:)` and check download status
+//        } else {
+//#if DEBUG
+//            print("Not iCloud or Dropbox")
+//#endif
+//        }
        
         
         let ext = url.pathExtension
@@ -729,6 +731,8 @@ class STEMDataController: NSObject {
         if startj > endj{
             strideDirectionj = -1
         }
+        
+        print(starti, startj, endi, endj)
         
         
         var patternCount = 0

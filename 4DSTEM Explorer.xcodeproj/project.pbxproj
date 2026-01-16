@@ -69,6 +69,9 @@
 		A5219B121FF41936006D4044 /* PatternViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternViewer.swift; sourceTree = "<group>"; };
 		A5219B141FF4250E006D4044 /* DetectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorView.swift; sourceTree = "<group>"; };
 		A5219B161FF4958A006D4044 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
+		A52ACA902F18BE08000F804B /* MatrixExporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatrixExporting.swift; sourceTree = "<group>"; };
+		A52ACA912F18BE0E000F804B /* ExportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModel.swift; sourceTree = "<group>"; };
+		A52ACA922F18BE0E000F804B /* ExportCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCommands.swift; sourceTree = "<group>"; };
 		A551530E2006892100C89F5D /* Functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Functions.swift; sourceTree = "<group>"; };
 		A560204E2E38106B00BD8CB8 /* BinaryReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryReader.swift; sourceTree = "<group>"; };
 		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
@@ -203,6 +206,9 @@
 				A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */,
 				A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */,
 				A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */,
+				A52ACA902F18BE08000F804B /* MatrixExporting.swift */,
+				A52ACA912F18BE0E000F804B /* ExportViewModel.swift */,
+				A52ACA922F18BE0E000F804B /* ExportCommands.swift */,
 			);
 			path = "View Controllers";
 			sourceTree = "<group>";

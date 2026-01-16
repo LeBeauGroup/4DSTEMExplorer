@@ -24,6 +24,11 @@ struct MatrixOutput {
     static let float = 32
 }
 
+enum MatrixType{
+    case real
+    case complex
+}
+
 infix operator .*
 
 
@@ -54,7 +59,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     //MARK: - Properties
     let rows:Int
     let columns:Int
-    let type:String
+    let type:MatrixType
     var provider:CGDataProvider?
     
     var size:NSSize{
@@ -86,7 +91,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
 
         vDSP_maxv(clipped.real, 1, &maxValue.a, length)
-        if type != "real" {
+        if type != .real{
             vDSP_maxv(clipped.imag!, 1, &maxValue.b, length)
         }
 
@@ -101,7 +106,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
 
         vDSP_minv(clipped.real, 1, &minValue.a, length)
-        if type != "real" {
+        if type != .real {
             vDSP_minv(clipped.imag!, 1, &minValue.b, length)
         }
 
@@ -116,7 +121,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         self.rows = rows
         self.columns = columns
-        self.type = "real"
+        self.type = .real
         
         real = Array(UnsafeBufferPointer(start: pointer, count: rows*columns))
     }
@@ -127,7 +132,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
 
         self.rows = rows
         self.columns = columns
-        self.type = "real"
+        self.type = .real
         
         for i in 0..<rows{
             for j in 0..<columns{
@@ -154,12 +159,12 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         self.rows = rows
         self.columns = columns
-        self.type = "real"
+        self.type = .real
         
         
     }
     
-    init(_ rows:Int, _ columns:Int, _ type:String? = "real"){
+    init(_ rows:Int, _ columns:Int, _ type:MatrixType? = .real){
                
         self.rows = rows
         self.columns = columns
@@ -167,26 +172,26 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             if let newType = type{
                 
                 
-                if(newType == "real"){
+                if(newType == .real){
                     self.type = newType
 
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = nil
-                }else if (newType == "complex"){
+                }else if (newType == .complex){
                     self.type = newType
 
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = Array(repeating: Float(0), count: rows*columns)
                     
                 }else{
-                    self.type = "real"
+                    self.type = .real
                     
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = nil
                 }
                 
             }else{
-                self.type = "real"
+                self.type = .real
                 
                 real = Array(repeating: Float(0), count: rows*columns)
                 imag = nil
@@ -272,7 +277,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     }
 
     func quantiles(_ quantiles: Array<Float>) throws -> Array<Float> {
-        guard self.type == "real" else {
+        guard self.type == .real else {
             throw ValueError("'quantiles' only works on real-valued data.")
         }
         var sorted = self.real
@@ -315,7 +320,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             newMat.real = real
             newMat.imag = imag!
         }else{
-            newMat = Matrix(rows, columns, "complex")
+            newMat = Matrix(rows, columns, .complex)
             newMat.real = real
         }
         
@@ -377,7 +382,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         var min = min
         var max = max
         vDSP_vclip(&self.real, 1, &min, &max, &out.real, 1, vDSP_Length(self.count))
-        if self.type != "real" {
+        if self.type != .real {
             vDSP_vclip(&self.imag!, 1, &min, &max, &out.imag!, 1, vDSP_Length(self.count))
         }
         return out
@@ -435,7 +440,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 
                index = i*columns+j
                 
-                if type == "complex"{
+                if type == .complex{
                     
                     var sign:String;
                     let b = imag![index]
@@ -785,7 +790,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
         var combinedImage:NSImage?
         
-        if type == "complex"{
+        if type == .complex{
             
             let imagPartImage = self.imageRepresentation(part: "imag", format: MatrixOutput.uint8, nil,nil)
 
@@ -868,7 +873,7 @@ func +(lhs:Matrix,rhs:Matrix) -> Matrix? {
         newMatrix.real = outReal;
 
         
-        if newMatrix.type == "complex" {
+        if newMatrix.type == .complex {
             
             var outImag = newMatrix.imag
 
@@ -910,7 +915,7 @@ func -(lhs:Matrix,rhs:Matrix) -> Matrix? {
         newMatrix.real = outReal;
         
         
-        if newMatrix.type == "complex" {
+        if newMatrix.type == .complex {
             
             var outImag = newMatrix.imag
             
@@ -1045,7 +1050,7 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
         }
         
         if complexMatricies(mat1, mat2) > 0 {
-            newMatrix = Matrix(mat1.rows, mat1.columns, "complex")
+            newMatrix = Matrix(mat1.rows, mat1.columns, .complex)
             
         }else{
             newMatrix = Matrix(mat1.rows, mat1.columns)
@@ -1054,7 +1059,7 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
     }else{
         
         if complexMatricies(mat1, mat2) > 0 {
-            newMatrix = Matrix(mat1.columns, mat2.rows, "complex")
+            newMatrix = Matrix(mat1.columns, mat2.rows, .complex)
             
         }else{
             newMatrix = Matrix(mat1.columns, mat2.rows)

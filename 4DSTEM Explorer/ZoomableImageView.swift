@@ -184,7 +184,7 @@ class InteractiveMarkerView: NSView {
     private enum DragMode { case none, move, resize(MarqueeShapeView.HandlePosition) }
     private var dragMode: DragMode = .none
     private var lastDragPoint: NSPoint?
-    
+    override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
     override func viewDidMoveToWindow() {
@@ -197,7 +197,6 @@ class InteractiveMarkerView: NSView {
         self.selectionBinding = marquee
         self.selectionModeBinding = selectionMode
         self.lastPointBinding = lastPoint
-        
         self.image = image
         imageView = NSImageView(image: image)
         imageView.frame = NSRect(origin: .zero, size: image.size)
@@ -301,9 +300,9 @@ class InteractiveMarkerView: NSView {
         case 124: // right arrow
             dx = 1
         case 125: // down arrow
-            dy = -1
+            dy = +1
         case 126: // up arrow
-            dy = 1
+            dy = -1
         default:
             super.keyDown(with: event)
             return
@@ -322,9 +321,9 @@ class InteractiveMarkerView: NSView {
             guard var p = lastPointBinding.wrappedValue else { return }
             p.x += dx
             p.y += dy
-            // Clamp to bounds
-            p.x = max(imageBounds.minX, min(imageBounds.maxX, p.x))
-            p.y = max(imageBounds.minY, min(imageBounds.maxY, p.y))
+            // Clamp to bounds with max at width-1 and height-1
+            p.x = max(imageBounds.minX, min(imageBounds.maxX - 1, p.x))
+            p.y = max(imageBounds.minY, min(imageBounds.maxY - 1, p.y))
             lastPointBinding.wrappedValue = p
             self.subviews.filter { $0 is MarkerCircle }.forEach { $0.removeFromSuperview() }
             drawMarker(at: p)
@@ -337,9 +336,9 @@ class InteractiveMarkerView: NSView {
             var newOrigin = rect.origin
             newOrigin.x += dx
             newOrigin.y += dy
-            // Clamp so the entire marquee stays within the image bounds
-            newOrigin.x = max(imageBounds.minX, min(imageBounds.maxX - rect.size.width, newOrigin.x))
-            newOrigin.y = max(imageBounds.minY, min(imageBounds.maxY - rect.size.height, newOrigin.y))
+            // Clamp so the entire marquee stays within the image bounds, max at width-1/height-1
+            newOrigin.x = max(imageBounds.minX, min((imageBounds.maxX - 1) - rect.size.width, newOrigin.x))
+            newOrigin.y = max(imageBounds.minY, min((imageBounds.maxY - 1) - rect.size.height, newOrigin.y))
             rect.origin = newOrigin
             marqueeView.setFrameOrigin(newOrigin)
             selectionBinding.wrappedValue = rect
@@ -359,9 +358,9 @@ class InteractiveMarkerView: NSView {
             var newPoint = NSPoint(x: currentPoint.x - dragOffset.width,
                                     y: currentPoint.y - dragOffset.height)
             
-            // Clamp origin so the entire box stays inside the image
-            newPoint.x = max(0, min(imageBounds.width - marqueeView.frame.width, newPoint.x))
-            newPoint.y = max(0, min(imageBounds.height - marqueeView.frame.height, newPoint.y))
+            // Clamp origin so the entire box stays inside the image, max at width-1/height-1
+            newPoint.x = max(0, min((imageBounds.width - 1), newPoint.x))
+            newPoint.y = max(0, min((imageBounds.height - 1), newPoint.y))
             
             lastPointBinding.wrappedValue = newPoint
             self.subviews.filter { $0 is MarkerCircle }.forEach { $0.removeFromSuperview() }
@@ -376,9 +375,9 @@ class InteractiveMarkerView: NSView {
             var newOrigin = NSPoint(x: currentPoint.x - dragOffset.width,
                                     y: currentPoint.y - dragOffset.height)
             
-            // Clamp origin so the entire box stays inside the image
-            newOrigin.x = max(0, min(imageBounds.width - marqueeView.frame.width, newOrigin.x))
-            newOrigin.y = max(0, min(imageBounds.height - marqueeView.frame.height, newOrigin.y))
+            // Clamp origin so the entire box stays inside the image, max at width-1/height-1
+            newOrigin.x = max(0, min((imageBounds.width) - marqueeView.frame.width, newOrigin.x))
+            newOrigin.y = max(0, min((imageBounds.height) - marqueeView.frame.height, newOrigin.y))
             
             marqueeView.setFrameOrigin(newOrigin)
             selectionBinding.wrappedValue = marqueeView.frame
@@ -388,7 +387,7 @@ class InteractiveMarkerView: NSView {
             var rect = marqueeView.frame
             if let start = startPoint, case .resize(.bottomRight) = dragMode, marqueeView.isHidden == false && marqueeView.frame.size == .zero {
                 // Only on the very first drag after mouseDown, anchor at the start point once
-                rect = NSRect(origin: start, size: .zero)
+                rect = NSRect(origin: start, size: NSSize(width: 1, height: 1))
             }
             let originalRect = rect
             let deltaX = currentPoint.x - (lastDragPoint?.x ?? currentPoint.x)
@@ -404,11 +403,11 @@ class InteractiveMarkerView: NSView {
                     r.size.height += r.origin.y
                     r.origin.y = 0
                 }
-                if r.maxX > imageBounds.width {
-                    r.size.width = imageBounds.width - r.origin.x
+                if r.maxX > (imageBounds.width) {
+                    r.size.width = max(0, (imageBounds.width) - r.origin.x)
                 }
-                if r.maxY > imageBounds.height {
-                    r.size.height = imageBounds.height - r.origin.y
+                if r.maxY > (imageBounds.height) {
+                    r.size.height = max(0, (imageBounds.height) - r.origin.y)
                 }
                 return r
             }
@@ -419,8 +418,9 @@ class InteractiveMarkerView: NSView {
             switch handle {
             case .topLeft:
                 newOrigin.x += deltaX
+                newOrigin.y += deltaY
                 newSize.width -= deltaX
-                newSize.height += deltaY
+                newSize.height -= deltaY
                 
                 // Adjust origin.y for top edge
                 newSize.height = max(1, newSize.height)
@@ -429,71 +429,80 @@ class InteractiveMarkerView: NSView {
                 if newOrigin.x >= rect.maxX-1 {
                     newOrigin.x = rect.maxX-1
                 }
+                if newOrigin.y >= rect.maxY - 1 {
+                    newOrigin.y = rect.maxY - 1
+                }
 
                 
             case .top:
-                newSize.height += deltaY
-//                newSize.height = max(0, newSize.height)
+                newOrigin.y += deltaY
+                newSize.height = max(1, newSize.height-deltaY)
                // newOrigin.y = rect.maxY - newSize.height
                 
             case .topRight:
+                
+                newOrigin.y = min(rect.maxY-1, newOrigin.y + deltaY)
+//                newOrigin.y += deltaY
                 newSize.width += deltaX
-                newSize.height += deltaY
-                newSize.width = max(0, newSize.width)
-                newSize.height = max(0, newSize.height)
+                newSize.height -= deltaY
+                newSize.width = max(1, newSize.width)
+                newSize.height = max(1, newSize.height)
 //                newOrigin.y = rect.maxY - newSize.height
                 
             case .right:
                 newSize.width += deltaX
-                newSize.width = max(0, newSize.width)
+                newSize.width = max(1, newSize.width)
                 
             case .bottomRight:
                 newSize.width += deltaX
-                newOrigin.y += deltaY
-                newSize.height -= deltaY
-                newSize.width = max(0, newSize.width)
-                newSize.height = max(0, newSize.height)
-                if newSize.height == 0 {
-                    newOrigin.y = rect.maxY
-                }
+                newSize.height += deltaY
+                newSize.width = max(1, newSize.width)
+                newSize.height = max(1, newSize.height)
+//                if newSize.height == 0 {
+//                    newOrigin.y = rect.maxY
+//                }
                 
             case .bottom:
-                newOrigin.y += deltaY
-                newSize.height -= deltaY
-                newSize.height = max(0, newSize.height)
-                if newSize.height == 0 {
-                    newOrigin.y = rect.maxY
-                }
+                newSize.height += deltaY
+                newSize.height = max(1, newSize.height)
+
                 
             case .bottomLeft:
-                newOrigin.x += deltaX
-                newOrigin.y += deltaY
+
+                newOrigin.x = min(rect.origin.x+rect.width-1, newOrigin.x + deltaX)
+                
+//                newOrigin.y += deltaY
                 newSize.width -= deltaX
-                newSize.height -= deltaY
-                newSize.width = max(0, newSize.width)
-                newSize.height = max(0, newSize.height)
-                if newSize.height == 0 {
-                    newOrigin.y = rect.maxY
-                }
+                newSize.height += deltaY
+                
+                newSize.width = max(1, newSize.width)
+                newSize.height = max(1, newSize.height)
+                
+//                if newSize.height == 0 {
+//                    newOrigin.y = rect.maxY
+//                }
                 
             case .left:
-                newOrigin.x += deltaX
+                
+                newOrigin.x = min(rect.origin.x+rect.width-1, newOrigin.x + deltaX)
+                
+//                newOrigin.x += deltaX
                 newSize.width -= deltaX
-                newSize.width = max(0, newSize.width)
+                newSize.width = max(1, newSize.width)
             }
 
             // Build tentative rect from origin/size
             var newRect = NSRect(origin: newOrigin, size: newSize)
 
             // Normalize rect so width and height are positive without forcing a minimum size
-            if newRect.size.width < 0 {
-                newRect.origin.x += newRect.size.width
-                newRect.size.width = -newRect.size.width
-            }
-            if newRect.size.height < 0 {
-                newRect.origin.y += newRect.size.height
-                newRect.size.height = -newRect.size.height
-            }
+//            if newRect.size.width < 0 {
+//                newRect.origin.x += newRect.size.width
+//                newRect.size.width = -newRect.size.width
+//            }
+//            if newRect.size.height < 0 {
+//                newRect.origin.y += newRect.size.height
+//                newRect.size.height = -newRect.size.height
+//            }
 
             // Clamp to image bounds without collapsing to a single point
             newRect = clampToBounds(newRect)
