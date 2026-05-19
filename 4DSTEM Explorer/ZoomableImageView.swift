@@ -27,6 +27,8 @@ class CustomScrollView: NSScrollView {
 extension Notification.Name {
     static let zoomIn = Notification.Name("zoomIn")
     static let zoomOut = Notification.Name("zoomOut")
+    static let zoomToFit = Notification.Name("zoomToFit")
+    static let zoomToActual = Notification.Name("zoomToActual")
 }
     
 final class CenteringClipView: NSClipView {
@@ -59,8 +61,20 @@ struct ZoomableImageView: NSViewRepresentable {
     
     @Binding var lastPoint:CGPoint?
     @Binding var marquee: CGRect?
+    @Binding var zoomScale: CGFloat
     @Binding var selectionMode: InteractiveMarkerView.SelectionMode
+//    @Binding var magnification:CGFloat
+    
     var isFirstLoad: Bool = true
+
+    private func fitDocumentView(in scrollView: NSScrollView) {
+        DispatchQueue.main.async {
+            guard let documentView = scrollView.documentView else { return }
+            scrollView.layoutSubtreeIfNeeded()
+            scrollView.magnify(toFit: documentView.frame)
+            zoomScale = scrollView.magnification
+        }
+    }
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -74,22 +88,33 @@ struct ZoomableImageView: NSViewRepresentable {
         
         
         scrollView.allowsMagnification = true
-        scrollView.minMagnification = 1.0
+        scrollView.minMagnification = 0.10
         scrollView.maxMagnification = 20.0
         
         NotificationCenter.default.addObserver(forName: .zoomIn, object: nil, queue: .main) { _ in
             let newZoom = min(scrollView.magnification*1.25, scrollView.maxMagnification)
             scrollView.setMagnification(newZoom, centeredAt: .zero)
+            zoomScale = scrollView.magnification
+        }
+        NotificationCenter.default.addObserver(forName: .zoomToActual, object: nil, queue: .main) { _ in
+            scrollView.setMagnification(1.0, centeredAt: .zero)
+            zoomScale = scrollView.magnification
         }
         NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
             let newZoom = max(scrollView.magnification/1.25, scrollView.minMagnification)
             scrollView.setMagnification(newZoom, centeredAt: .zero)
+            zoomScale = scrollView.magnification
+        }
+        NotificationCenter.default.addObserver(forName: .zoomToFit, object: nil, queue: .main) { _ in
+            scrollView.magnify(toFit: scrollView.documentView?.frame ?? .zero)
+            zoomScale = scrollView.magnification
         }
         
-        NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
-            let newZoom = max(scrollView.magnification/1.25, scrollView.minMagnification)
-            scrollView.setMagnification(newZoom, centeredAt: .zero)
-        }
+//        NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
+//            let newZoom = max(scrollView.magnification/1.25, scrollView.minMagnification)
+//            zoomScale = newZoom
+//            scrollView.setMagnification(newZoom, centeredAt: .zero)
+//        }
         
         // Create the internal interactive view
         let interactiveView = InteractiveMarkerView(image: image, marquee: $marquee, selectionMode: $selectionMode, lastPoint: $lastPoint)
@@ -97,12 +122,11 @@ struct ZoomableImageView: NSViewRepresentable {
         scrollView.documentView = interactiveView
         
         if isFirstLoad{
-            DispatchQueue.main.async {
-                // This fits the documentView (your image container) perfectly into the scroll view
-                scrollView.magnify(toFit: scrollView.documentView?.frame ?? .zero)
-            }
+            fitDocumentView(in: scrollView)
             context.coordinator.isFirstLoad = false
         }
+        
+        zoomScale = scrollView.magnification
         
 
         return scrollView
@@ -111,17 +135,22 @@ struct ZoomableImageView: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         
         guard let container = nsView.documentView as? InteractiveMarkerView else { return }
+        
+        zoomScale = nsView.magnification
 
         // 1. Detect if the image object has actually changed
         if container.image != image {
             container.updateImage(image)
+            fitDocumentView(in: nsView)
             
             // 2. Reset first load flag to trigger auto-zoom for the new image
 //            context.coordinator.isFirstLoad = true
             
             // 3. Clear existing selection for the new image
-            marquee = nil
+//            marquee = nil
+            
         }
+//        magnification = nsView.magnification
 
 
     }
@@ -141,8 +170,11 @@ struct ZoomableImageView: NSViewRepresentable {
               
               // Listen for global zoom notifications
               NotificationCenter.default.addObserver(forName: .zoomIn, object: nil, queue: .main) { _ in
+                  
                   let newZoom = min(scrollView.magnification*1.25, scrollView.maxMagnification)
+                  
                   scrollView.setMagnification(newZoom, centeredAt: .zero)
+                 
                   if let dv = scrollView.documentView{
                       for sv in dv.subviews{
                           sv.needsDisplay = true
@@ -151,7 +183,13 @@ struct ZoomableImageView: NSViewRepresentable {
               }
               NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
                   let newZoom = max(scrollView.magnification/1.25, scrollView.minMagnification)
+                  
                   scrollView.setMagnification(newZoom, centeredAt: .zero)
+                  if let dv = scrollView.documentView{
+                      for sv in dv.subviews{
+                          sv.needsDisplay = true
+                      }
+                  }
               }
           }
 
@@ -287,7 +325,7 @@ class InteractiveMarkerView: NSView {
          self.frame = newFrame
          
          // Hide the marquee as it's no longer valid for the new image
-         marqueeView.isHidden = true
+//         marqueeView.isHidden = true
      }
     
     override func keyDown(with event: NSEvent) {
@@ -355,8 +393,8 @@ class InteractiveMarkerView: NSView {
         let imageBounds = self.bounds // Assuming view matches image size
 
         if selectionModeBinding.wrappedValue == .point {
-            var newPoint = NSPoint(x: currentPoint.x - dragOffset.width,
-                                    y: currentPoint.y - dragOffset.height)
+            var newPoint = NSPoint(x: currentPoint.x ,
+                                    y: currentPoint.y )
             
             // Clamp origin so the entire box stays inside the image, max at width-1/height-1
             newPoint.x = max(0, min((imageBounds.width - 1), newPoint.x))
@@ -384,12 +422,27 @@ class InteractiveMarkerView: NSView {
             
         case .resize(let handle):
             // RESIZE MODE: Adjust the rect edges based on handle and drag delta
+            if let start = startPoint, !isDraggingExisting, handle == .bottomRight {
+                let clampedPoint = clampPoint(currentPoint, to: imageBounds)
+                let newRect = NSRect(
+                    x: min(start.x, clampedPoint.x),
+                    y: min(start.y, clampedPoint.y),
+                    width: max(1, abs(clampedPoint.x - start.x)),
+                    height: max(1, abs(clampedPoint.y - start.y))
+                )
+
+                marqueeView.frame = newRect
+                selectionBinding.wrappedValue = newRect
+                lastDragPoint = currentPoint
+                return
+            }
+
             var rect = marqueeView.frame
             if let start = startPoint, case .resize(.bottomRight) = dragMode, marqueeView.isHidden == false && marqueeView.frame.size == .zero {
                 // Only on the very first drag after mouseDown, anchor at the start point once
                 rect = NSRect(origin: start, size: NSSize(width: 1, height: 1))
             }
-            let originalRect = rect
+//            let originalRect = rect
             let deltaX = currentPoint.x - (lastDragPoint?.x ?? currentPoint.x)
             let deltaY = currentPoint.y - (lastDragPoint?.y ?? currentPoint.y)
             
@@ -535,8 +588,12 @@ class InteractiveMarkerView: NSView {
     }
 
     private func drawMarker(at point: NSPoint) {
-        let markerSize = 4.0
+        let mag = self.enclosingScrollView?.magnification ?? 1.0
+        let markerSize = 8.0/mag
         let offset = markerSize / 2.0
+        
+        
+
         let marker = MarkerCircle(frame: NSRect(x: point.x - offset, y: point.y - offset, width: markerSize, height: markerSize))
         self.addSubview(marker)
     }
@@ -667,4 +724,3 @@ class MarqueeShapeView: NSView {
         return nil
     }
 }
-

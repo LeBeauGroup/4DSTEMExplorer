@@ -41,12 +41,17 @@ enum DataType {
 
 
 protocol STEMDataControllerDelegate:class {
-    func didFinishLoadingData()
+    func didFinishLoadingData()->(pattern:NSImage?, virtual:NSImage?)
 }
 protocol STEMDataControllerProgressDelegate:class {
-    func didFinishLoadingData()
     func cancel(_ sender:Any)
 }
+
+struct Calibrations{
+    let scan_step:Float?
+    let diff_step:Float?
+}
+
 
 class STEMDataController: NSObject {
     
@@ -58,6 +63,8 @@ class STEMDataController: NSObject {
     var filePath:URL?
     var imageSize:IntSize = IntSize(width: 0, height: 0)
     var fh:FileHandle?
+    
+    var calibrations:Calibrations?
     
     weak var delegate:STEMDataControllerDelegate?
     weak var progressdelegate:STEMDataControllerProgressDelegate?
@@ -78,6 +85,7 @@ class STEMDataController: NSObject {
             return Int(imageSize.width*imageSize.height)
         }
     }
+    
     
     var detectorPixels:Int{
         get{
@@ -132,7 +140,9 @@ class STEMDataController: NSObject {
         
             let selectedPatternPointer = patternPointer! + (patternPixels)*patternIndex
             
-            matrix = Matrix.init(pointer: selectedPatternPointer, patternSize.height, patternSize.width)
+            // Convert pointer to array
+            let patternArray = Array(UnsafeBufferPointer(start: selectedPatternPointer, count: patternPixels))
+            matrix = Matrix.init(array: patternArray, patternSize.height, patternSize.width)
         }
         
         return matrix
@@ -654,15 +664,16 @@ class STEMDataController: NSObject {
 
                     if globalIndex % fracComplete == 0 {
                         DispatchQueue.main.async {
-                            nc.post(name: Notification.Name("updateProgress"), object: Double(globalIndex)/Double(totalImages))
+                            nc.post(name: .taskProgressUpdated, object: Double(globalIndex)/Double(totalImages))
                         }
                     }
                 }
             }
 
             DispatchQueue.main.async(execute: DispatchWorkItem {
+                nc.post(name: .fileLoaded, object: nil)
                 self.delegate?.didFinishLoadingData()
-                self.progressdelegate?.didFinishLoadingData()
+//                self.progressdelegate?.didFinishLoadingData()
 
 //                // Produce a default integrated preview for the viewer (safe detector covering full pattern)
 //                let fullDetector = Detector()
@@ -701,10 +712,7 @@ class STEMDataController: NSObject {
 #endif
         }
     }
-
-    
-
-    
+   
 
     func averagePattern(rect:NSRect)->Matrix{
         
@@ -765,73 +773,72 @@ class STEMDataController: NSObject {
         
     }
     
-    func dpc(_ detector:Detector,strideLength:Int = 1, lrud:Int = 0)->Matrix{
-        
-        let mask = detector.detectorMask()
+    func dpc(_ detector: Detector, strideLength: Int = 1, lrud: Int = 0) -> Matrix {
 
-        let indices = Matrix.init(meshIndicesAlong: lrud, patternSize.height, patternSize.width)
-        
-        let ldMask:Matrix?
-        let ruMask:Matrix?
+        let detectorMask = detector.detectorMask()
+        // Matrix(meshIndicesAlong:) uses 0 for x/column indices and 1 for y/row indices.
+        // DPC uses lrud = 1 for left-right (x split) and 0 for up-down (y split),
+        // so convert explicitly here instead of relying on matching integer values.
+        let meshAxis = (lrud == 1) ? 0 : 1
+        let indices = Matrix(meshIndicesAlong: meshAxis, patternSize.height, patternSize.width)
 
-        if lrud == 1{
-             ldMask = indices < Float(detector.center.x)
-             ruMask = indices > Float(detector.center.x)
-            
+        // Split the detector into two complementary halves for differential phase contrast.
+        // The DPC signal = leftOrDown intensity − rightOrUp intensity.
+        //
+        //   Horizontal DPC (lrud == 1): left  half (x < center.x) vs right half (x > center.x)
+        //   Vertical DPC   (lrud == 0): lower half (y > center.y) vs upper half (y < center.y)
+        //                               (y increases downward in image coordinates)
+        let leftOrDownMask: Matrix
+        let rightOrUpMask: Matrix
 
-        }else{
-             ldMask = indices > Float(detector.center.y)
-            ruMask = indices < Float(detector.center.y)
-
+        if lrud == 1 {
+            leftOrDownMask = indices < Float(detector.center.x)  // left half of detector
+            rightOrUpMask  = indices > Float(detector.center.x)  // right half of detector
+        } else {
+            leftOrDownMask = indices > Float(detector.center.y)  // lower half of detector
+            rightOrUpMask  = indices < Float(detector.center.y)  // upper half of detector
         }
-        
+
         let (strideWidth, strideHeight) = strideSize(imageSize, strideLength)
-        
-        //        let imageInts = self.integrating(mask, strideLength)
-        
-        var outArray = [Float].init(repeating: 0.0, count: strideWidth*strideHeight)
-        
+
+        var outArray = [Float](repeating: 0.0, count: strideWidth * strideHeight)
+
         let patternPixels = self.patternPixels
 
-        let ldMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
-        let ruMaskProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        // Pre-multiply each directional half mask by the detector aperture mask
+        let leftOrDownDetectorMask = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        let rightOrUpDetectorMask  = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        let leftOrDownIntensity    = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        let rightOrUpIntensity     = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
 
-        let ruProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
-        let ldProduct = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+        vDSP_vmul(detectorMask.real, 1, leftOrDownMask.real, 1, leftOrDownDetectorMask, 1, UInt(patternPixels))
+        vDSP_vmul(detectorMask.real, 1, rightOrUpMask.real,  1, rightOrUpDetectorMask,  1, UInt(patternPixels))
 
-        vDSP_vmul(mask.real, 1, ldMask!.real, 1, ldMaskProduct, 1, UInt(patternPixels))
-        vDSP_vmul(mask.real, 1, ruMask!.real, 1, ruMaskProduct, 1, UInt(patternPixels))
-        
-        let ldPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
-        let ruPixelSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+        let leftOrDownSum = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
+        let rightOrUpSum  = UnsafeMutablePointer<Float32>.allocate(capacity: 1)
 
         var pos = 0
-        
-        for i in stride(from: 0, to: self.imageSize.height, by: strideLength){
-            for j in stride(from: 0, to: self.imageSize.width, by: strideLength){
-                
-                let nextPatternPointer = self.patternPointer!+(i*self.imageSize.width+j)*patternPixels
-                
-                vDSP_vmul(ldMaskProduct, 1, nextPatternPointer, 1, ldProduct, 1, UInt(patternPixels))
-                vDSP_vmul(ruMaskProduct, 1, nextPatternPointer, 1, ruProduct, 1, UInt(patternPixels))
-                
-//                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, patternPixels)
-                
-                vDSP_sve(ldProduct, 1, ldPixelSum, UInt(patternPixels))
-                vDSP_sve(ruProduct, 1, ruPixelSum, UInt(patternPixels))
 
-                
-                let dpcSignal = ldPixelSum.pointee-ruPixelSum.pointee
-                
-                outArray[pos] = dpcSignal
+        for i in stride(from: 0, to: self.imageSize.height, by: strideLength) {
+            for j in stride(from: 0, to: self.imageSize.width, by: strideLength) {
+
+                let patternPointer = self.patternPointer! + (i * self.imageSize.width + j) * patternPixels
+
+                // Apply each masked detector half to the diffraction pattern
+                vDSP_vmul(leftOrDownDetectorMask, 1, patternPointer, 1, leftOrDownIntensity, 1, UInt(patternPixels))
+                vDSP_vmul(rightOrUpDetectorMask,  1, patternPointer, 1, rightOrUpIntensity,  1, UInt(patternPixels))
+
+                // Sum the intensities in each half
+                vDSP_sve(leftOrDownIntensity, 1, leftOrDownSum, UInt(patternPixels))
+                vDSP_sve(rightOrUpIntensity,  1, rightOrUpSum,  UInt(patternPixels))
+
+                // DPC signal: left/down half minus right/up half
+                outArray[pos] = leftOrDownSum.pointee - rightOrUpSum.pointee
                 pos += 1
             }
-            // need to deallocate
-            
-            
         }
-        
-        return Matrix.init(array: outArray, strideHeight, strideWidth)
+
+        return Matrix(array: outArray, strideHeight, strideWidth)
     }
     
     func com(_ detector:Detector,strideLength:Int = 1, xy:COMAxis = .x)->Matrix{
@@ -846,6 +853,17 @@ class STEMDataController: NSObject {
         var outArray = [Float].init(repeating: 0.0, count: Int(strideWidth*strideHeight))
 
         let indices = Matrix.init(meshIndicesAlong: xy.rawValue, patternSize.height, patternSize.width)
+        
+        var shifted = indices.real
+                
+        let c:Float
+        if xy == .x {
+            c = Float(detector.center.x)
+        }else {
+            c = Float(detector.center.y)
+        }
+        
+        vDSP_vsadd(shifted, 1, [-c], &shifted, 1, vDSP_Length(shifted.count))
 
         DispatchQueue.global(qos: .userInteractive).sync {
         
@@ -864,7 +882,7 @@ class STEMDataController: NSObject {
                     
                     vDSP_vmul(mask.real, 1, nextPatternPointer, 1, maskPatternProduct, 1, UInt(patternPixels))
                     
-                    vDSP_vmul(maskPatternProduct, 1, indices.real, 1, indexWeighted, 1, UInt(patternPixels))
+                    vDSP_vmul(maskPatternProduct, 1, shifted, 1, indexWeighted, 1, UInt(patternPixels))
                     
                     vDSP_sve(maskPatternProduct, 1, pixelSum, UInt(patternPixels))
 
@@ -877,7 +895,7 @@ class STEMDataController: NSObject {
                     pos += 1
                 }
             }
-            maskPatternProduct.deallocate(capacity: patternPixels)
+            maskPatternProduct.deallocate()
 
             group.leave()
 
@@ -933,107 +951,6 @@ class STEMDataController: NSObject {
         
         return Matrix.init(array: outArray, Int(strideHeight), Int(strideWidth))
         
-    }
-    
-    func comColor(_ detector: Detector, strideLength: Int = 1) -> CVPixelBuffer? {
-        let comX = self.com(detector, strideLength: strideLength, xy: .x)
-        let comY = self.com(detector, strideLength: strideLength, xy: .y)
-        let rows = comX.rows
-        let cols = comX.columns
-        let count = rows * cols
-        
-        let xData = comX.real
-        let yData = comY.real
-        
-        var shiftedX = xData
-        var shiftedY = yData
-        
-        var mag = [Float](repeating: 0, count: count)
-        var hue = [Float](repeating: 0, count: count)
-        
-        var cx = Float(detector.center.x)
-        var cy = Float(detector.center.y)
-        
-        vDSP_vsadd(shiftedX, 1, [-cx], &shiftedX, 1, vDSP_Length(count))
-        vDSP_vsadd(shiftedY, 1, [-cy], &shiftedY, 1, vDSP_Length(count))
-        
-        vDSP.hypot(shiftedX, shiftedY, result: &mag)
-        
-        // angle with y down:
-        var negY = [Float](repeating: 0, count: count)
-        vDSP_vneg(shiftedY, 1, &negY, 1, vDSP_Length(count))
-        
-        var ang = [Float](repeating: 0, count: count)
-        ang.withUnsafeMutableBufferPointer { angPtr in
-            negY.withUnsafeBufferPointer { negYPtr in
-                shiftedX.withUnsafeBufferPointer { shiftedXPtr in
-                    vvatan2f(angPtr.baseAddress!, negYPtr.baseAddress!, shiftedXPtr.baseAddress!, [Int32(count)])
-                }
-            }
-        }
-        
-        // Convert angle to hue [0,1)
-
-        let pi = Float.pi
-        let twoPi = pi * 2.0
-        
-        vDSP_vsadd(ang, 1, [pi], &hue, 1, vDSP_Length(count))
-        vDSP_vsdiv(hue, 1, [twoPi], &hue, 1, vDSP_Length(count))
-        vDSP_vfrac(hue, 1, &hue, 1, vDSP_Length(count))
-        
-        // Normalize magnitude via 95th percentile and map to Value (brightness)
-        var val = mag
-        var sorted = val
-        sorted.sort()
-        let idx = max(0, min(count - 1, Int(Float(count - 1) * 0.95)))
-        let p95 = sorted[idx]
-        let inv = (p95 > 0) ? (1.0 / p95) : 1.0
-        if inv != 1.0 {
-            val = vDSP.multiply(inv, val)
-        }
-        val = vDSP.clip(val, to: 0.0...1.0)
-
-        // Use full saturation so hue is vivid while brightness encodes magnitude
-        let sat = [Float](repeating: 1.0, count: count)
-
-        // Convert HSV to RGB bytes (low magnitude -> black, high magnitude -> bright color)
-        let rgbBytes = self.hsvToRGB(h: hue, s: sat, v: val)
-        
-        // Create BGRA pixel buffer
-        let attrs = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true
-        ] as CFDictionary
-        
-        var pixelBuffer: CVPixelBuffer?
-        let status = CVPixelBufferCreate(kCFAllocatorDefault, cols, rows, kCVPixelFormatType_32BGRA, attrs, &pixelBuffer)
-        guard status == kCVReturnSuccess, let pb = pixelBuffer else {
-            return nil
-        }
-        
-        CVPixelBufferLockBaseAddress(pb, [])
-        
-        if let baseAddress = CVPixelBufferGetBaseAddress(pb) {
-            let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
-            for row in 0..<rows {
-                let rowPtr = baseAddress.advanced(by: row * bytesPerRow)
-                for col in 0..<cols {
-                    let srcIndex = (row * cols + col) * 3
-                    let pixelPtr = rowPtr.advanced(by: col * 4)
-                    let r = rgbBytes[srcIndex]
-                    let g = rgbBytes[srcIndex + 1]
-                    let b = rgbBytes[srcIndex + 2]
-                    pixelPtr.storeBytes(of: b, as: UInt8.self)       // B
-                    pixelPtr.advanced(by: 1).storeBytes(of: g, as: UInt8.self) // G
-                    pixelPtr.advanced(by: 2).storeBytes(of: r, as: UInt8.self) // R
-                    pixelPtr.advanced(by: 3).storeBytes(of: UInt8(255), as: UInt8.self) // A
-                }
-            }
-        }
-        
-        CVPixelBufferUnlockBaseAddress(pb, [])
-        
-        return pixelBuffer
     }
     
     private func hsvToRGB(h: [Float], s: [Float], v: [Float]) -> [UInt8] {
@@ -1140,8 +1057,6 @@ func strideSize(_ imageSize:IntSize, _ strideLength:Int)->(Int, Int){
     
     return (strideWidth, strideHeight)
 }
-
-
 
 
 

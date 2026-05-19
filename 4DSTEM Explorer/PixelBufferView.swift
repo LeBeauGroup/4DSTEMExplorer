@@ -22,3 +22,21 @@ struct PixelBufferView: NSViewRepresentable {
         nsView.image = img
     }
 }
+
+
+struct PatternView: NSViewRepresentable {
+    let pattern: NSImage
+    
+    func makeNSView(context: Context) -> NSImageView {
+        let v = NSImageView()
+        v.imageScaling = .scaleProportionallyUpOrDown
+        v.imageAlignment = .alignCenter
+        v.wantsLayer = true
+        return v
+    }
+
+    func updateNSView(_ nsView: NSImageView, context: Context) {
+        nsView.image = pattern
+    }
+}
+
