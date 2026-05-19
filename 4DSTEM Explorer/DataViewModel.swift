@@ -21,6 +21,7 @@ enum CalculationMode: Hashable {
 enum DPCAxis: Hashable {
     case leftRight // maps to lrud = 1 in STEMDataController.dpc
     case upDown    // maps to lrud = 0 in STEMDataController.dpc
+    case color
 }
 
 enum COMAxis:  Int, Hashable {
@@ -33,32 +34,25 @@ enum COMAxis:  Int, Hashable {
 
 
 final class DataViewModel: NSObject, ObservableObject {
-    // Drag/continuous update support
-    private var lastDragUpdate: TimeInterval = 0
-    private let dragUpdateInterval: TimeInterval = 0.012 // ~83 Hz
     @Published var isDragging: Bool = false
-    var marquee: CGRect? = nil
-    private var fullResRecomputeWorkItem: DispatchWorkItem?
 
     @Published var selectedURL: URL?
     @Published var status: String = "Idle"
     @Published var progress: Double = 0.0
     @Published var isLoading: Bool = false
     @Published var lastProgressTick: Int = 0
-    @Published var pixelBuffer: CVPixelBuffer?
-    @Published var scanPixelBuffer: CVPixelBuffer?
+    @Published var stride:Int = 1
     @Published var scanImage: NSImage?
     @Published var imageWidth: Int = 0
     @Published var imageHeight: Int = 0
-    @Published var selectedI: Int = 0
-    @Published var selectedJ: Int = 0
     @Published var selectionRect: CGRect? = nil
 
+    @Published var selected:Any? = nil
     @Published var patternSize: IntSize = .init(width: 32, height: 32)
 
     @Published var detectorShape: DetectorShape = .bf
     @Published var detectorType: DetectorType = .integrating
-    @Published var detectorInnerRadius: CGFloat = 0
+    @Published var detectorInnerRadius: CGFloat = 1
     @Published var detectorOuterRadius: CGFloat = 10
     @Published var detectorCenter: CGPoint = .zero
     
@@ -72,43 +66,138 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var lastFitScale: Double = 1.0
 
     @Published var calculationMode: CalculationMode = .integrate
-    @Published var strideLength: Int = 1
     @Published var dpcAxis: DPCAxis = .leftRight
+    
     @Published var comAxis: COMAxis = .x
-
-    // Export actions used by the toolbar
-    func exportImage() {
+    @Published var calibrations:Calibrations?
+    @Published var pattern_mat:Matrix? = nil
+    
+    
+    func export(type:String){
         
-        if let img = self.scanImage{
+        var outString:String = ""
+        var matrix: Matrix? = nil
+        let fileroot = selectedURL?.deletingPathExtension().lastPathComponent ?? ""
+        
+        switch type
+        {
+        case "image":
+            var lrud_xyLabel = ""
             
-           let imgData = img.tiffRepresentation
+            let detectorLabel =  String(describing: calculationMode)
+            var axisLabel:String = ""
             
-            let savePanel = NSSavePanel()
-            savePanel.allowedContentTypes = [.tiff]
-            savePanel.canCreateDirectories = true
-            savePanel.nameFieldStringValue = "MyImage.tiff"
-
-            savePanel.begin { result in
-                if result == .OK, let url = savePanel.url {
-                    do {
-                        try imgData?.write(to: url)
-//                            return true
-                        } catch {
-                            print("Failed to save image: \(error)")
-//                            return false
-                        }
-//                    print(success ? "Saved!" : "Failed!")
+            switch calculationMode {
+                
+            case .integrate:
+                break
+            case .dpc:
+                axisLabel = String(describing: dpcAxis)
+            case .com:
+                axisLabel = String(describing: comAxis)
+            }
+            
+            
+            if fileroot != "" {
+                outString = fileroot + "_" + detectorLabel
+                
+                if axisLabel != "" {
+                    outString += "_" + axisLabel
                 }
+                
+                outString += ".tif"
+                
+                
+            }
+            
+            if let (_, tmpMatrix) = computeScanImage(){
+                matrix = tmpMatrix
+            }
+            
+            
+            
+        case "pattern":
+            
+            if fileroot != "" {
+                outString = fileroot + "_"
+                if let (y,x) = selected as? (Int, Int){
+                    outString += "x\(x)_y\(y)"
+                }
+                
+                if let rect = selected as? CGRect{
+                    outString += "x\(Int(rect.origin.x))_y\(Int(rect.origin.y))_w\(Int(rect.size.width))_h\(Int(rect.size.height))"
+                }
+    
+                
+                outString += ".tif"
+            }
+            
+            matrix = pattern_mat
+            //            savePanel.nameFieldStringValue = (self.view.window?.title)!+"_"+(patternSelectionLabel?.stringValue)!
+            
+        default:
+            break
+        }
+        
+        if let amatrix = matrix{
+            
+            
+            // Present a save panel with suggested filename
+            let panel = NSSavePanel()
+            panel.canCreateDirectories = true
+            panel.showsTagField = false
+            panel.isExtensionHidden = false
+            panel.allowedFileTypes = ["tif", "tiff"]
+            panel.nameFieldStringValue = outString
+            
+            // Try to present as a sheet from a host window if available, otherwise modal
+            
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                
+                var bitmapRep:NSBitmapImageRep?
+                
+                
+                
+                bitmapRep = amatrix.floatImageRep()
+                
+                
+                
+                
+                // To add metadata, will need to switch to cgimagedestination
+                
+                var data:Data = Data.init()
+                
+                let props = [NSBitmapImageRep.PropertyKey:Any]()
+                
+                //        props[NSBitmapImageRep.PropertyKey.compressionFactor] = 1.0
+                //        props[NSBitmapImageRep.PropertyKey.gamma]  = 0.5
+                
+                if bitmapRep != nil{
+                    
+                    data = bitmapRep!.representation(using: NSBitmapImageRep.FileType.tiff, properties: props)!
+                }
+                
+                
+                var cgProps = [CFString:Any]()
+                
+                let dest =  CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil)
+                
+                
+                cgProps["{TIFF}" as CFString] = ["ImageDescription" as CFString:"A description" as CFString]
+                
+                CGImageDestinationAddImage(dest!, bitmapRep!.cgImage!, cgProps as CFDictionary)
+                
+                CGImageDestinationFinalize(dest!)
+                
             }
         }
-}
-    func exportPattern() {
-//        if let img = self.scanImage{
-//            
-//            img.save(img.name + "_pattern.tif", type: .tiff)
-//        }
+            
 
     }
+
+
+
 
     // Zoom controls used by the toolbar
     func zoomIn() {
@@ -130,73 +219,10 @@ final class DataViewModel: NSObject, ObservableObject {
     // MARK: - Drag-driven selection updates
     func beginDrag() {
         isDragging = true
-        lastDragUpdate = 0
     }
 
     func endDrag() {
         isDragging = false
-    }
-
-    func scheduleFullResRecompute(after delay: TimeInterval = 0.35) {
-        fullResRecomputeWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.computeScanImage()
-        }
-        fullResRecomputeWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
-    }
-
-    /// Update selection continuously from a point in the scan image view's coordinate space.
-    /// - Parameters:
-    ///   - location: The location in the view's coordinate space (origin at top-left for SwiftUI GeometryReader by default).
-    ///   - viewSize: The size of the view that renders the scan image.
-    ///   - throttle: If true, limits update rate to `dragUpdateInterval`.
-    func updateSelection(at location: CGPoint, in viewSize: CGSize, throttle: Bool = true) {
-        let now = CACurrentMediaTime()
-        if throttle {
-            if now - lastDragUpdate < dragUpdateInterval { return }
-            lastDragUpdate = now
-        }
-
-        let imgW = max(1, self.dataController.imageSize.width)
-        let imgH = max(1, self.dataController.imageSize.height)
-        let vW = max(1.0, Double(viewSize.width))
-        let vH = max(1.0, Double(viewSize.height))
-
-        // Map view-space point to image indices. Assume the scan image is aspect-fit inside the view.
-        // Compute aspect-fit rect of the image within the view to handle letterboxing.
-        let imgAspect = Double(imgW) / Double(imgH)
-        let viewAspect = vW / vH
-
-        var drawRect = CGRect(origin: .zero, size: CGSize(width: vW, height: vH))
-        if imgAspect > viewAspect {
-            // Image is wider than view: full width, vertical letterboxing
-            let drawHeight = vW / imgAspect
-            let yOffset = (vH - drawHeight) / 2.0
-            drawRect = CGRect(x: 0, y: yOffset, width: vW, height: drawHeight)
-        } else {
-            // Image is taller than view: full height, horizontal letterboxing
-            let drawWidth = vH * imgAspect
-            let xOffset = (vW - drawWidth) / 2.0
-            drawRect = CGRect(x: xOffset, y: 0, width: drawWidth, height: vH)
-        }
-
-        // Convert location to normalized coordinates within drawRect
-        let x = Double(location.x)
-        let y = Double(location.y)
-        guard drawRect.width > 0 && drawRect.height > 0 else { return }
-        let nx = (x - Double(drawRect.minX)) / Double(drawRect.width)
-        let ny = (y - Double(drawRect.minY)) / Double(drawRect.height)
-
-        // If outside the drawn image area, clamp to edges
-        let clampedNX = min(max(nx, 0.0), 1.0)
-        let clampedNY = min(max(ny, 0.0), 1.0)
-
-        // Map to image indices. Note: SwiftUI's origin is top-left in GeometryReader, so y increases downward already.
-        let j = Int(round(clampedNX * Double(imgW - 1)))
-        let i = Int(round(clampedNY * Double(imgH - 1)))
-
-        self.select(i: i, j: j)
     }
 
     private let dataController = STEMDataController()
@@ -204,13 +230,11 @@ final class DataViewModel: NSObject, ObservableObject {
     private var imageUpdateObserver: NSObjectProtocol?
 
     override init() {
-        
-        strideLength = 1
-        
+                
         super.init()
         
         dataController.delegate = self
-        dataController.progressdelegate = self
+//        dataController.progressdelegate = self
         
         
 
@@ -271,7 +295,7 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
 // SwiftUI panel to prompt for RAW dimensions
-    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int)?) -> Void) {
+    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step:Float?, diff_step:Float?)?) -> Void) {
         // Helper to parse strings like "80x80", "256×128", "64 X 32"
         func parseXY(_ text: String) -> (Int, Int)? {
             // Normalize input: trim, lowercase, unify separators, and be tolerant to spaces
@@ -315,46 +339,10 @@ final class DataViewModel: NSObject, ObservableObject {
         }
 
         // State holders for the sheet lifecycle
-        var result: (Int, Int)? = nil
+        var result: (Int, Int, Float?, Float?)? = nil
 
         // SwiftUI content
-        struct RawDimsSheet: View {
-            @State var text: String
-            let fileHint: String
-            let onCancel: () -> Void
-            let onOK: (String) -> Void
-
-            var body: some View {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("RAW Scan Dimensions").font(.title2).bold()
-                        Spacer()
-                    }
-                    Divider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Enter the number of scan positions as “X×Y” (e.g., 80x80).").foregroundStyle(.secondary)
-                        if !fileHint.isEmpty {
-                            Text(fileHint).font(.footnote).foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Scan size (X×Y):")
-                            TextField("80x80", text: $text)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 160)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                    HStack {
-                        Spacer()
-                        Button("Cancel") { onCancel() }
-                        Button("OK") { onOK(text) }
-                            .keyboardShortcut(.defaultAction)
-                    }
-                }
-                .padding(16)
-                .frame(minWidth: 200, minHeight: 220)
-            }
-        }
+        
 
         // Create an NSPanel hosting the SwiftUI content
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 260),
@@ -368,7 +356,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
         let fileHint = self.selectedURL?.lastPathComponent ?? ""
 
-        let hosting = NSHostingView(rootView: RawDimsSheet(text: defaultString, fileHint: fileHint, onCancel: {
+        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step:"None", fileHint: fileHint, onCancel: {
             if let parent = panel.sheetParent {
                 parent.endSheet(panel, returnCode: .cancel)
                 DispatchQueue.main.async { completion(nil) }
@@ -377,9 +365,14 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { text in
-            if let xy = parseXY(text) {
-                result = xy
+        }, onOK: { scan_dims, scan_step, diff_step in
+            if let xy = parseXY(scan_dims) {
+                
+                let scan_step = Float(scan_step) ?? nil
+                let diff_step = Float(diff_step) ?? nil
+                
+                
+                result = (xy.0, xy.1, scan_step, diff_step)
                 if let parent = panel.sheetParent {
                     parent.endSheet(panel, returnCode: .OK)
                     DispatchQueue.main.async { completion(result) }
@@ -454,6 +447,9 @@ final class DataViewModel: NSObject, ObservableObject {
                 guard let self = self else { return }
                 if let dims = dims {
                     self.dataController.setRawImageSize(width: dims.w, height: dims.h)
+                    
+                    self.calibrations = Calibrations(scan_step: dims.scan_step, diff_step: dims.diff_step)
+                    
                     self.continueOpen(afterPromptFor: url)
                 } else {
                     self.isLoading = false
@@ -489,8 +485,9 @@ final class DataViewModel: NSObject, ObservableObject {
                              y: max(0, min(CGFloat(pH - 1), detectorCenter.y)))
         
         
-        let radii = DetectorRadii(inner: detectorInnerRadius, outer: detectorOuterRadius)
-        return Detector(shape: detectorShape, type: detectorType, center: center, radii: radii, size: NSSize(width: pW, height: pH))
+        let clampedInnerRadius = min(detectorInnerRadius, detectorOuterRadius)
+        let params:[DetectorParameter: Float]  = [.innerRadius:Float(clampedInnerRadius), .outerRadius:Float(detectorOuterRadius)]
+        return Detector(shape: detectorShape, type: detectorType, center: center, params: params, size: NSSize(width: pW, height: pH))
     }
     private func dynamicStrideForTargetGrid(targetWidth: Int = 80, targetHeight: Int = 80) -> Int {
         let w = max(1, self.dataController.imageSize.width)
@@ -500,144 +497,268 @@ final class DataViewModel: NSObject, ObservableObject {
         let sy = max(1, Int(ceil(Double(h) / Double(targetHeight))))
         return max(sx, sy)
     }
-
-#if DEBUG
-    private func debugGradientImageX() {
-        let w = max(1, dataController.imageSize.width)
-        let h = max(1, dataController.imageSize.height)
-        let rows = h
-        let cols = w
-        var arr = [Float](repeating: 0, count: rows * cols)
-        for r in 0..<rows {
-            for c in 0..<cols {
-                arr[r * cols + c] = Float(c) / Float(max(1, cols - 1)) // increases across columns
-            }
-        }
-        let mat = Matrix(array: arr, rows, cols)
-        self.scanPixelBuffer = makePixelBuffer(from: mat)
-    }
-
-    private func debugGradientImageY() {
-        let w = max(1, dataController.imageSize.width)
-        let h = max(1, dataController.imageSize.height)
-        let rows = h
-        let cols = w
-        var arr = [Float](repeating: 0, count: rows * cols)
-        for r in 0..<rows {
-            let v = Float(r) / Float(max(1, rows - 1)) // increases down rows
-            for c in 0..<cols {
-                arr[r * cols + c] = v
-            }
-        }
-        let mat = Matrix(array: arr, rows, cols)
-        self.scanPixelBuffer = makePixelBuffer(from: mat)
-    }
-#endif
     
-    func nsImage() -> NSImage? {
-        if let pixelBuffer = self.scanPixelBuffer{
-            // 1. Create a CIImage from the pixel buffer
-            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            
-            // 2. Initialize a CIContext for rendering
-            let context = CIContext(options: nil)
-            
-            // 3. Create a CGImage from the CIImage
-            let width = CVPixelBufferGetWidth(pixelBuffer)
-            let height = CVPixelBufferGetHeight(pixelBuffer)
-            let extent = CGRect(x: 0, y: 0, width: width, height: height)
-            
-            guard let cgImage = context.createCGImage(ciImage, from: extent) else {
-                return nil
-            }
-            
-            // 4. Create the final NSImage
-            return NSImage(cgImage: cgImage, size: NSSize(width: width, height: height))
-        }
-        return nil
-        
-    }
-
-//    func computeScanImage() {
-//        let pW = self.dataController.patternSize.width
-//        let pH = self.dataController.patternSize.height
-//        if pW == 0 || pH == 0 { return }
-//        let det = currentDetector()
-//        let mat = self.dataController.integrating(det, strideLength: 1)
-//        self.scanPixelBuffer = makePixelBuffer(from: mat)
-//    }
-    func computeScanImage(interactive: Bool = false) {
+    
+func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
-        if pW == 0 || pH == 0 { return }
+        if pW == 0 || pH == 0 { return nil }
+        
         let det = currentDetector()
 
 //        let baseStride = (stride > 0) ? stride : self.strideLength
         
-        let strideLen: Int
+
         
         if interactive {
-            strideLen = max(1, dynamicStrideForTargetGrid())
+            stride = max(1, dynamicStrideForTargetGrid())
         } else {
-            strideLen = 1
+            stride = 1
         }
                 
-        let mat: Matrix
+        var mat: Matrix
+        var tempImage:NSImage?
+        
         switch calculationMode {
         case .integrate:
-            mat = self.dataController.integrating(det, strideLength: strideLen)
+            mat = self.dataController.integrating(det, strideLength: stride)
         case .com:
             switch self.comAxis {
             case .x, .y:
-                mat = self.dataController.com(det, strideLength: strideLen, xy: self.comAxis)
+                mat = self.dataController.com(det, strideLength: stride, xy: self.comAxis)
+                
             case .color:
-                if let pb = self.dataController.comColor(det, strideLength: strideLen) {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.scanPixelBuffer = pb
 
-                        
-                        
-                        if let image = self?.nsImage(){
-                            self?.scanImage = self?.scaleStrideImage(image, strideLen)
-
-                        }
-                    }
-                } else {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.scanPixelBuffer = nil
-                        self?.scanImage = nil
-                    }
-                }
-                return
+                let comX = self.dataController.com(det, strideLength: stride, xy: .x)
+                let comY = self.dataController.com(det, strideLength: stride, xy: .y)
+                
+                guard let (img, m) = colorCom(comX, comY,removeDCOffset: false) else { return nil }
+                tempImage = img
+                mat = m
+            
             }
         case .dpc:
-            // lrud: 1 = left-right, 0 = up-down (per STEMDataController.dpc)
-            let lrud = (dpcAxis == .leftRight) ? 1 : 0
-            mat = self.dataController.dpc(det, strideLength: strideLen, lrud: lrud)
+            switch dpcAxis {
+            case .leftRight, .upDown:
+                // lrud: 1 = left-right, 0 = up-down (per STEMDataController.dpc)
+                let lrud = (dpcAxis == .leftRight) ? 1 : 0
+                mat = self.dataController.dpc(det, strideLength: stride, lrud: lrud)
+            case .color:
+                let dpcX = self.dataController.dpc(det, strideLength: stride, lrud: 1)
+                let dpcY = self.dataController.dpc(det, strideLength: stride, lrud: 0)
+
+                guard let (img, m) = colorCom(dpcX, dpcY, removeDCOffset: true) else { return nil }
+                tempImage = img
+                mat = m
+            }
         }
-        self.scanPixelBuffer = makePixelBuffer(from: mat)
 
-        var tempImage = self.nsImage()
+        if tempImage == nil {
+            tempImage = makeImage(from: mat)
+        }
         
-        if let image = tempImage{
-            tempImage = scaleStrideImage(image, strideLen)
-
+        if let tempImage = tempImage {
+            
+            if let finalImage = scaleStrideImage(tempImage, stride)
+            {
+                    return (finalImage, mat)
+               
+            }
         }
 
-        self.scanImage = tempImage
-        
-        
-        
+        return nil
+            
         
     }
     
+    private func colorCom(_ x: Matrix, _ y: Matrix, removeDCOffset: Bool = false) -> (NSImage, Matrix)? {
+        
+
+        let rows = x.rows
+        let cols = x.columns
+        let count = rows * cols
+        
+        var xData = x.real
+        var yData = y.real
+
+        if removeDCOffset {
+            let sampleCount = Float(count)
+            let xMean = xData.reduce(0, +) / sampleCount
+            let yMean = yData.reduce(0, +) / sampleCount
+            vDSP_vsadd(xData, 1, [-xMean], &xData, 1, vDSP_Length(count))
+            vDSP_vsadd(yData, 1, [-yMean], &yData, 1, vDSP_Length(count))
+        }
+        
+      
+        var mag = [Float](repeating: 0, count: count)
+        var hue = [Float](repeating: 0, count: count)
+        
+//        var cx = Float(detector.center.x)
+//        var cy = Float(detector.center.y)
+//        
+//        vDSP_vsadd(shiftedX, 1, [-cx], &shiftedX, 1, vDSP_Length(count))
+//        vDSP_vsadd(shiftedY, 1, [-cy], &shiftedY, 1, vDSP_Length(count))
+        
+        vDSP.hypot(xData, yData, result: &mag)
+        
+        // angle with y down:
+        var negY = [Float](repeating: 0, count: count)
+        vDSP_vneg(yData, 1, &negY, 1, vDSP_Length(count))
+        
+        var ang = [Float](repeating: 0, count: count)
+        ang.withUnsafeMutableBufferPointer { angPtr in
+            negY.withUnsafeBufferPointer { negYPtr in
+                xData.withUnsafeBufferPointer { xPtr in
+                    vvatan2f(angPtr.baseAddress!, negYPtr.baseAddress!, xPtr.baseAddress!, [Int32(count)])
+                }
+            }
+        }
+        
+        // Convert angle to hue [0,1)
+
+        let pi = Float.pi
+        let twoPi = pi * 2.0
+        
+        vDSP_vsadd(ang, 1, [pi], &hue, 1, vDSP_Length(count))
+        vDSP_vsdiv(hue, 1, [twoPi], &hue, 1, vDSP_Length(count))
+        vDSP_vfrac(hue, 1, &hue, 1, vDSP_Length(count))
+        
+        // Normalize magnitude via 95th percentile and map to Value (brightness)
+        var val = mag
+        var sorted = val
+        sorted.sort()
+        let idx = max(0, min(count - 1, Int(Float(count - 1) * 0.95)))
+        let p95 = sorted[idx]
+        let inv = (p95 > 0) ? (1.0 / p95) : 1.0
+        if inv != 1.0 {
+            val = vDSP.multiply(inv, val)
+        }
+        val = vDSP.clip(val, to: 0.0...1.0)
+
+        // Use full saturation so hue is vivid while brightness encodes magnitude
+        let sat = [Float](repeating: 1.0, count: count)
+
+        // Convert HSV to RGB bytes (low magnitude -> black, high magnitude -> bright color)
+        let rgbBytes = hsvToRGB(h: hue, s: sat, v: val)
+        
+        // Create BGRA pixel buffer
+        let attrs = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ] as CFDictionary
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(kCFAllocatorDefault, cols, rows, kCVPixelFormatType_32BGRA, attrs, &pixelBuffer)
+        guard status == kCVReturnSuccess, let pb = pixelBuffer else {
+            return nil
+        }
+        
+        CVPixelBufferLockBaseAddress(pb, [])
+        
+        if let baseAddress = CVPixelBufferGetBaseAddress(pb) {
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
+            for row in 0..<rows {
+                let rowPtr = baseAddress.advanced(by: row * bytesPerRow)
+                for col in 0..<cols {
+                    let srcIndex = (row * cols + col) * 3
+                    let pixelPtr = rowPtr.advanced(by: col * 4)
+                    let r = rgbBytes[srcIndex]
+                    let g = rgbBytes[srcIndex + 1]
+                    let b = rgbBytes[srcIndex + 2]
+                    pixelPtr.storeBytes(of: b, as: UInt8.self)       // B
+                    pixelPtr.advanced(by: 1).storeBytes(of: g, as: UInt8.self) // G
+                    pixelPtr.advanced(by: 2).storeBytes(of: r, as: UInt8.self) // R
+                    pixelPtr.advanced(by: 3).storeBytes(of: UInt8(255), as: UInt8.self) // A
+                }
+            }
+        }
+        
+        CVPixelBufferUnlockBaseAddress(pb, [])
+        
+        let ciImage = CIImage(cvImageBuffer: pb)
+        let context = CIContext(options: nil)
+
+        if let cgImage = context.createCGImage(ciImage, from: CGRect(x: 0, y: 0, width: cols, height: rows)){
+            let image = NSImage(cgImage: cgImage, size: CGSize(width: cols, height: rows))
+            let angMatrix  = Matrix(array: ang, rows, cols, type:.complex)
+            let magMatrix = Matrix(array: mag, rows, cols)
+            let mat = magMatrix + angMatrix
+            
+            if let mat = mat{
+                return (image, mat)
+            }
+            
+            return nil           
+        }
+        
+        return nil
+    }
+    
+    private func hsvToRGB(h: [Float], s: [Float], v: [Float]) -> [UInt8] {
+        // Convert HSV float arrays to RGB UInt8 array (3 components per pixel)
+        // h, s, v expected in [0,1]
+        // Output RGB in [0,255]
+        let count = h.count
+        var rgb = [UInt8](repeating: 0, count: count * 3)
+        
+        for i in 0..<count {
+            let hue = h[i] * 6.0
+            let saturation = s[i]
+            let value = v[i]
+            
+            let c = value * saturation
+            let x = c * (1 - abs(fmod(hue, 2.0) - 1))
+            let m = value - c
+            
+            var r1: Float = 0
+            var g1: Float = 0
+            var b1: Float = 0
+            
+            if hue.isNaN{
+                rgb[i * 3] = 0
+                rgb[i * 3 + 1] = 0
+                rgb[i * 3 + 2] = 0
+                
+                continue
+            }
+            
+            switch Int(hue) {
+            case 0:
+                r1 = c; g1 = x; b1 = 0
+            case 1:
+                r1 = x; g1 = c; b1 = 0
+            case 2:
+                r1 = 0; g1 = c; b1 = x
+            case 3:
+                r1 = 0; g1 = x; b1 = c
+            case 4:
+                r1 = x; g1 = 0; b1 = c
+            case 5:
+                r1 = c; g1 = 0; b1 = x
+            default:
+                r1 = 0; g1 = 0; b1 = 0
+            }
+            
+            let r = UInt8(max(0, min(255, Int((r1 + m) * 255))))
+            let g = UInt8(max(0, min(255, Int((g1 + m) * 255))))
+            let b = UInt8(max(0, min(255, Int((b1 + m) * 255))))
+            
+            rgb[i * 3] = r
+            rgb[i * 3 + 1] = g
+            rgb[i * 3 + 2] = b
+        }
+        
+        return rgb
+    }
+    
     private func scaleStrideImage(_ image: NSImage,_ stride:Int) -> NSImage?{
+        
         if stride != 1{
             let tempSize = image.size
-            print(tempSize)
+
             let newSize = NSSize(width: tempSize.width * CGFloat(stride), height: tempSize.height * CGFloat(stride))
             let newImage = NSImage(size: newSize)
-            print(newSize, tempSize)
+
             newImage.lockFocus()
             
             // Draw the source image into the new size rectangle
@@ -651,125 +772,54 @@ final class DataViewModel: NSObject, ObservableObject {
         }else{
             return image
         }
+        
+    }
+
+    func getPatternImage(rect: CGRect)->(NSImage, Matrix)?{
+                
+        if selectionMode == .marquee{
             
+            let avgMatrix = self.dataController.averagePattern(rect: rect)
+            
+            if let avgImg = makeImage(from: avgMatrix){
+                return (avgImg, avgMatrix)
+            }
+            return nil
+            
+            
+
+            
+        }
+        return nil
         
     }
-
-    func select(i: Int, j: Int) {
-        self.selectedI = max(0, min(i, max(0, self.dataController.imageSize.height - 1)))
-        self.selectedJ = max(0, min(j, max(0, self.dataController.imageSize.width - 1)))
-
-        if selectionMode == .point {
-            if let m = self.dataController.pattern(self.selectedI, self.selectedJ) {
-                self.pixelBuffer = makePixelBuffer(from: m)
-            } else {
-                self.pixelBuffer = nil
-            }
-        } else {
-            beginMarquee(atI: self.selectedI, j: self.selectedJ)
-        }
-    }
-
-    func beginMarquee(atI i0: Int, j j0: Int) {
-        selectionRect = CGRect(x: j0, y: i0, width: 0, height: 0)
-        updatePatternForCurrentSelection()
-    }
-
-    func updateMarquee(toI i1: Int, j j1: Int) {
-        guard var rect = selectionRect else { return }
-        rect.size.width = CGFloat(j1) - rect.origin.x
-        rect.size.height = CGFloat(i1) - rect.origin.y
-        selectionRect = rect
-        updatePatternForCurrentSelection()
-    }
-
-    func endMarquee(atI i1: Int, j j1: Int) {
-        updateMarquee(toI: i1, j: j1)
-        updatePatternForCurrentSelection()
-    }
-
-    func updatePatternForCurrentSelection() {
-        guard imageWidth > 0, imageHeight > 0 else { return }
-        
-
-        switch selectionMode {
-        case .point:
-            if let m = self.dataController.pattern(self.selectedI, self.selectedJ) {
-                self.pixelBuffer = makePixelBuffer(from: m)
-            } else {
-                self.pixelBuffer = nil
-            }
-        case .marquee:
-            guard var rect = marquee else { return }
-//
-
-                let avg = self.dataController.averagePattern(rect: rect)
-                   self.pixelBuffer = makePixelBuffer(from: avg)
-
-        }
-    }
-
     
-    private func normalizedRect(_ rect: CGRect, maxWidth: Int, maxHeight: Int) -> CGRect {
-        var r = rect
-        if r.width < 0 { r.origin.x += r.width; r.size.width = -r.width }
-        if r.height < 0 { r.origin.y += r.height; r.size.height = -r.height }
-        r.origin.x = max(0, min(CGFloat(maxWidth - 1), r.origin.x))
-        r.origin.y = max(0, min(CGFloat(maxHeight - 1), r.origin.y))
-        r.size.width = max(0, min(CGFloat(maxWidth) - r.origin.x, r.size.width))
-        r.size.height = max(0, min(CGFloat(maxHeight) - r.origin.y, r.size.height))
-        return r
-    }
-
-    private func makePixelBuffer(from matrix: Matrix) -> CVPixelBuffer? {
-        let width = matrix.columns
-        let height = matrix.rows
-
-        var pixelBuffer: CVPixelBuffer?
-        let attrs: [CFString: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true
-        ]
-        let status = CVPixelBufferCreate(kCFAllocatorDefault,
-                                         width,
-                                         height,
-                                         kCVPixelFormatType_OneComponent8,
-                                         attrs as CFDictionary,
-                                         &pixelBuffer)
-        if status != kCVReturnSuccess { return nil }
-        guard let pb = pixelBuffer else { return nil }
-
-        CVPixelBufferLockBaseAddress(pb, [])
-        defer { CVPixelBufferUnlockBaseAddress(pb, []) }
-
-        guard let base = CVPixelBufferGetBaseAddress(pb)?.assumingMemoryBound(to: UInt8.self) else { return nil }
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
-
-        // Scale to 8-bit and copy row by row
-        var src = matrix.realUint8()
-        src.withUnsafeMutableBytes { raw in
-            let srcPtr = raw.bindMemory(to: UInt8.self).baseAddress!
-            for y in 0..<height {
-                let dstRow = base.advanced(by: y * bytesPerRow)
-                let srcRow = srcPtr.advanced(by: y * width)
-                memcpy(dstRow, srcRow, width)
+    func getPatternImage(i: Int, j: Int)->(NSImage, Matrix)? {
+        
+        if let m = self.dataController.pattern(i, j) {
+            if let pattern = makeImage(from: m){
+                
+                return (pattern, m)
             }
         }
 
-        return pb
+        return nil
+        
     }
-
-    private func robustMinMax(_ values: inout [Float], lowPercentile: Float = 0.02, highPercentile: Float = 0.98) -> (Float, Float) {
-        // Copy and partially sort to estimate percentiles
-        var sorted = values
-        sorted.sort()
-        let n = sorted.count
-        if n == 0 { return (0, 1) }
-        let loIdx = max(0, min(n - 1, Int(Float(n - 1) * lowPercentile)))
-        let hiIdx = max(0, min(n - 1, Int(Float(n - 1) * highPercentile)))
-        return (sorted[loIdx], sorted[hiIdx])
+    
+    func makeImage(from m:Matrix)->NSImage? {
+        
+        let width = m.columns
+        let height = m.rows
+        
+        if let cgImg = m.uInt8ImageRep()?.cgImage{
+            return NSImage(cgImage: cgImg, size: NSSize(width: width, height: height))
+        }
+        
+        return nil
+        
     }
-
+    
     private func hsvToRGB(h: [Float], s: Float, v: [Float]) -> [UInt8] {
         let count = min(h.count, v.count)
         var rgb = [UInt8](repeating: 0, count: count * 3)
@@ -791,71 +841,11 @@ final class DataViewModel: NSObject, ObservableObject {
         }
         return rgb
     }
-
-    private func hsvToRGB(h: [Float], s: [Float], v: [Float]) -> [UInt8] {
-        let count = min(h.count, min(s.count, v.count))
-        var rgb = [UInt8](repeating: 0, count: count * 3)
-        for i in 0..<count {
-            // Clamp inputs
-            let H = max(0.0, min(1.0, h[i]))
-            let S = max(0.0, min(1.0, s[i]))
-            let V = max(0.0, min(1.0, v[i]))
-
-            // Use NSColor to convert HSV (HSB) to RGB in sRGB space
-            let color = NSColor(hue: CGFloat(H), saturation: CGFloat(S), brightness: CGFloat(V), alpha: 1.0)
-            let srgb = color.usingColorSpace(.sRGB) ?? color
-            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-            srgb.getRed(&r, green: &g, blue: &b, alpha: &a)
-
-            rgb[i*3 + 0] = UInt8(min(max(r * 255.0, 0.0), 255.0))
-            rgb[i*3 + 1] = UInt8(min(max(g * 255.0, 0.0), 255.0))
-            rgb[i*3 + 2] = UInt8(min(max(b * 255.0, 0.0), 255.0))
-        }
-        return rgb
-    }
-
-    private func makeRGBPixelBuffer(fromRGB rgb: [UInt8], width: Int, height: Int) -> CVPixelBuffer? {
-        var pixelBuffer: CVPixelBuffer?
-        let attrs: [CFString: Any] = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true
-        ]
-        let status = CVPixelBufferCreate(kCFAllocatorDefault,
-                                         width,
-                                         height,
-                                         kCVPixelFormatType_32BGRA,
-                                         attrs as CFDictionary,
-                                         &pixelBuffer)
-        if status != kCVReturnSuccess { return nil }
-        guard let pb = pixelBuffer else { return nil }
-
-        CVPixelBufferLockBaseAddress(pb, [])
-        defer { CVPixelBufferUnlockBaseAddress(pb, []) }
-
-        guard let base = CVPixelBufferGetBaseAddress(pb)?.assumingMemoryBound(to: UInt8.self) else { return nil }
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pb)
-
-        // Pack RGB into BGRA with A = 255
-        for y in 0..<height {
-            let dstRow = base.advanced(by: y * bytesPerRow)
-            for x in 0..<width {
-                let srcIdx = (y * width + x) * 3
-                let dstIdx = x * 4
-                let r = rgb[srcIdx + 0]
-                let g = rgb[srcIdx + 1]
-                let b = rgb[srcIdx + 2]
-                dstRow[dstIdx + 0] = b
-                dstRow[dstIdx + 1] = g
-                dstRow[dstIdx + 2] = r
-                dstRow[dstIdx + 3] = 255
-            }
-        }
-        return pb
-    }
 }
 
-extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressDelegate {
-    func didFinishLoadingData() {
+extension DataViewModel: STEMDataControllerDelegate {
+
+    func didFinishLoadingData() -> (pattern:NSImage?, virtual:NSImage?) {
         isLoading = false
         if let url = selectedURL {
             status = "Loaded: \(url.lastPathComponent)"
@@ -867,25 +857,21 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
         self.patternSize.width = self.dataController.patternSize.width
         self.patternSize.height = self.dataController.patternSize.height
         self.detectorCenter = CGPoint(x: CGFloat(self.patternSize.width) / 2.0, y: CGFloat(self.patternSize.height) / 2.0)
-        if let m = dataController.pattern(0, 0) {
-            self.pixelBuffer = makePixelBuffer(from: m)
-//            self.computeScanImage()
-            let centerI = max(0, self.dataController.imageSize.height / 2)
-            let centerJ = max(0, self.dataController.imageSize.width / 2)
-            self.select(i: centerI, j: centerJ)
+        
+        if dataController.pattern(0, 0) != nil {
             let pW = self.dataController.patternSize.width
             let pH = self.dataController.patternSize.height
             let base = CGFloat(min(pW, pH))
-            self.detectorInnerRadius = 0
+            self.detectorInnerRadius = 1
             self.detectorOuterRadius = base * 0.15
             self.detectorShape = .bf
             self.detectorType = .integrating
             self.calculationMode = .integrate
-            self.strideLength = 1
             self.dpcAxis = .leftRight
             self.comAxis = .x
-            self.computeScanImage()
         }
+        
+        return (nil, nil)
     }
 
     func cancel(_ sender: Any) {
@@ -893,4 +879,3 @@ extension DataViewModel: STEMDataControllerDelegate, STEMDataControllerProgressD
         status = "Cancelled"
     }
 }
-

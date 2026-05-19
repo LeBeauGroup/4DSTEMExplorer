@@ -105,12 +105,12 @@ func TIFFheader(_ url: URL)throws ->[String:Any] {
     print(IFDcount)
     
 
-    for i in 0..<IFDcount{
+    for _ in 0..<IFDcount{
         
         var fieldTag:UInt16 = 0
         var fieldType:UInt16 = 0
         var fieldCount:UInt32 = 0
-        var fieldValue:UInt32 = 0
+//        var fieldValue:UInt32 = 0
         
         fh?.readData(ofLength: 2).withUnsafeBytes{(ptr: UnsafePointer<UInt16>) in
             var pointee = ptr.pointee

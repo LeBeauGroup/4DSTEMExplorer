@@ -55,9 +55,7 @@ class DetectorView: NSView {
         get{
                     
             
-            let imageView = (self.superview as! NSImageView)
-
-            
+            let imageView = (self.superview as! NSImageView)            
             return Detector(shape: detectorShape, type: detectorType, center: center, radii: radii!, size:imageView.image!.size)
         }
         set(newDetector){

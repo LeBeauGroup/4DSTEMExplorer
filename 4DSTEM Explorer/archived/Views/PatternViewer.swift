@@ -98,7 +98,9 @@ class PatternViewer: NSImageView {
         
         self.image = imageRep
         
-        detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint(x:0,y:0), radii: DetectorRadii(inner: 0, outer: 10),size:NSSize(width: 128, height: 128))
+        
+        
+        detectorView!.detector = Detector(shape: DetectorShape.bf, type: DetectorType.integrating, center: NSPoint(x:0,y:0), params: [.innerRadius: 0.0, .outerRadius:10.0],size:NSSize(width: 128, height: 128))
         
         
 //       detectorView!.frame = NSRect(origin: CGPoint(x:0, y:0 ) , size: NSSize(width: 80, height: 80))

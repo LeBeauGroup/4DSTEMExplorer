@@ -5,11 +5,12 @@ import SwiftUI
 struct FourDSTEMMenuCommands: Commands {
       @ObservedObject var model: DataViewModel
       @ObservedObject var openPanel: OpenPanelController
+    @Binding var showDetector:Bool
 
-      init(model: DataViewModel, openPanel: OpenPanelController) {
-          self.model = model
-          self.openPanel = openPanel
-      }
+//      init(model: DataViewModel, openPanel: OpenPanelController) {
+//          self.model = model
+//          self.openPanel = openPanel
+//      }
 
     var body: some Commands {
         // File menu
@@ -20,36 +21,38 @@ struct FourDSTEMMenuCommands: Commands {
                 }
             }
             .keyboardShortcut("o")
+            Menu("Export") {
+                Button("Image") {
+                    model.export(type: "image")
+                }.keyboardShortcut("i").disabled(model.selected == nil)
+                Button("Pattern") {
+                    model.export(type: "pattern")
+                }.keyboardShortcut("p")
+                    .disabled(model.selected == nil)
+            }
         }
 
         // Export menu
-        CommandMenu("Export") {
-            Button("Image") {
-                model.exportImage()
-            }
-            Button("Pattern") {
-                model.exportPattern()
-            }
-        }
+        
 
         // Detector menu
         CommandMenu("Detector") {
             // Shape
             Button("Bright Field") {
                 model.detectorShape = .bf
-                model.computeScanImage()
+//                model.computeScanImage()
             }
             .keyboardShortcut("1")
 
             Button("Annular Dark-field") {
                 model.detectorShape = .adf
-                model.computeScanImage()
+//                model.computeScanImage()
             }
             .keyboardShortcut("2")
 
             Button("Annular Field") {
                 model.detectorShape = .af
-                model.computeScanImage()
+//                model.computeScanImage()
             }
             .keyboardShortcut("3")
 
@@ -57,28 +60,24 @@ struct FourDSTEMMenuCommands: Commands {
 
             // Type
             Button("Integrating") {
-                model.detectorType = .integrating
-                model.computeScanImage()
+                model.calculationMode = .integrate
             }
             .keyboardShortcut("1", modifiers: [.option])
 
-            Button("Differential Phase Contrast") {
-                model.detectorType = .dpc
-                model.computeScanImage()
-            }
-            .keyboardShortcut("2", modifiers: [.option])
 
             Button("Center of Mass") {
-                model.detectorType = .com
-                model.computeScanImage()
+                model.calculationMode = .com
+            }
+            .keyboardShortcut("2", modifiers: [.option])
+            Button("Differential Phase Contrast") {
+                model.calculationMode = .dpc
             }
             .keyboardShortcut("3", modifiers: [.option])
 
             Divider()
 
-            Button("Show/Hide selection") {
-                // If you track selection visibility on the model, toggle it here.
-                // model.selectionIsHidden.toggle()
+            Button("Show/Hide Detector") {
+                showDetector.toggle()
             }
             .keyboardShortcut("/")
         }
@@ -86,23 +85,23 @@ struct FourDSTEMMenuCommands: Commands {
         // Image menu
         CommandMenu("Image") {
             Button("Zoom in") {
-                model.zoomIn()
+                NotificationCenter.default.post(name: .zoomIn, object: nil)
             }
             .keyboardShortcut("+")
 
             Button("Zoom out") {
-                model.zoomOut()
+                NotificationCenter.default.post(name: .zoomOut, object: nil)
             }
             .keyboardShortcut("-")
 
             Button("Zoom to fit") {
-                // Provide a zoomToFit() on your model if desired.
-                // model.zoomToFit()
+                NotificationCenter.default.post(name: .zoomToFit, object: nil)
+
             }
             .keyboardShortcut(".")
 
             Button("Actual size") {
-                model.setScale(1.0)
+                NotificationCenter.default.post(name: .zoomToActual, object: nil)
             }
             .keyboardShortcut("'")
         }
