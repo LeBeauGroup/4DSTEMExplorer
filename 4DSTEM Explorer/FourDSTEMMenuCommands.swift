@@ -3,8 +3,9 @@ import SwiftUI
 // MARK: - Menu Commands using direct model calls
 
 struct FourDSTEMMenuCommands: Commands {
-      @ObservedObject var model: DataViewModel
-      @ObservedObject var openPanel: OpenPanelController
+    @ObservedObject var model: DataViewModel
+    @ObservedObject var openPanel: OpenPanelController
+    @ObservedObject var recentFiles: RecentFilesController
     @Binding var showDetector:Bool
 
 //      init(model: DataViewModel, openPanel: OpenPanelController) {
@@ -17,10 +18,34 @@ struct FourDSTEMMenuCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("Open…") {
                 openPanel.open { url in
-                    model.open(url: url)
+                    Task { @MainActor in
+                        ExternalFileOpenHandler.openFiles([url], application: .shared)
+                    }
                 }
             }
             .keyboardShortcut("o")
+
+            Menu("Open Recent") {
+                if recentFiles.urls.isEmpty {
+                    Button("No Recent Files") { }
+                        .disabled(true)
+                } else {
+                    ForEach(recentFiles.urls, id: \.self) { url in
+                        Button(url.lastPathComponent) {
+                            Task { @MainActor in
+                                ExternalFileOpenHandler.openFiles([url], application: .shared)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Button("Clear Menu") {
+                        recentFiles.clear()
+                    }
+                }
+            }
+
             Menu("Export") {
                 Button("Image") {
                     model.export(type: "image")

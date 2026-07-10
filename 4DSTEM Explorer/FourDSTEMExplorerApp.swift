@@ -5,6 +5,31 @@ extension Notification.Name {
     static let fileLoaded = Notification.Name("fileLoaded")
 }
 
+@MainActor
+final class RecentFilesController: ObservableObject {
+    @Published private(set) var urls: [URL] = []
+
+    private let documentController = NSDocumentController.shared
+
+    init() {
+        refresh()
+    }
+
+    func noteOpened(_ url: URL) {
+        documentController.noteNewRecentDocumentURL(url)
+        refresh()
+    }
+
+    func clear() {
+        documentController.clearRecentDocuments(nil)
+        refresh()
+    }
+
+    func refresh() {
+        urls = documentController.recentDocumentURLs
+    }
+}
+
 final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
     @MainActor private static var pendingURLs: [URL] = []
     @MainActor private static var openMainWindow: (@MainActor () -> Void)?
@@ -17,13 +42,29 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
         drainPendingFiles()
     }
 
+    @MainActor
+    static func openFiles(_ urls: [URL], application: NSApplication) {
+        queue(urls, application: application)
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         Task { @MainActor in
-            Self.queue(urls, application: application)
+            Self.openFiles(urls, application: application)
         }
     }
 
+    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        Task { @MainActor in
+            Self.openFiles([URL(fileURLWithPath: filename)], application: sender)
+        }
+        return true
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         false
     }
 
@@ -47,9 +88,15 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
 
     @MainActor
     private static func showMainWindow(in application: NSApplication) {
-        openMainWindow?()
+        let existingWindow = application.windows.first(where: { $0.title == "4DSTEM Explorer" })
+            ?? application.windows.first(where: { $0.canBecomeMain && $0.styleMask.contains(.titled) })
 
-        let mainWindow = application.windows.first(where: { $0.title == "4DSTEM Explorer" })
+        if existingWindow == nil {
+            openMainWindow?()
+        }
+
+        let mainWindow = existingWindow
+            ?? application.windows.first(where: { $0.title == "4DSTEM Explorer" })
             ?? application.windows.first(where: { $0.canBecomeMain && $0.styleMask.contains(.titled) })
 
         if let mainWindow {
@@ -75,13 +122,18 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
 private struct ExternalFileOpenRegistration: ViewModifier {
     @Environment(\.openWindow) private var openWindow
     let model: DataViewModel
+    let recentFiles: RecentFilesController
 
     func body(content: Content) -> some View {
         content
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
             .onAppear {
                 ExternalFileOpenHandler.configure(
                     openMainWindow: { openWindow(id: "main") },
-                    openURL: { url in model.open(url: url) }
+                    openURL: { url in
+                        recentFiles.noteOpened(url)
+                        model.open(url: url)
+                    }
                 )
             }
     }
@@ -111,6 +163,7 @@ struct FourDSTEMExplorerApp: App {
     @State private var selectionMode: InteractiveMarkerView.SelectionMode = .point
     // Use StateObject for model ownership at the app root
     @StateObject private var model = DataViewModel()
+    @StateObject private var recentFiles = RecentFilesController()
 
     @StateObject private var openPanel = OpenPanelController()
     // Local state for user-editable scale text field (percent formatted)
@@ -119,12 +172,26 @@ struct FourDSTEMExplorerApp: App {
     @State private var calculationMode:CalculationMode = .integrate
 
     var body: some Scene {
-        Window("4DSTEM Explorer", id: "main") {
+        WindowGroup("4DSTEM Explorer", id: "main") {
             RootView(zoomScale: $zoomScale, selectionMode: $selectionMode, showDetector: $showDetector, calculationMode: $calculationMode)
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
-                .modifier(ExternalFileOpenRegistration(model: model))
+                .modifier(ExternalFileOpenRegistration(model: model, recentFiles: recentFiles))
+                .alert("Unable to Load File", isPresented: Binding(
+                    get: { model.loadErrorMessage != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            model.loadErrorMessage = nil
+                        }
+                    }
+                )) {
+                    Button("OK", role: .cancel) {
+                        model.loadErrorMessage = nil
+                    }
+                } message: {
+                    Text(model.loadErrorMessage ?? "")
+                }
 
                 .toolbar {
                     
@@ -218,9 +285,8 @@ struct FourDSTEMExplorerApp: App {
                     NSWindow.allowsAutomaticWindowTabbing = false
                 }
         }
-        .handlesExternalEvents(matching: Set<String>())
         .commands {
-            FourDSTEMMenuCommands(model: model, openPanel: openPanel, showDetector: $showDetector)
+            FourDSTEMMenuCommands(model: model, openPanel: openPanel, recentFiles: recentFiles, showDetector: $showDetector)
         }
     }
 }

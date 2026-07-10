@@ -38,6 +38,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
     @Published var selectedURL: URL?
     @Published var status: String = "Idle"
+    @Published var loadErrorMessage: String?
     @Published var progress: Double = 0.0
     @Published var isLoading: Bool = false
     @Published var lastProgressTick: Int = 0
@@ -77,13 +78,13 @@ final class DataViewModel: NSObject, ObservableObject {
         
         var outString:String = ""
         var matrix: Matrix? = nil
+        var renderedImage: NSImage? = nil
+        let exportColorImage = type == "image" && isColorScanImageMode
         let fileroot = selectedURL?.deletingPathExtension().lastPathComponent ?? ""
         
         switch type
         {
         case "image":
-            var lrud_xyLabel = ""
-            
             let detectorLabel =  String(describing: calculationMode)
             var axisLabel:String = ""
             
@@ -110,7 +111,8 @@ final class DataViewModel: NSObject, ObservableObject {
                 
             }
             
-            if let (_, tmpMatrix) = computeScanImage(){
+            if let (tmpImage, tmpMatrix) = computeScanImage(){
+                renderedImage = tmpImage
                 matrix = tmpMatrix
             }
             
@@ -155,45 +157,71 @@ final class DataViewModel: NSObject, ObservableObject {
             panel.begin { response in
                 guard response == .OK, let url = panel.url else { return }
                 
-                var bitmapRep:NSBitmapImageRep?
-                
-                
-                
-                bitmapRep = amatrix.floatImageRep()
-                
-                
-                
-                
-                // To add metadata, will need to switch to cgimagedestination
-                
-                var data:Data = Data.init()
-                
-                let props = [NSBitmapImageRep.PropertyKey:Any]()
-                
-                //        props[NSBitmapImageRep.PropertyKey.compressionFactor] = 1.0
-                //        props[NSBitmapImageRep.PropertyKey.gamma]  = 0.5
-                
-                if bitmapRep != nil{
-                    
-                    data = bitmapRep!.representation(using: NSBitmapImageRep.FileType.tiff, properties: props)!
+                let cgImage: CGImage?
+                if exportColorImage, let renderedImage {
+                    cgImage = self.make32BitRGBImage(from: renderedImage)
+                } else {
+                    cgImage = amatrix.floatImageRep().cgImage
                 }
-                
-                
+                guard let cgImage else { return }
+
                 var cgProps = [CFString:Any]()
                 
-                let dest =  CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil)
+                guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil) else { return }
                 
                 
                 cgProps["{TIFF}" as CFString] = ["ImageDescription" as CFString:"A description" as CFString]
                 
-                CGImageDestinationAddImage(dest!, bitmapRep!.cgImage!, cgProps as CFDictionary)
+                CGImageDestinationAddImage(dest, cgImage, cgProps as CFDictionary)
                 
-                CGImageDestinationFinalize(dest!)
+                CGImageDestinationFinalize(dest)
                 
             }
         }
             
 
+    }
+
+
+
+    private var isColorScanImageMode: Bool {
+        switch calculationMode {
+        case .com:
+            return comAxis == .color
+        case .dpc:
+            return dpcAxis == .color
+        case .integrate:
+            return false
+        }
+    }
+
+    private func make32BitRGBImage(from image: NSImage) -> CGImage? {
+        var proposedRect = CGRect(origin: .zero, size: image.size)
+        guard let sourceImage = image.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let width = sourceImage.width
+        let height = sourceImage.height
+        guard width > 0, height > 0 else { return nil }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .none
+        context.draw(sourceImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
     }
 
 
@@ -228,6 +256,7 @@ final class DataViewModel: NSObject, ObservableObject {
     private let dataController = STEMDataController()
     private var progressObserver: NSObjectProtocol?
     private var imageUpdateObserver: NSObjectProtocol?
+    private var securityScopedURL: URL?
 
     override init() {
                 
@@ -275,6 +304,14 @@ final class DataViewModel: NSObject, ObservableObject {
         if let obs = imageUpdateObserver {
             NotificationCenter.default.removeObserver(obs)
         }
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+    }
+
+    private func updateSecurityScopedAccess(for url: URL) {
+        if securityScopedURL == url { return }
+
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+        securityScopedURL = url.startAccessingSecurityScopedResource() ? url : nil
     }
 
     private func suggestRawDimensions(from url: URL) -> (w: Int?, h: Int?) {
@@ -417,26 +454,36 @@ final class DataViewModel: NSObject, ObservableObject {
     private func continueOpen(afterPromptFor url: URL) {
         do {
             try self.dataController.openFile(url: url)
-        } catch FileReadError.invalidTiff {
-            self.isLoading = false
-            self.status = "Selected image is incompatible. Please select an EMPAD tiff stack."
-        } catch FileReadError.invalidRaw {
-            self.isLoading = false
-            self.status = "Invalid RAW file. Check dimensions and try again."
-        } catch FileReadError.invalidDimensions {
-            self.isLoading = false
-            self.status = "Incorrect dimensions for the file."
-        } catch FileReadError.notDiffractionSI {
-            self.isLoading = false
-            self.status = "DM File does not contain a diffraction SI dataset."
         } catch {
-            self.isLoading = false
-            self.status = "Something went wrong loading the file."
+            handleOpenError(error)
         }
     }
 
+    private func handleOpenError(_ error: Error) {
+        isLoading = false
+
+        let message: String
+        switch error {
+        case FileReadError.invalidTiff:
+            message = "Selected image is incompatible. Please select an EMPAD tiff stack."
+        case FileReadError.invalidRaw:
+            message = "Invalid RAW file. Check dimensions and try again."
+        case FileReadError.invalidDimensions:
+            message = "Incorrect dimensions for the file."
+        case FileReadError.notDiffractionSI:
+            message = "DM File does not contain a diffraction SI dataset."
+        default:
+            message = "Something went wrong loading the file."
+        }
+
+        status = message
+        loadErrorMessage = message
+    }
+
     func open(url: URL) {
+        updateSecurityScopedAccess(for: url)
         selectedURL = url
+        loadErrorMessage = nil
         
         status = "Preparing to load \(url.lastPathComponent)…"
         isLoading = true
@@ -460,21 +507,8 @@ final class DataViewModel: NSObject, ObservableObject {
         }
         do {
             try dataController.openFile(url: url)
-        } catch FileReadError.invalidTiff {
-            isLoading = false
-            status = "Selected image is incompatible. Please select an EMPAD tiff stack."
-        } catch FileReadError.invalidRaw {
-            isLoading = false
-            status = "Invalid RAW file. Check dimensions and try again."
-        } catch FileReadError.invalidDimensions {
-            isLoading = false
-            status = "Incorrect dimensions for the file."
-        } catch FileReadError.notDiffractionSI {
-            isLoading = false
-            status = "DM File does not contain a diffraction SI dataset."
         } catch {
-            isLoading = false
-            status = "Something went wrong loading the file."
+            handleOpenError(error)
         }
     }
 
@@ -532,7 +566,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
                 let comX = self.dataController.com(det, strideLength: stride, xy: .x)
                 let comY = self.dataController.com(det, strideLength: stride, xy: .y)
                 
-                guard let (img, m) = colorCom(comX, comY,removeDCOffset: false) else { return nil }
+                guard let (img, m) = colorCom(comX, comY, removeDCOffset: true) else { return nil }
                 tempImage = img
                 mat = m
             
@@ -577,16 +611,36 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let rows = x.rows
         let cols = x.columns
         let count = rows * cols
+        guard rows == y.rows, cols == y.columns, count > 0 else { return nil }
         
         var xData = x.real
         var yData = y.real
+        var validVector = [Bool](repeating: false, count: count)
+        var finiteCount = 0
+        var xSum: Float = 0
+        var ySum: Float = 0
 
-        if removeDCOffset {
-            let sampleCount = Float(count)
-            let xMean = xData.reduce(0, +) / sampleCount
-            let yMean = yData.reduce(0, +) / sampleCount
-            vDSP_vsadd(xData, 1, [-xMean], &xData, 1, vDSP_Length(count))
-            vDSP_vsadd(yData, 1, [-yMean], &yData, 1, vDSP_Length(count))
+        for i in 0..<count {
+            let xValue = xData[i]
+            let yValue = yData[i]
+            if xValue.isFinite && yValue.isFinite {
+                validVector[i] = true
+                finiteCount += 1
+                xSum += xValue
+                ySum += yValue
+            } else {
+                xData[i] = 0
+                yData[i] = 0
+            }
+        }
+
+        if removeDCOffset, finiteCount > 0 {
+            let xMean = xSum / Float(finiteCount)
+            let yMean = ySum / Float(finiteCount)
+            for i in 0..<count where validVector[i] {
+                xData[i] -= xMean
+                yData[i] -= yMean
+            }
         }
         
       
@@ -601,27 +655,27 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         
         vDSP.hypot(xData, yData, result: &mag)
         
-        // angle with y down:
+        // Use both vector components for the full 0...360 degree color wheel.
+        // Negate y so image-space downward y maps to a conventional mathematical angle.
         var negY = [Float](repeating: 0, count: count)
         vDSP_vneg(yData, 1, &negY, 1, vDSP_Length(count))
         
         var ang = [Float](repeating: 0, count: count)
+        var vectorLength = Int32(count)
         ang.withUnsafeMutableBufferPointer { angPtr in
             negY.withUnsafeBufferPointer { negYPtr in
                 xData.withUnsafeBufferPointer { xPtr in
-                    vvatan2f(angPtr.baseAddress!, negYPtr.baseAddress!, xPtr.baseAddress!, [Int32(count)])
+                    vvatan2f(angPtr.baseAddress!, negYPtr.baseAddress!, xPtr.baseAddress!, &vectorLength)
                 }
             }
         }
         
         // Convert angle to hue [0,1)
-
-        let pi = Float.pi
-        let twoPi = pi * 2.0
-        
-        vDSP_vsadd(ang, 1, [pi], &hue, 1, vDSP_Length(count))
-        vDSP_vsdiv(hue, 1, [twoPi], &hue, 1, vDSP_Length(count))
-        vDSP_vfrac(hue, 1, &hue, 1, vDSP_Length(count))
+        let twoPi = Float.pi * 2.0
+        vDSP_vsdiv(ang, 1, [twoPi], &hue, 1, vDSP_Length(count))
+        for i in 0..<count where hue[i] < 0 {
+            hue[i] += 1.0
+        }
         
         // Normalize magnitude via 95th percentile and map to Value (brightness)
         var val = mag
@@ -705,7 +759,15 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
             let hue = h[i] * 6.0
             let saturation = s[i]
             let value = v[i]
-            
+
+            if !hue.isFinite || !saturation.isFinite || !value.isFinite {
+                rgb[i * 3] = 0
+                rgb[i * 3 + 1] = 0
+                rgb[i * 3 + 2] = 0
+
+                continue
+            }
+
             let c = value * saturation
             let x = c * (1 - abs(fmod(hue, 2.0) - 1))
             let m = value - c
@@ -847,6 +909,7 @@ extension DataViewModel: STEMDataControllerDelegate {
 
     func didFinishLoadingData() -> (pattern:NSImage?, virtual:NSImage?) {
         isLoading = false
+        loadErrorMessage = nil
         if let url = selectedURL {
             status = "Loaded: \(url.lastPathComponent)"
         } else {
@@ -872,6 +935,10 @@ extension DataViewModel: STEMDataControllerDelegate {
         }
         
         return (nil, nil)
+    }
+
+    func didFailLoadingData(_ error: Error) {
+        handleOpenError(error)
     }
 
     func cancel(_ sender: Any) {

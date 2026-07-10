@@ -47,6 +47,17 @@ struct RootView: View {
         let mrad = radius * step
         return mrad.isFinite ? mrad : 0.0
     }
+
+    private var showsColorWheelLegend: Bool {
+        switch model.calculationMode {
+        case .com:
+            return model.comAxis == .color
+        case .dpc:
+            return model.dpcAxis == .color
+        case .integrate:
+            return false
+        }
+    }
     
     private func scaleBarPixelsAndLabel(for viewWidth: CGFloat) -> (pixels: CGFloat, label: String)? {
         
@@ -244,7 +255,7 @@ struct RootView: View {
                     }()
 
                     VStack(spacing: 8) {
-                        ZStack(alignment: .bottomLeading) {
+                        ZStack(alignment: .topTrailing) {
                             ZoomableImageView(image: img, lastPoint: $lastPoint, marquee: $marquee, zoomScale:$zoomScale, selectionMode: $selectionMode)
                                 .onChange(of: virtual_image) { }
                                 .onChange(of: lastPoint) { _, point in
@@ -270,6 +281,12 @@ struct RootView: View {
                                 .focused($isFocused)
                                 .focusEffectDisabled(true)
                                 .onAppear { isFocused = true }
+
+                            if showsColorWheelLegend {
+                                ColorWheelLegend()
+                                    .padding(10)
+                                    .allowsHitTesting(false)
+                            }
 
 //                        GeometryReader { geo in
 //                            if let bar = scaleBarPixelsAndLabel(for: geo.size.width) {
@@ -463,6 +480,75 @@ struct RootView: View {
             .disabled(model.imageWidth == 0)
             .padding(4)
         }
+    }
+}
+
+private struct ColorWheelLegend: View {
+    private let diameter: CGFloat = 88
+
+    var body: some View {
+        Canvas { context, size in
+            let pixelWidth = max(1, Int(size.width.rounded(.down)))
+            let pixelHeight = max(1, Int(size.height.rounded(.down)))
+            let side = CGFloat(min(pixelWidth, pixelHeight))
+            let radius = side / 2.0 - 0.5
+            let center = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
+
+            for y in 0..<pixelHeight {
+                for x in 0..<pixelWidth {
+                    let dx = CGFloat(x) + 0.5 - center.x
+                    let dy = CGFloat(y) + 0.5 - center.y
+                    let distance = sqrt(dx * dx + dy * dy)
+                    guard distance <= radius else { continue }
+
+                    let angle = atan2(Double(-dy), Double(dx))
+                    var hue = angle / (2.0 * Double.pi)
+                    if hue < 0 {
+                        hue += 1.0
+                    }
+
+                    let brightness = Double(distance / radius)
+                    let rect = CGRect(x: CGFloat(x), y: CGFloat(y), width: 1, height: 1)
+                    context.fill(
+                        Path(rect),
+                        with: .color(Color(hue: hue, saturation: 1.0, brightness: brightness))
+                    )
+                }
+            }
+
+            let wheelRect = CGRect(
+                x: center.x - radius,
+                y: center.y - radius,
+                width: radius * 2.0,
+                height: radius * 2.0
+            )
+            context.stroke(Path(ellipseIn: wheelRect), with: .color(.white.opacity(0.85)), lineWidth: 1.0)
+
+            var ticks = Path()
+            for degrees in stride(from: 0.0, to: 360.0, by: 45.0) {
+                let radians = degrees * Double.pi / 180.0
+                let inner = radius - (degrees.truncatingRemainder(dividingBy: 90.0) == 0 ? 8.0 : 5.0)
+                let outerPoint = CGPoint(
+                    x: center.x + CGFloat(cos(radians)) * radius,
+                    y: center.y - CGFloat(sin(radians)) * radius
+                )
+                let innerPoint = CGPoint(
+                    x: center.x + CGFloat(cos(radians)) * inner,
+                    y: center.y - CGFloat(sin(radians)) * inner
+                )
+                ticks.move(to: innerPoint)
+                ticks.addLine(to: outerPoint)
+            }
+            context.stroke(ticks, with: .color(.white.opacity(0.75)), lineWidth: 1.0)
+        }
+        .frame(width: diameter, height: diameter)
+        .padding(6)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(.primary.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityLabel("Vector color reference")
     }
 }
 
