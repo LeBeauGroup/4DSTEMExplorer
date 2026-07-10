@@ -204,11 +204,59 @@ struct ZoomableImageView: NSViewRepresentable {
     }
 }
 
+private final class NearestNeighborImageView: NSView {
+    var image: NSImage? {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    override var isFlipped: Bool { true }
+
+    init(image: NSImage) {
+        self.image = image
+        super.init(frame: NSRect(origin: .zero, size: image.size))
+        wantsLayer = true
+        layer?.minificationFilter = "nearest"
+        layer?.magnificationFilter = "nearest"
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        layer?.minificationFilter = "nearest"
+        layer?.magnificationFilter = "nearest"
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let image else { return }
+
+        let context = NSGraphicsContext.current
+        let previousInterpolation = context?.imageInterpolation
+        context?.imageInterpolation = .none
+        image.draw(
+            in: bounds,
+            from: NSRect(origin: .zero, size: image.size),
+            operation: .copy,
+            fraction: 1.0,
+            respectFlipped: true,
+            hints: nil
+        )
+
+        if let previousInterpolation {
+            context?.imageInterpolation = previousInterpolation
+        }
+    }
+}
+
 // 2. The Custom AppKit View to handle clicks and drawing
 class InteractiveMarkerView: NSView {
     private var startPoint: NSPoint?
     private var marqueeView = MarqueeShapeView()
-    private var imageView:NSImageView
+    private var imageView:NearestNeighborImageView
     private var selectionBinding: Binding<CGRect?>
     private var isDraggingExisting = false
     private var dragOffset: NSSize = .zero
@@ -236,7 +284,7 @@ class InteractiveMarkerView: NSView {
         self.selectionModeBinding = selectionMode
         self.lastPointBinding = lastPoint
         self.image = image
-        imageView = NSImageView(image: image)
+        imageView = NearestNeighborImageView(image: image)
         imageView.frame = NSRect(origin: .zero, size: image.size)
 
         super.init(frame: .zero)

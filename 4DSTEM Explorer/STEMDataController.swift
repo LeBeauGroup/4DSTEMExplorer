@@ -42,7 +42,13 @@ enum DataType {
 
 protocol STEMDataControllerDelegate:class {
     func didFinishLoadingData()->(pattern:NSImage?, virtual:NSImage?)
+    func didFailLoadingData(_ error: Error)
 }
+
+extension STEMDataControllerDelegate {
+    func didFailLoadingData(_ error: Error) { }
+}
+
 protocol STEMDataControllerProgressDelegate:class {
     func cancel(_ sender:Any)
 }
@@ -400,17 +406,17 @@ class STEMDataController: NSObject {
 //        }
        
         
-        let ext = url.pathExtension
-        let uti = UTTypeCreatePreferredIdentifierForTag(
+        let ext = url.pathExtension.lowercased()
+        let typeIdentifier = UTTypeCreatePreferredIdentifierForTag(
             kUTTagClassFilenameExtension,
             ext as CFString,
             nil
-        )
+        )?.takeRetainedValue()
 
-        let isTIFF = UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeTIFF)
-        let isMRC = url.pathExtension == "mrc"
-        let isDM4 = url.pathExtension == "dm4"
-        let isRaw = url.pathExtension == "raw"
+        let isTIFF = typeIdentifier.map { UTTypeConformsTo($0, kUTTypeTIFF) } ?? false
+        let isMRC = ext == "mrc"
+        let isDM4 = ext == "dm4"
+        let isRaw = ext == "raw"
         
 
         var dataType: DataType = .unknown
@@ -532,6 +538,10 @@ class STEMDataController: NSObject {
             self.patternSize = detectorSize
             patternSize.height -= 2
             additionalRows = 2
+
+            if isRaw {
+                self.imageSize = providedRawImageSize ?? IntSize(width: 0, height: 0)
+            }
         }
 
         let elementSize = dataType.elementSize
@@ -605,6 +615,8 @@ class STEMDataController: NSObject {
                         }
                     }
                 }
+            } catch let fileReadError as FileReadError {
+                throw fileReadError
             } catch {
                 throw FileReadError.invalidRaw
             }
@@ -617,6 +629,10 @@ class STEMDataController: NSObject {
     
         
         let totalImages = self.imageSize.width * self.imageSize.height
+        guard totalImages > 0 else {
+            throw FileReadError.invalidDimensions
+        }
+
         let batchSize = 64
         let totalBatches = (totalImages + batchSize - 1) / batchSize
 
@@ -624,7 +640,17 @@ class STEMDataController: NSObject {
         let nc = NotificationCenter.default
 
         dwi = DispatchWorkItem {
+            let fail: (Error) -> Void = { error in
+                DispatchQueue.main.async {
+                    self.delegate?.didFailLoadingData(error)
+                }
+            }
+
             self.openFileHandle(url: url)
+            guard let fileHandle = self.fh else {
+                fail(FileReadError.invalidRaw)
+                return
+            }
 
             self.patternPointer?.deallocate()
             self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
@@ -632,16 +658,20 @@ class STEMDataController: NSObject {
             let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: detectorPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
 
-            self.fh?.seek(toFileOffset: firstImageOffset)
+            fileHandle.seek(toFileOffset: firstImageOffset)
             let fracComplete = max(1, Int(Double(totalImages) * 0.05))
 
             for batchIndex in 0..<totalBatches {
-                if self.dwi?.isCancelled ?? false { break }
+                if self.dwi?.isCancelled ?? false { return }
 
                 let imagesInBatch = min(batchSize, totalImages - batchIndex * batchSize)
                 let readSize = imagesInBatch * (totalPatternPixels) * elementSize
 
-                guard let batchData = self.fh?.readData(ofLength: readSize) else { continue }
+                let batchData = fileHandle.readData(ofLength: readSize)
+                guard batchData.count == readSize else {
+                    fail(FileReadError.invalidDimensions)
+                    return
+                }
                 
                 let count = imagesInBatch * totalPatternPixels
 
@@ -671,8 +701,8 @@ class STEMDataController: NSObject {
             }
 
             DispatchQueue.main.async(execute: DispatchWorkItem {
+                _ = self.delegate?.didFinishLoadingData()
                 nc.post(name: .fileLoaded, object: nil)
-                self.delegate?.didFinishLoadingData()
 //                self.progressdelegate?.didFinishLoadingData()
 
 //                // Produce a default integrated preview for the viewer (safe detector covering full pattern)
@@ -832,8 +862,10 @@ class STEMDataController: NSObject {
                 vDSP_sve(leftOrDownIntensity, 1, leftOrDownSum, UInt(patternPixels))
                 vDSP_sve(rightOrUpIntensity,  1, rightOrUpSum,  UInt(patternPixels))
 
-                // DPC signal: left/down half minus right/up half
-                outArray[pos] = leftOrDownSum.pointee - rightOrUpSum.pointee
+                // Horizontal DPC: R-L; Vertical DPC: D-U
+                outArray[pos] = lrud == 1
+                    ? rightOrUpSum.pointee - leftOrDownSum.pointee
+                    : leftOrDownSum.pointee - rightOrUpSum.pointee
                 pos += 1
             }
         }
