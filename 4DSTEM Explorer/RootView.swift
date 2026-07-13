@@ -20,6 +20,7 @@ struct RootView: View {
 
     @State private var virtual_image:NSImage?
     @State private var pattern_image:NSImage?
+    @State private var patternHoverInfo: PatternHoverInfo?
     @State private var needs_update:Bool = false
     @Binding var selectionMode: InteractiveMarkerView.SelectionMode
     @State var lastPoint: CGPoint?
@@ -131,56 +132,165 @@ struct RootView: View {
         
     }
 
+    private func updatePattern(rect: CGRect) {
+        if let (pi, pm) = model.getPatternImage(rect: rect) {
+            pattern_image = pi
+            pattern_mat = pm
+            model.pattern_mat = pm
+            model.selected = rect
+        }
+    }
+
+    private func refreshPatternDisplay() {
+        if selectionMode == .marquee, let rect = marquee {
+            updatePattern(rect: rect)
+        } else if let point = lastPoint {
+            updatePattern(Int(floor(point.y)), Int(floor(point.x)))
+        } else if model.imageWidth > 0 {
+            updatePattern(0, 0)
+        }
+    }
+
+    private func updatePatternHover(location: CGPoint, viewSize: CGSize, patternWidth: Int, patternHeight: Int) {
+        guard let matrix = pattern_mat, matrix.rows > 0, matrix.columns > 0 else {
+            patternHoverInfo = nil
+            return
+        }
+
+        let drawRect = fittedImageRect(viewSize: viewSize, imageWidth: patternWidth, imageHeight: patternHeight)
+        guard drawRect.contains(location) else {
+            patternHoverInfo = nil
+            return
+        }
+
+        let normalizedX = (location.x - drawRect.minX) / max(drawRect.width, 1)
+        let normalizedY = (location.y - drawRect.minY) / max(drawRect.height, 1)
+        let rawJ = Int(floor(normalizedX * CGFloat(matrix.columns)))
+        let rawI = Int(floor(normalizedY * CGFloat(matrix.rows)))
+        let j = Swift.min(Swift.max(rawJ, 0), matrix.columns - 1)
+        let i = Swift.min(Swift.max(rawI, 0), matrix.rows - 1)
+        let intensity = matrix.get(i, j).0
+
+        patternHoverInfo = PatternHoverInfo(i: i, j: j, intensity: intensity)
+    }
+
+    private func fittedImageRect(viewSize: CGSize, imageWidth: Int, imageHeight: Int) -> CGRect {
+        let imgW = CGFloat(max(imageWidth, 1))
+        let imgH = CGFloat(max(imageHeight, 1))
+        let imageAspect = imgW / imgH
+        let viewAspect = viewSize.width / max(viewSize.height, 1)
+
+        if imageAspect > viewAspect {
+            let drawHeight = viewSize.width / imageAspect
+            let yOffset = (viewSize.height - drawHeight) / 2.0
+            return CGRect(x: 0, y: yOffset, width: viewSize.width, height: drawHeight)
+        } else {
+            let drawWidth = viewSize.height * imageAspect
+            let xOffset = (viewSize.width - drawWidth) / 2.0
+            return CGRect(x: xOffset, y: 0, width: drawWidth, height: viewSize.height)
+        }
+    }
+
+    private var patternHoverText: String {
+        guard let info = patternHoverInfo else {
+            return "(i: -, j: -, intensity: -)"
+        }
+
+        return "(i: \(info.i), j: \(info.j), intensity: \(formatIntensity(info.intensity)))"
+    }
+
+    private func formatIntensity(_ value: Float) -> String {
+        guard value.isFinite else {
+            return value.isNaN ? "NaN" : (value > 0 ? "inf" : "-inf")
+        }
+
+        return String(format: "%.4g", Double(value))
+    }
+
     private var patternPanel: some View {
         GroupBox("Pattern") {
-            ZStack {
-                if let pi = pattern_image {
-                    
-                    // TODO: remove w,h input and just grab from pattern
-                    PatternView(pattern: pi)
-                    
-                    DetectorOverlay(
-                        shape: model.detectorShape,
-                        inner: model.detectorInnerRadius,
-                        outer: model.detectorOuterRadius,
-                        patternWidth: Int(pi.size.width),
-                        patternHeight: Int(pi.size.height),
-                        showDetector: $showDetector,
-                        onCenterChange: { point, interactive in
-                            model.detectorCenter = point
-                            updateVirtual(interactive)
-                            
-                        },
-                        imageSizeProvider: { (width: model.imageWidth, height: model.imageHeight) }
-                    )
-                    
-                    // Nice overlay for detector size
-//                    VStack {
-//                        Spacer()
-//                        HStack {
-//                            let innerText = String(format: "Inner: %.1f mrad", innerAngle)
-//                            let outerText = String(format: "Outer: %.1f mrad", outerAngle)
-//                            Text("\(innerText)  ·  \(outerText)")
-//                                .font(.caption2)
-//                                .padding(.horizontal, 6)
-//                                .padding(.vertical, 3)
-//                                .background(.thinMaterial, in: Capsule())
-//                                .foregroundStyle(.secondary)
-//                            Spacer()
-//                        }
-//                        .padding(6)
-//                    }
-                } else {
-                    Text(model.isLoading ? "Loading…" : "Select a point in the computed image.")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                GeometryReader { geo in
+                    ZStack {
+                    if let pi = pattern_image {
+                        
+                        // TODO: remove w,h input and just grab from pattern
+                        PatternView(pattern: pi)
+                        
+                        DetectorOverlay(
+                            shape: model.detectorShape,
+                            inner: model.detectorInnerRadius,
+                            outer: model.detectorOuterRadius,
+                            patternWidth: Int(pi.size.width),
+                            patternHeight: Int(pi.size.height),
+                            showDetector: $showDetector,
+                            onCenterChange: { point, interactive in
+                                model.detectorCenter = point
+                                updateVirtual(interactive)
+                                
+                            },
+                            imageSizeProvider: { (width: model.imageWidth, height: model.imageHeight) }
+                        )
+                        
+                        // Nice overlay for detector size
+    //                    VStack {
+    //                        Spacer()
+    //                        HStack {
+    //                            let innerText = String(format: "Inner: %.1f mrad", innerAngle)
+    //                            let outerText = String(format: "Outer: %.1f mrad", outerAngle)
+    //                            Text("\(innerText)  ·  \(outerText)")
+    //                                .font(.caption2)
+    //                                .padding(.horizontal, 6)
+    //                                .padding(.vertical, 3)
+    //                                .background(.thinMaterial, in: Capsule())
+    //                                .foregroundStyle(.secondary)
+    //                            Spacer()
+    //                        }
+    //                        .padding(6)
+    //                    }
+                    } else {
+                        Text(model.isLoading ? "Loading…" : "Select a point in the computed image.")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .foregroundColor(.secondary)
+                    }
+                    }
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        guard let pi = pattern_image else {
+                            patternHoverInfo = nil
+                            return
+                        }
+
+                        switch phase {
+                        case .active(let location):
+                            updatePatternHover(
+                                location: location,
+                                viewSize: geo.size,
+                                patternWidth: Int(pi.size.width),
+                                patternHeight: Int(pi.size.height)
+                            )
+                        case .ended:
+                            patternHoverInfo = nil
+                        }
+                    }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .fileLoaded)) { _ in
+                    updatePattern(0, 0)
+                    updateVirtual()
+                }
+                .aspectRatio(1.0, contentMode: .fit)
+
+                Text(patternHoverText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Toggle("Log scale", isOn: $model.patternLogScaleEnabled)
+                    .disabled(pattern_image == nil)
+                    .onChange(of: model.patternLogScaleEnabled) { _, _ in
+                        refreshPatternDisplay()
+                    }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .fileLoaded)) { _ in
-                updatePattern(0, 0)
-                updateVirtual()
-            }
-            .aspectRatio(1.0, contentMode: .fit)
         }
     }
 
@@ -265,12 +375,7 @@ struct RootView: View {
                                 }
                                 .onChange(of: marquee) { _, newValue in
                                     if let rect = newValue {
-                                        if let tup = model.getPatternImage(rect: rect){
-                                            pattern_image = tup.0
-                                            pattern_mat = tup.1
-                                            model.pattern_mat = pattern_mat
-                                            model.selected = rect
-                                        }
+                                        updatePattern(rect: rect)
                                     }
                                 }
 //                                .onChange(of: model.calculationMode,{ _, type in
@@ -481,6 +586,12 @@ struct RootView: View {
             .padding(4)
         }
     }
+}
+
+private struct PatternHoverInfo {
+    let i: Int
+    let j: Int
+    let intensity: Float
 }
 
 private struct ColorWheelLegend: View {
