@@ -72,6 +72,7 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var comAxis: COMAxis = .x
     @Published var calibrations:Calibrations?
     @Published var pattern_mat:Matrix? = nil
+    @Published var patternLogScaleEnabled: Bool = false
     
     
     func export(type:String){
@@ -438,9 +439,20 @@ final class DataViewModel: NSObject, ObservableObject {
 
         // Present as a sheet from a host window if available, otherwise modal
         func hostWindow() -> NSWindow? {
-            if let w = NSApp.keyWindow { return w }
-            if let w = NSApp.mainWindow { return w }
-            return NSApp.windows.first(where: { $0.isVisible && $0.styleMask.contains(.titled) })
+            func isContentWindow(_ window: NSWindow) -> Bool {
+                !(window is NSPanel) && window.isVisible && window.styleMask.contains(.titled)
+            }
+
+            let preferredWindows = [NSApp.keyWindow, NSApp.mainWindow].compactMap { $0 }
+            if let window = preferredWindows.first(where: isContentWindow) {
+                return window
+            }
+
+            if let window = NSApp.windows.first(where: { $0.identifier == ExternalFileOpenHandler.mainWindowIdentifier && isContentWindow($0) }) {
+                return window
+            }
+
+            return NSApp.windows.first(where: isContentWindow)
         }
 
         if let window = hostWindow() {
@@ -842,8 +854,9 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         if selectionMode == .marquee{
             
             let avgMatrix = self.dataController.averagePattern(rect: rect)
+            let displayMatrix = patternDisplayMatrix(from: avgMatrix)
             
-            if let avgImg = makeImage(from: avgMatrix){
+            if let avgImg = makeImage(from: displayMatrix){
                 return (avgImg, avgMatrix)
             }
             return nil
@@ -859,7 +872,8 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
     func getPatternImage(i: Int, j: Int)->(NSImage, Matrix)? {
         
         if let m = self.dataController.pattern(i, j) {
-            if let pattern = makeImage(from: m){
+            let displayMatrix = patternDisplayMatrix(from: m)
+            if let pattern = makeImage(from: displayMatrix){
                 
                 return (pattern, m)
             }
@@ -867,6 +881,17 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
 
         return nil
         
+    }
+
+    private func patternDisplayMatrix(from matrix: Matrix) -> Matrix {
+        guard patternLogScaleEnabled else { return matrix }
+
+        let logValues = matrix.real.map { value -> Float in
+            guard value.isFinite, value > 0 else { return 0 }
+            return log1p(value)
+        }
+
+        return Matrix(array: logValues, matrix.rows, matrix.columns)
     }
     
     func makeImage(from m:Matrix)->NSImage? {

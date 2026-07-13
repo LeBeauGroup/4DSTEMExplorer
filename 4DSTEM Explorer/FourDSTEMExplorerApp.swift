@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 extension Notification.Name {
     static let taskProgressUpdated = Notification.Name("updateProgress")
@@ -31,15 +32,35 @@ final class RecentFilesController: ObservableObject {
 }
 
 final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
+    static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("FourDSTEMExplorerMainWindow")
+
     @MainActor private static var pendingURLs: [URL] = []
     @MainActor private static var openMainWindow: (@MainActor () -> Void)?
     @MainActor private static var openURL: (@MainActor (URL) -> Void)?
+    @MainActor private static weak var mainWindow: NSWindow?
 
     @MainActor
     static func configure(openMainWindow: @escaping @MainActor () -> Void, openURL: @escaping @MainActor (URL) -> Void) {
         self.openMainWindow = openMainWindow
         self.openURL = openURL
-        drainPendingFiles()
+        Task { @MainActor in
+            await Task.yield()
+            if focusMainWindow(in: NSApp) {
+                drainPendingFiles()
+            }
+        }
+    }
+
+    @MainActor
+    static func registerMainWindow(_ window: NSWindow?) {
+        guard let window else { return }
+        window.identifier = mainWindowIdentifier
+        window.isReleasedWhenClosed = false
+        mainWindow = window
+        if !pendingURLs.isEmpty {
+            _ = focusMainWindow(in: NSApp)
+            drainPendingFiles()
+        }
     }
 
     @MainActor
@@ -79,34 +100,87 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
     private static func queue(_ urls: [URL], application: NSApplication) {
         guard !urls.isEmpty else { return }
         pendingURLs.append(contentsOf: urls)
-        showMainWindow(in: application)
 
         Task { @MainActor in
-            drainPendingFiles()
+            if focusMainWindow(in: application) {
+                drainPendingFiles()
+                return
+            }
+
+            await Task.yield()
+
+            if focusMainWindow(in: application) {
+                drainPendingFiles()
+                return
+            }
+
+            openMainWindow?()
+            await Task.yield()
+
+            if focusMainWindow(in: application) {
+                drainPendingFiles()
+            }
         }
     }
 
     @MainActor
     private static func showMainWindow(in application: NSApplication) {
-        let existingWindow = application.windows.first(where: { $0.title == "4DSTEM Explorer" })
-            ?? application.windows.first(where: { $0.canBecomeMain && $0.styleMask.contains(.titled) })
-
-        if existingWindow == nil {
-            openMainWindow?()
+        if focusMainWindow(in: application) {
+            return
         }
 
-        let mainWindow = existingWindow
-            ?? application.windows.first(where: { $0.title == "4DSTEM Explorer" })
-            ?? application.windows.first(where: { $0.canBecomeMain && $0.styleMask.contains(.titled) })
+        openMainWindow?()
 
+        Task { @MainActor in
+            await Task.yield()
+            _ = focusMainWindow(in: application)
+        }
+    }
+
+    @MainActor
+    private static func existingMainWindow(in application: NSApplication) -> NSWindow? {
         if let mainWindow {
-            if mainWindow.isMiniaturized {
-                mainWindow.deminiaturize(nil)
-            }
-            mainWindow.makeKeyAndOrderFront(nil)
+            return mainWindow
         }
 
+        if let window = application.windows.first(where: { $0.identifier == mainWindowIdentifier }) {
+            return window
+        }
+
+        let preferredWindows = [application.keyWindow, application.mainWindow].compactMap { $0 }
+        if let window = preferredWindows.first(where: isContentWindow) {
+            return window
+        }
+
+        if let window = application.windows.first(where: { $0.title == "4DSTEM Explorer" && isContentWindow($0) }) {
+            return window
+        }
+
+        return application.windows.first(where: isContentWindow)
+    }
+
+    private static func isContentWindow(_ window: NSWindow) -> Bool {
+        !(window is NSPanel) && window.canBecomeMain && window.styleMask.contains(.titled)
+    }
+
+    @MainActor
+    @discardableResult
+    private static func focusMainWindow(in application: NSApplication) -> Bool {
+        guard let window = existingMainWindow(in: application) else {
+            return false
+        }
+
+        mainWindow = window
+        window.identifier = mainWindowIdentifier
+        window.isReleasedWhenClosed = false
+
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+
+        window.makeKeyAndOrderFront(nil)
         application.activate(ignoringOtherApps: true)
+        return true
     }
 
     @MainActor
@@ -115,6 +189,27 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
 
         while !pendingURLs.isEmpty {
             openURL(pendingURLs.removeFirst())
+        }
+    }
+}
+
+private struct MainWindowRegistrationView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        WindowRegistrationView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            ExternalFileOpenHandler.registerMainWindow(nsView.window)
+        }
+    }
+}
+
+private final class WindowRegistrationView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        DispatchQueue.main.async { [weak self] in
+            ExternalFileOpenHandler.registerMainWindow(self?.window)
         }
     }
 }
@@ -172,10 +267,11 @@ struct FourDSTEMExplorerApp: App {
     @State private var calculationMode:CalculationMode = .integrate
 
     var body: some Scene {
-        WindowGroup("4DSTEM Explorer", id: "main") {
+        Window("4DSTEM Explorer", id: "main") {
             RootView(zoomScale: $zoomScale, selectionMode: $selectionMode, showDetector: $showDetector, calculationMode: $calculationMode)
                 .environmentObject(model)
                 .environmentObject(openPanel)
+                .background(MainWindowRegistrationView())
                 .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
                 .modifier(ExternalFileOpenRegistration(model: model, recentFiles: recentFiles))
                 .alert("Unable to Load File", isPresented: Binding(
@@ -285,6 +381,7 @@ struct FourDSTEMExplorerApp: App {
                     NSWindow.allowsAutomaticWindowTabbing = false
                 }
         }
+        .handlesExternalEvents(matching: [])
         .commands {
             FourDSTEMMenuCommands(model: model, openPanel: openPanel, recentFiles: recentFiles, showDetector: $showDetector)
         }
