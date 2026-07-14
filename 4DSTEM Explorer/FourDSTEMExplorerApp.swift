@@ -47,6 +47,12 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
             await Task.yield()
             if focusMainWindow(in: NSApp) {
                 drainPendingFiles()
+            } else if !pendingURLs.isEmpty {
+                openMainWindow()
+                await Task.yield()
+                if focusMainWindow(in: NSApp) {
+                    drainPendingFiles()
+                }
             }
         }
     }
@@ -82,10 +88,6 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        false
-    }
-
-    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         false
     }
 
@@ -381,7 +383,7 @@ struct FourDSTEMExplorerApp: App {
                     NSWindow.allowsAutomaticWindowTabbing = false
                 }
         }
-        .handlesExternalEvents(matching: [])
+        .defaultLaunchBehavior(.presented)
         .commands {
             FourDSTEMMenuCommands(model: model, openPanel: openPanel, recentFiles: recentFiles, showDetector: $showDetector)
         }

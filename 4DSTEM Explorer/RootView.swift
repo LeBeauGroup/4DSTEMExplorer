@@ -32,6 +32,21 @@ struct RootView: View {
     @State private var interactive:Bool = false
     @Binding var calculationMode:CalculationMode
 
+    private func detectorShapeLabel(_ shape: DetectorShape) -> String {
+        switch shape {
+        case .bf:
+            return "BF"
+        case .adf:
+            return "ADF"
+        case .af:
+            return "AF"
+        case .point:
+            return "Point"
+        case .custom:
+            return "Custom"
+        }
+    }
+
     private var innerAngle: Double {
         // Uses model.diffStep (radians per pixel) if available; fall back to 0
         let radius = Double(model.detectorInnerRadius)
@@ -217,20 +232,29 @@ struct RootView: View {
                         // TODO: remove w,h input and just grab from pattern
                         PatternView(pattern: pi)
                         
-                        DetectorOverlay(
-                            shape: model.detectorShape,
-                            inner: model.detectorInnerRadius,
-                            outer: model.detectorOuterRadius,
-                            patternWidth: Int(pi.size.width),
-                            patternHeight: Int(pi.size.height),
-                            showDetector: $showDetector,
-                            onCenterChange: { point, interactive in
-                                model.detectorCenter = point
-                                updateVirtual(interactive)
-                                
-                            },
-                            imageSizeProvider: { (width: model.imageWidth, height: model.imageHeight) }
-                        )
+                        ForEach(model.detectors.filter { model.selectedDetectorIDs.contains($0.id) }) { detector in
+                            DetectorOverlay(
+                                shape: detector.shape,
+                                inner: detector.innerRadius,
+                                outer: detector.outerRadius,
+                                center: detector.center,
+                                tintColor: detector.color,
+                                patternWidth: Int(pi.size.width),
+                                patternHeight: Int(pi.size.height),
+                                showDetector: $showDetector,
+                                onCenterChange: { point, interactive in
+                                    if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
+                                        model.detectors[idx].center = point
+                                        if detector.id == model.selectedDetectorID {
+                                            model.detectorCenter = point
+                                        }
+                                    }
+                                    updateVirtual(interactive)
+                                },
+                                imageSizeProvider: { (width: model.imageWidth, height: model.imageHeight) }
+                            )
+                            .id(detector.id)
+                        }
                         
                         // Nice overlay for detector size
     //                    VStack {
@@ -468,8 +492,85 @@ struct RootView: View {
     }
 
     private var detectorSettings: some View {
-        GroupBox("Detector") {
+        GroupBox("Detectors") {
             VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Name")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Shape")
+                            .frame(width: 48, alignment: .trailing)
+                        Text("Color")
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    List(selection: Binding<Set<DetectorConfiguration.ID>>(
+                        get: { model.selectedDetectorIDs },
+                        set: { model.selectedDetectorIDs = $0 }
+                    )) {
+                        ForEach(model.detectors) { detector in
+                            HStack {
+                                Text(detector.name)
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(detectorShapeLabel(detector.shape))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 48, alignment: .trailing)
+                                ColorPicker("", selection: Binding<Color>(
+                                    get: { detector.color },
+                                    set: { newColor in
+                                        if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
+                                            model.detectors[idx].color = newColor
+                                            if detector.id == model.selectedDetectorID {
+                                                model.detectorColor = newColor
+                                            }
+                                        }
+                                    }
+                                ), supportsOpacity: false)
+                                .labelsHidden()
+                                .frame(width: 36)
+                            }
+                            .tag(detector.id as DetectorConfiguration.ID?)
+                        }
+                    }
+                    .frame(height: 96)
+                    .onChange(of: model.selectedDetectorID) { _, _ in
+                        updateVirtual()
+                    }
+                    .onChange(of: model.selectedDetectorIDs) { _, _ in
+                        updateVirtual()
+                    }
+                    .onChange(of: model.detectorColor) { _, _ in
+                        updateVirtual()
+                    }
+
+                    HStack(spacing: 8) {
+                        Button {
+                            model.addDetector()
+                            updateVirtual()
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .help("Add detector")
+
+                        Button {
+                            model.removeSelectedDetector()
+                            updateVirtual()
+                        } label: {
+                            Image(systemName: "minus")
+                        }
+                        .disabled(model.detectors.count <= 1)
+                        .help("Remove selected detector")
+
+                        Spacer()
+                    }
+                    .buttonStyle(.borderless)
+                }
+
+                Divider()
+
                 Picker("Shape", selection: $model.detectorShape) {
                     Text("BF").tag(DetectorShape.bf)
                     Text("ADF").tag(DetectorShape.adf)
