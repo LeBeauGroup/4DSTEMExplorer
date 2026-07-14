@@ -30,10 +30,48 @@ enum COMAxis:  Int, Hashable {
     case color
 }
 
+struct DetectorConfiguration: Identifiable, Equatable {
+    let id: UUID
+    var name: String
+    var shape: DetectorShape
+    var type: DetectorType
+    var innerRadius: CGFloat
+    var outerRadius: CGFloat
+    var center: CGPoint
+    var calculationMode: CalculationMode
+    var color: Color
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        shape: DetectorShape = .bf,
+        type: DetectorType = .integrating,
+        innerRadius: CGFloat = 1,
+        outerRadius: CGFloat = 10,
+        center: CGPoint = .zero,
+        calculationMode: CalculationMode = .integrate,
+        color: Color = .white
+    ) {
+        self.id = id
+        self.name = name
+        self.shape = shape
+        self.type = type
+        self.innerRadius = innerRadius
+        self.outerRadius = outerRadius
+        self.center = center
+        self.calculationMode = calculationMode
+        self.color = color
+    }
+}
+
 //    var id: String { rawValue } }
 
 
 final class DataViewModel: NSObject, ObservableObject {
+    private static let initialDetectorID = UUID()
+    private var nextDetectorNumber = 2
+    private var isApplyingDetectorSelection = false
+
     @Published var isDragging: Bool = false
 
     @Published var selectedURL: URL?
@@ -51,11 +89,50 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var selected:Any? = nil
     @Published var patternSize: IntSize = .init(width: 32, height: 32)
 
-    @Published var detectorShape: DetectorShape = .bf
-    @Published var detectorType: DetectorType = .integrating
-    @Published var detectorInnerRadius: CGFloat = 1
-    @Published var detectorOuterRadius: CGFloat = 10
-    @Published var detectorCenter: CGPoint = .zero
+    @Published var detectors: [DetectorConfiguration] = [
+        DetectorConfiguration(id: DataViewModel.initialDetectorID, name: "Detector 1")
+    ]
+    @Published var selectedDetectorID: DetectorConfiguration.ID? = DataViewModel.initialDetectorID {
+        didSet {
+            applySelectedDetector()
+        }
+    }
+    @Published var selectedDetectorIDs: Set<DetectorConfiguration.ID> = [DataViewModel.initialDetectorID] {
+        didSet {
+            guard !isApplyingDetectorSelection else { return }
+            // Keep the primary within the new selection if possible; otherwise pick any
+            if let primary = selectedDetectorID, selectedDetectorIDs.contains(primary) {
+                // primary is still valid
+            } else {
+                selectedDetectorID = selectedDetectorIDs.first
+            }
+        }
+    }
+    @Published var detectorShape: DetectorShape = .bf {
+        didSet {
+            syncSelectedDetector { $0.shape = detectorShape }
+        }
+    }
+    @Published var detectorType: DetectorType = .integrating {
+        didSet {
+            syncSelectedDetector { $0.type = detectorType }
+        }
+    }
+    @Published var detectorInnerRadius: CGFloat = 1 {
+        didSet {
+            syncSelectedDetector { $0.innerRadius = detectorInnerRadius }
+        }
+    }
+    @Published var detectorOuterRadius: CGFloat = 10 {
+        didSet {
+            syncSelectedDetector { $0.outerRadius = detectorOuterRadius }
+        }
+    }
+    @Published var detectorCenter: CGPoint = .zero {
+        didSet {
+            syncSelectedDetector { $0.center = detectorCenter }
+        }
+    }
     
     // Selection mode used by the Picker in the toolbar
     @Published var selectionMode: InteractiveMarkerView.SelectionMode = .point
@@ -66,7 +143,16 @@ final class DataViewModel: NSObject, ObservableObject {
     // Stores the last computed fit-to-window scale so we can seed currentScale when exiting zoom-to-fit.
     @Published var lastFitScale: Double = 1.0
 
-    @Published var calculationMode: CalculationMode = .integrate
+    @Published var calculationMode: CalculationMode = .integrate {
+        didSet {
+            syncSelectedDetector { $0.calculationMode = calculationMode }
+        }
+    }
+    @Published var detectorColor: Color = .white {
+        didSet {
+            syncSelectedDetector { $0.color = detectorColor }
+        }
+    }
     @Published var dpcAxis: DPCAxis = .leftRight
     
     @Published var comAxis: COMAxis = .x
@@ -74,7 +160,89 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var pattern_mat:Matrix? = nil
     @Published var patternLogScaleEnabled: Bool = false
     
-    
+    var selectedDetector: DetectorConfiguration? {
+        guard let selectedDetectorID else { return nil }
+        return detectors.first { $0.id == selectedDetectorID }
+    }
+
+    func addDetector() {
+        let detector = DetectorConfiguration(
+            name: "Detector \(nextDetectorNumber)",
+            shape: detectorShape,
+            type: detectorType,
+            innerRadius: detectorInnerRadius,
+            outerRadius: detectorOuterRadius,
+            center: detectorCenter
+        )
+        nextDetectorNumber += 1
+        detectors.append(detector)
+        selectedDetectorID = detector.id
+        selectedDetectorIDs = [detector.id]
+    }
+
+    func removeSelectedDetector() {
+        guard detectors.count > 1,
+              let selectedDetectorID,
+              let index = detectors.firstIndex(where: { $0.id == selectedDetectorID }) else {
+            return
+        }
+
+        detectors.remove(at: index)
+        let nextIndex = min(index, detectors.count - 1)
+        self.selectedDetectorID = detectors[nextIndex].id
+        self.selectedDetectorIDs = [detectors[nextIndex].id]
+    }
+
+    private func syncSelectedDetector(_ update: (inout DetectorConfiguration) -> Void) {
+        guard !isApplyingDetectorSelection,
+              let selectedDetectorID,
+              let index = detectors.firstIndex(where: { $0.id == selectedDetectorID }) else {
+            return
+        }
+
+        update(&detectors[index])
+    }
+
+    private func applySelectedDetector() {
+        guard let detector = selectedDetector else { return }
+
+        isApplyingDetectorSelection = true
+        detectorShape = detector.shape
+        detectorType = detector.type
+        detectorInnerRadius = detector.innerRadius
+        detectorOuterRadius = detector.outerRadius
+        detectorCenter = detector.center
+        calculationMode = detector.calculationMode
+        detectorColor = detector.color
+        isApplyingDetectorSelection = false
+    }
+
+    private func resetDetectorsForLoadedPattern(center: CGPoint, innerRadius: CGFloat, outerRadius: CGFloat) {
+        let detector = DetectorConfiguration(
+            name: "Detector 1",
+            shape: .bf,
+            type: .integrating,
+            innerRadius: innerRadius,
+            outerRadius: outerRadius,
+            center: center
+        )
+
+        nextDetectorNumber = 2
+        isApplyingDetectorSelection = true
+        detectors = [detector]
+        selectedDetectorID = detector.id
+        selectedDetectorIDs = [detector.id]
+        detectorShape = detector.shape
+        detectorType = detector.type
+        detectorInnerRadius = detector.innerRadius
+        detectorOuterRadius = detector.outerRadius
+        detectorCenter = detector.center
+        calculationMode = detector.calculationMode
+        detectorColor = detector.color
+        isApplyingDetectorSelection = false
+    }
+
+
     func export(type:String){
         
         var outString:String = ""
@@ -529,11 +697,84 @@ final class DataViewModel: NSObject, ObservableObject {
         let pH = self.dataController.patternSize.height
         let center = NSPoint(x: max(0, min(CGFloat(pW - 1), detectorCenter.x)),
                              y: max(0, min(CGFloat(pH - 1), detectorCenter.y)))
-        
-        
         let clampedInnerRadius = min(detectorInnerRadius, detectorOuterRadius)
         let params:[DetectorParameter: Float]  = [.innerRadius:Float(clampedInnerRadius), .outerRadius:Float(detectorOuterRadius)]
         return Detector(shape: detectorShape, type: detectorType, center: center, params: params, size: NSSize(width: pW, height: pH))
+    }
+
+    private func makeDetector(from config: DetectorConfiguration) -> Detector {
+        let pW = dataController.patternSize.width
+        let pH = dataController.patternSize.height
+        let center = NSPoint(
+            x: max(0, min(CGFloat(pW - 1), config.center.x)),
+            y: max(0, min(CGFloat(pH - 1), config.center.y))
+        )
+        let clampedInner = min(config.innerRadius, config.outerRadius)
+        let params: [DetectorParameter: Float] = [
+            .innerRadius: Float(clampedInner),
+            .outerRadius: Float(config.outerRadius)
+        ]
+        return Detector(shape: config.shape, type: config.type, center: center, params: params, size: NSSize(width: pW, height: pH))
+    }
+
+    private func blendDetectorImages(configs: [DetectorConfiguration], strideLength: Int) -> (NSImage, Matrix)? {
+        guard !configs.isEmpty else { return nil }
+
+        let pairs: [(Matrix, NSColor)] = configs.compactMap { config in
+            let mat = dataController.integrating(makeDetector(from: config), strideLength: strideLength)
+            guard mat.rows > 0, mat.columns > 0 else { return nil }
+            let nsColor = (NSColor(config.color).usingColorSpace(.sRGB) ?? NSColor.white)
+            return (mat, nsColor)
+        }
+        guard let (first, _) = pairs.first else { return nil }
+
+        let rows = first.rows
+        let cols = first.columns
+        let count = rows * cols
+
+        var red   = [Float](repeating: 0, count: count)
+        var green = [Float](repeating: 0, count: count)
+        var blue  = [Float](repeating: 0, count: count)
+
+        for (matrix, nsColor) in pairs {
+            let data = matrix.real
+            guard data.count == count else { continue }
+            let minVal = data.min() ?? 0
+            let maxVal = data.max() ?? 1
+            let invRange: Float = (maxVal - minVal) > 0 ? 1.0 / (maxVal - minVal) : 1.0
+            var cr: CGFloat = 1, cg: CGFloat = 1, cb: CGFloat = 1, ca: CGFloat = 1
+            nsColor.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+            let fr = Float(cr), fg = Float(cg), fb = Float(cb)
+            for i in 0..<count {
+                let t = max(0, min(1, (data[i] - minVal) * invRange))
+                red[i]   += t * fr
+                green[i] += t * fg
+                blue[i]  += t * fb
+            }
+        }
+
+        var pixelData = [UInt8](repeating: 255, count: count * 4)
+        for i in 0..<count {
+            pixelData[i * 4 + 0] = UInt8(min(1, red[i])   * 255)
+            pixelData[i * 4 + 1] = UInt8(min(1, green[i]) * 255)
+            pixelData[i * 4 + 2] = UInt8(min(1, blue[i])  * 255)
+            pixelData[i * 4 + 3] = 255
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let provider = CGDataProvider(data: Data(pixelData) as CFData),
+              let cgImage = CGImage(
+                  width: cols, height: rows,
+                  bitsPerComponent: 8, bitsPerPixel: 32,
+                  bytesPerRow: cols * 4,
+                  space: colorSpace,
+                  bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
+                  provider: provider, decode: nil, shouldInterpolate: false,
+                  intent: .defaultIntent
+              ) else { return nil }
+
+        return (NSImage(cgImage: cgImage, size: NSSize(width: cols, height: rows)), first)
     }
     private func dynamicStrideForTargetGrid(targetWidth: Int = 80, targetHeight: Int = 80) -> Int {
         let w = max(1, self.dataController.imageSize.width)
@@ -549,19 +790,25 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return nil }
-        
-        let det = currentDetector()
 
-//        let baseStride = (stride > 0) ? stride : self.strideLength
-        
-
-        
         if interactive {
             stride = max(1, dynamicStrideForTargetGrid())
         } else {
             stride = 1
         }
-                
+
+        // Multi-detector: blend each selected detector's integrate image by its color
+        if selectedDetectorIDs.count > 1 {
+            let configs = detectors.filter { selectedDetectorIDs.contains($0.id) }
+            if let (blended, mat) = blendDetectorImages(configs: configs, strideLength: stride),
+               let scaled = scaleStrideImage(blended, stride) {
+                return (scaled, mat)
+            }
+            return nil
+        }
+
+        let det = currentDetector()
+
         var mat: Matrix
         var tempImage:NSImage?
         
@@ -600,7 +847,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         }
 
         if tempImage == nil {
-            tempImage = makeImage(from: mat)
+            tempImage = makeColoredImage(from: mat, tintColor: NSColor(detectorColor))
         }
         
         if let tempImage = tempImage {
@@ -895,16 +1142,64 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
     }
     
     func makeImage(from m:Matrix)->NSImage? {
-        
+
         let width = m.columns
         let height = m.rows
-        
+
         if let cgImg = m.uInt8ImageRep()?.cgImage{
             return NSImage(cgImage: cgImg, size: NSSize(width: width, height: height))
         }
-        
+
         return nil
-        
+
+    }
+
+    private func makeColoredImage(from m: Matrix, tintColor: NSColor) -> NSImage? {
+        let width = m.columns
+        let height = m.rows
+        guard width > 0, height > 0 else { return nil }
+        let data = m.real
+        guard data.count == width * height else { return nil }
+
+        // If tint is white, fall back to the standard grayscale path (faster)
+        var cr: CGFloat = 1, cg: CGFloat = 1, cb: CGFloat = 1, ca: CGFloat = 1
+        let srgb = tintColor.usingColorSpace(.sRGB) ?? tintColor
+        srgb.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+        if cr >= 0.999 && cg >= 0.999 && cb >= 0.999 {
+            return makeImage(from: m)
+        }
+
+        let minVal = data.min() ?? 0
+        let maxVal = data.max() ?? 1
+        let range = maxVal - minVal
+        let invRange: Float = range > 0 ? 1.0 / range : 1.0
+        let fr = Float(cr), fg = Float(cg), fb = Float(cb)
+
+        // Build RGBA bytes: intensity t mapped to (t·r, t·g, t·b)
+        var pixelData = [UInt8](repeating: 255, count: width * height * 4)
+        for i in 0..<(width * height) {
+            let t = max(0, min(1, (data[i] - minVal) * invRange))
+            pixelData[i * 4 + 0] = UInt8(t * fr * 255)
+            pixelData[i * 4 + 1] = UInt8(t * fg * 255)
+            pixelData[i * 4 + 2] = UInt8(t * fb * 255)
+            pixelData[i * 4 + 3] = 255
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let provider = CGDataProvider(data: Data(pixelData) as CFData),
+              let cgImage = CGImage(
+                  width: width, height: height,
+                  bitsPerComponent: 8, bitsPerPixel: 32,
+                  bytesPerRow: width * 4,
+                  space: colorSpace,
+                  bitmapInfo: CGBitmapInfo(rawValue: bitmapInfo),
+                  provider: provider,
+                  decode: nil, shouldInterpolate: false,
+                  intent: .defaultIntent
+              ) else { return nil }
+
+        return NSImage(cgImage: cgImage, size: NSSize(width: width, height: height))
     }
     
     private func hsvToRGB(h: [Float], s: Float, v: [Float]) -> [UInt8] {
@@ -944,16 +1239,14 @@ extension DataViewModel: STEMDataControllerDelegate {
         self.imageHeight = self.dataController.imageSize.height
         self.patternSize.width = self.dataController.patternSize.width
         self.patternSize.height = self.dataController.patternSize.height
-        self.detectorCenter = CGPoint(x: CGFloat(self.patternSize.width) / 2.0, y: CGFloat(self.patternSize.height) / 2.0)
+        let center = CGPoint(x: CGFloat(self.patternSize.width) / 2.0, y: CGFloat(self.patternSize.height) / 2.0)
+        self.detectorCenter = center
         
         if dataController.pattern(0, 0) != nil {
             let pW = self.dataController.patternSize.width
             let pH = self.dataController.patternSize.height
             let base = CGFloat(min(pW, pH))
-            self.detectorInnerRadius = 1
-            self.detectorOuterRadius = base * 0.15
-            self.detectorShape = .bf
-            self.detectorType = .integrating
+            resetDetectorsForLoadedPattern(center: center, innerRadius: 1, outerRadius: base * 0.15)
             self.calculationMode = .integrate
             self.dpcAxis = .leftRight
             self.comAxis = .x
