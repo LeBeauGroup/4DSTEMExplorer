@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AAF1000000000000000000B7 /* PluginSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A7 /* PluginSheets.swift */; };
 		A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51DAD1E1FF6866B00D36AB0 /* Detector.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
 		A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */; };
@@ -17,6 +18,12 @@
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
 		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
 		A5D5D9692F466E6300A638C3 /* DetectorOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */; };
+		AAF1000000000000000000B1 /* FourDSTEMPluginAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */; };
+		AAF1000000000000000000B2 /* PluginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A2 /* PluginManager.swift */; };
+		AAF1000000000000000000B3 /* PluginHostContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A3 /* PluginHostContext.swift */; };
+		AAF1000000000000000000B4 /* PluginResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A4 /* PluginResult.swift */; };
+		AAF1000000000000000000B5 /* PluginResultViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A5 /* PluginResultViews.swift */; };
+		AAF1000000000000000000B6 /* PluginRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A6 /* PluginRunner.swift */; };
 		BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1BA3812F1025B00055669F /* ZoomableImageView.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
 		BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */; };
@@ -52,6 +59,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AAF1000000000000000000A7 /* PluginSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSheets.swift; sourceTree = "<group>"; };
 		A51DAD1E1FF6866B00D36AB0 /* Detector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Detector.swift; sourceTree = "<group>"; };
 		A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "4DSTEM Explorer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -81,8 +89,13 @@
 		A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorOverlay.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FourDSTEMPluginAPI.swift; path = PluginSDK/FourDSTEMPluginAPI.swift; sourceTree = SOURCE_ROOT; };
+		AAF1000000000000000000A2 /* PluginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManager.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A3 /* PluginHostContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginHostContext.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A4 /* PluginResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginResult.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A5 /* PluginResultViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginResultViews.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A6 /* PluginRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginRunner.swift; sourceTree = "<group>"; };
 		BD004F262F0EF1BA00B7846D /* Scrollview.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = Scrollview.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
-		BD004F272F0EFD0C00B7846D /* test.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = test.swift; sourceTree = "<group>"; };
 		BD1BA3812F1025B00055669F /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
 		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
@@ -140,7 +153,6 @@
 		A51FEFA31FEC48FD00A8A5EC = {
 			isa = PBXGroup;
 			children = (
-				BD004F272F0EFD0C00B7846D /* test.swift */,
 				BD004F262F0EF1BA00B7846D /* Scrollview.playground */,
 				A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */,
 				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
@@ -167,6 +179,7 @@
 				A575C9732F5089D70072571B /* archived */,
 				A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */,
 				A51FF4F51FF5431200BDC87E /* Objects */,
+				AAF1000000000000000000A0 /* Plugins */,
 				A51FEFB91FEC48FD00A8A5EC /* _DSTEM_Explorer.entitlements */,
 				A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */,
 				A51FEFB81FEC48FD00A8A5EC /* Info.plist */,
@@ -238,6 +251,20 @@
 				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
 			);
 			path = archived;
+			sourceTree = "<group>";
+		};
+		AAF1000000000000000000A0 /* Plugins */ = {
+			isa = PBXGroup;
+			children = (
+				AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */,
+				AAF1000000000000000000A2 /* PluginManager.swift */,
+				AAF1000000000000000000A3 /* PluginHostContext.swift */,
+				AAF1000000000000000000A4 /* PluginResult.swift */,
+				AAF1000000000000000000A5 /* PluginResultViews.swift */,
+				AAF1000000000000000000A6 /* PluginRunner.swift */,
+				AAF1000000000000000000A7 /* PluginSheets.swift */,
+			);
+			path = Plugins;
 			sourceTree = "<group>";
 		};
 		BD3E30752E285C8A007411A7 /* Frameworks */ = {
@@ -435,6 +462,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */,
+				AAF1000000000000000000B1 /* FourDSTEMPluginAPI.swift in Sources */,
+				AAF1000000000000000000B2 /* PluginManager.swift in Sources */,
+				AAF1000000000000000000B3 /* PluginHostContext.swift in Sources */,
+				AAF1000000000000000000B4 /* PluginResult.swift in Sources */,
+				AAF1000000000000000000B5 /* PluginResultViews.swift in Sources */,
+				AAF1000000000000000000B6 /* PluginRunner.swift in Sources */,
+				AAF1000000000000000000B7 /* PluginSheets.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
 				BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */,
 				BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */,

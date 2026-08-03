@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Menu Commands using direct model calls
 
@@ -6,6 +7,8 @@ struct FourDSTEMMenuCommands: Commands {
     @ObservedObject var model: DataViewModel
     @ObservedObject var openPanel: OpenPanelController
     @ObservedObject var recentFiles: RecentFilesController
+    @ObservedObject var pluginManager: PluginManager
+    @ObservedObject var pluginRunner: PluginRunner
     @Binding var showDetector:Bool
 
 //      init(model: DataViewModel, openPanel: OpenPanelController) {
@@ -144,6 +147,69 @@ struct FourDSTEMMenuCommands: Commands {
                     name: model.focusedPanel == .image ? .zoomToActual : .zoomToActualPattern, object: nil)
             }
             .keyboardShortcut("'")
+        }
+
+        // Plugins menu
+        CommandMenu("Plugins") {
+            if pluginManager.plugins.isEmpty {
+                Button("No Plugins Installed") { }
+                    .disabled(true)
+            } else {
+                ForEach(pluginManager.plugins) { plugin in
+                    Button(plugin.name) {
+                        PluginRunner.shared.run(plugin, model: model)
+                    }
+                    .disabled(pluginRunner.isRunning || (plugin.requiresData && model.imageWidth == 0))
+                    .help(plugin.summary)
+                }
+            }
+
+            if !pluginManager.issues.isEmpty {
+                Divider()
+                Menu("Not Loaded (\(pluginManager.issues.count))") {
+                    ForEach(pluginManager.issues) { issue in
+                        Button("\(issue.bundleName) — \(issue.reason)") {
+                            PluginRunner.presentAlert(style: .warning,
+                                                      title: issue.bundleName,
+                                                      message: issue.reason)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            Button("Install Plugin…") {
+                installPlugin()
+            }
+
+            Button("Reload Plugins") {
+                pluginManager.reload()
+            }
+
+            Button("Show Plugins Folder") {
+                pluginManager.revealUserPluginsDirectory()
+            }
+        }
+    }
+
+    private func installPlugin() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.treatsFilePackagesAsDirectories = false
+        panel.allowedContentTypes = [UTType.bundle]
+        panel.prompt = "Install"
+        panel.message = "Choose a 4DSTEM Explorer plugin bundle"
+
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            if let problem = pluginManager.install(from: url) {
+                PluginRunner.presentAlert(style: .warning,
+                                          title: "Could not install \(url.lastPathComponent)",
+                                          message: problem)
+            }
         }
     }
 }
