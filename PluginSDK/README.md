@@ -15,6 +15,7 @@ which the app opens in its own window with export.
 | `Examples/RadialProfile` | Reads the displayed pattern, returns a plot. |
 | `Examples/DetectorVariance` | Sweeps the whole stack, returns a computed image. |
 | `Examples/TiltCorrectedBF` | Tilt-corrected bright field — see below. |
+| `Examples/SingleElectronHistogram` | Single-electron counting histogram — see below. |
 
 ## Tilt-corrected bright field
 
@@ -33,6 +34,12 @@ disc, in scan pixels, and finds it by maximising gradient energy — meaning it
 works on uncalibrated data. When the file has a scan step and a diffraction
 step, the equivalent defocus is reported in nanometres.
 
+It opens as a live window: the first run builds the virtual images and searches
+for the displacement, then writes the value it found into the slider and
+switches to manual. From there, dragging the slider refocuses against the cached
+virtual images — the same interaction as the detector radius slider in the main
+window. Changing the detector or the binning is what forces a rebuild.
+
 Set **Bright-field disc from** to `0` to detect the disc from the mean pattern,
 or to a detector number to use that detector's centre and outer radius.
 **Detector binning** trades accuracy for speed and memory — 2 is a good default;
@@ -45,6 +52,53 @@ image for a side-by-side comparison.
 Against a synthetic dataset built with a known displacement of 3.00 scan pixels
 (234.4 nm defocus), the plugin recovers 2.98 px / 232.5 nm and sharpens the
 image 4.6× over the uncorrected sum.
+
+The per-frame path is vectorised with Accelerate, which is what keeps the slider
+interactive. On a 192×192 scan with a 96×96 detector and a 32 px disc: the first
+run (build plus a 41-step search) takes 0.48 s, a repeat search on the cached
+virtual images 209 ms, and a slider move 22 ms.
+
+## Single-electron histogram
+
+`Examples/SingleElectronHistogram` measures the detector's single-electron
+level — the gain calibration for a direct electron detector.
+
+A primary electron deposits charge across a small group of neighbouring pixels,
+so no single pixel value is quantised; the *sum* over the whole cluster is. The
+plugin thresholds each pattern above the read noise, groups the surviving pixels
+into contiguous clusters, integrates each one, and histograms the totals. The
+first peak is one electron; peaks at 2× and 3× are coincidences.
+
+**An annular detector is required.** Events can only be separated where charge
+clouds rarely overlap, and inside the bright-field disc the occupancy is orders
+of magnitude too high — clusters merge into a continuum with no single-electron
+peak at all. The plugin refuses a bright-field detector, and also refuses an
+annular one whose inner radius still covers the disc. Leave **Detector** at 0 to
+use the selected annular detector.
+
+The noise floor is measured from the data rather than assumed: median and MAD
+over aperture pixels from a sample of patterns, which stay robust when a few
+percent of pixels carry events. That floor is subtracted from every pixel before
+integrating — leaving it in would add the detector offset once per pixel and
+make the integral scale with cluster size instead of deposited charge.
+
+Points worth knowing:
+
+- **Threshold** trades completeness against noise. Too high and only the
+  brightest pixels of each cloud are captured, so the peak reads low — use
+  **Return ▸ Cluster size histogram** to check the clouds are the size you
+  expect (a mean near 1 px means the threshold is clipping them).
+- Clouds straddling the aperture edge are discarded by default; they are only
+  partly measured and would bias the histogram low.
+- **Return ▸ Counted ADF image** maps events per probe position — a counted,
+  dose-efficient dark-field image.
+- The result warns when aperture occupancy is high enough that clouds overlap.
+
+Against a synthetic detector depositing exactly 200 ADU per electron over a
+4-pixel cloud on a 100 ADU offset with 3 ADU read noise, the plugin recovers a
+peak of 201.3 ADU and a modal cluster size of 4 px. Raising the threshold to 15σ
+drops the peak to 140.3 — exactly the two brightest pixels of the deposited
+cloud, which is the clipping behaviour described above.
 
 ## Quick start
 
@@ -137,6 +191,32 @@ before running. Values come back keyed by the identifier you gave.
 Omit `pluginParameters` (or return an empty array) and the plugin runs
 immediately with no sheet.
 
+### Live plugins
+
+Declaring `pluginSupportsLiveUpdate` replaces the sheet-then-window flow with a
+single window: controls on the left, result on the right, re-running as the user
+moves a control. Only claim it if repeated runs are quick.
+
+```swift
+public var pluginSupportsLiveUpdate: Bool { true }
+```
+
+The host makes that practical:
+
+- **Runs are serialised and never re-entrant**, so the same instance can cache
+  across calls with no locking. Key the cache on the parameters the expensive
+  part actually depends on and rebuild only when those change.
+- **Moving a control cancels the run in flight** and schedules another after a
+  short pause, so dragging a slider does not queue a run per tick. Poll
+  `isCancelled` often, and `return nil` when it goes true — the previous result
+  stays on screen. Only commit a cache built from a *complete* pass.
+- **`FDSResultKey.parameters`** writes values back into the controls. A plugin
+  that measures something can leave the control sitting at what it found; the
+  writeback does not itself trigger another run.
+
+The state a plugin sees is re-snapshotted every run, so detector edits in the
+main window are picked up rather than frozen when the window opened.
+
 ### Reading the data
 
 Everything comes off `host`:
@@ -171,7 +251,7 @@ line that is shown if the plugin ends up reporting an error.
 | --- | --- |
 | `FDSResult.scanImage(_:rows:columns:title:message:)` | Image window, exports as 32-bit float TIFF |
 | `FDSResult.pattern(_:rows:columns:title:message:)` | Same, sized to the detector |
-| `FDSResult.plot(x:y:title:xLabel:yLabel:message:)` | Line plot, exports as CSV |
+| `FDSResult.plot(x:y:title:xLabel:yLabel:message:)` | Line plot — drag to zoom the x axis, hover to read values, exports as CSV |
 | `FDSResult.text(_:title:)` | Monospaced text, copy or export |
 | `FDSResult.failure(_:)` | Alert; nothing else is shown |
 

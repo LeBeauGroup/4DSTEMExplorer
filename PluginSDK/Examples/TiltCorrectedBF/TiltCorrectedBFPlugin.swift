@@ -44,6 +44,28 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     }
     public var pluginAPIVersion: Int { return 1 }
 
+    /// The expensive step — one pass over the 4D stack — depends only on the
+    /// disc and the binning. Changing the displacement reuses it, which is what
+    /// makes dragging the slider interactive.
+    public var pluginSupportsLiveUpdate: Bool { return true }
+
+    // MARK: Cache
+    //
+    // The host guarantees runs are serialised and never re-entrant, so this
+    // needs no locking.
+
+    private struct StackKey: Equatable {
+        var fileName: String
+        var scanWidth: Int, scanHeight: Int
+        var patternWidth: Int, patternHeight: Int
+        var centerX: Float, centerY: Float, radius: Float
+        var binning: Int
+    }
+
+    private var cachedKey: StackKey?
+    private var cachedStack: [Float] = []
+    private var cachedGrouping: Grouping?
+
     /// Refuse to build a virtual-image stack larger than this. Binning is the
     /// user's lever for staying under it.
     private let memoryBudgetBytes = 1_500_000_000
@@ -58,9 +80,10 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
                                 help: "Largest edge displacement to test, in scan pixels. Widen it if the best value lands at the end of the focus curve."),
             FDSParameter.integer("steps", label: "Search steps", defaultValue: 41, minimum: 5, maximum: 201,
                                  help: "Number of trial displacements across the search range."),
-            FDSParameter.toggle("useManual", label: "Use a fixed displacement", defaultValue: false,
-                                help: "Skip the search and apply the value below — useful for reproducing a previous run."),
-            FDSParameter.number("edgeShift", label: "Fixed edge displacement (scan px)", defaultValue: 0, minimum: -200, maximum: 200),
+            FDSParameter.toggle("useManual", label: "Set the displacement by hand", defaultValue: false,
+                                help: "Skip the search and use the slider below. A search switches this on automatically so you can adjust from what it found."),
+            FDSParameter.number("edgeShift", label: "Edge displacement (scan px)", defaultValue: 0, minimum: -40, maximum: 40,
+                                help: "Drag to refocus. After a search this sits at the value found, so you can explore either side of it."),
             FDSParameter.choice("output", label: "Return", choices: ["Corrected image", "Focus curve", "Uncorrected sum"],
                                 help: "Focus curve plots sharpness against displacement; Uncorrected sum is the plain BF image for comparison.")
         ]
@@ -98,27 +121,51 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
                         centerX, centerY, radius, discSource))
 
         // 2. Group the disc pixels into binned virtual detectors.
-        let grouping = buildGroups(centerX: centerX, centerY: centerY, radius: radius,
-                                   binning: binning, patternWidth: patternWidth, patternHeight: patternHeight)
-        guard grouping.groupCount > 0, grouping.discPixelCount > 0 else {
-            return FDSResult.failure("The bright-field disc covers no detector pixels. Check the detector radius, or use 0 to detect the disc automatically.")
-        }
+        let key = StackKey(fileName: host.fileName,
+                           scanWidth: scanWidth, scanHeight: scanHeight,
+                           patternWidth: patternWidth, patternHeight: patternHeight,
+                           centerX: centerX, centerY: centerY, radius: radius,
+                           binning: binning)
 
+        let grouping: Grouping
         let scanPixels = scanWidth * scanHeight
-        let stackBytes = grouping.groupCount * scanPixels * MemoryLayout<Float>.size
-        guard stackBytes <= memoryBudgetBytes else {
-            let suggested = binning * Int((Double(stackBytes) / Double(memoryBudgetBytes)).squareRoot().rounded(.up))
-            return FDSResult.failure(String(format: "This would need %.1f GB for %d virtual images. Raise the detector binning to about %d and try again.",
-                                            Double(stackBytes) / 1e9, grouping.groupCount, max(binning + 1, suggested)))
-        }
-        host.log("\(grouping.discPixelCount) disc pixels grouped into \(grouping.groupCount) virtual detectors (\(stackBytes / 1_048_576) MB).")
+        var stack: [Float]
+        var rebuilt = false
 
-        // 3. One pass over the 4D data to build every virtual image at once.
-        //    Everything after this works on the stack, not the raw dataset.
-        guard var stack = buildVirtualImageStack(host: host, grouping: grouping,
-                                                 patternPixels: patternPixels,
-                                                 scanWidth: scanWidth, scanHeight: scanHeight) else {
-            return nil   // cancelled
+        if key == cachedKey, let cached = cachedGrouping, cachedStack.count == cached.groupCount * scanPixels {
+            // Same disc and binning as last time — reuse the pass over the 4D
+            // data. This is what makes dragging the displacement interactive.
+            grouping = cached
+            stack = cachedStack
+        } else {
+            grouping = buildGroups(centerX: centerX, centerY: centerY, radius: radius,
+                                   binning: binning, patternWidth: patternWidth, patternHeight: patternHeight)
+            guard grouping.groupCount > 0, grouping.discPixelCount > 0 else {
+                return FDSResult.failure("The bright-field disc covers no detector pixels. Check the detector radius, or use 0 to detect the disc automatically.")
+            }
+
+            let stackBytes = grouping.groupCount * scanPixels * MemoryLayout<Float>.size
+            guard stackBytes <= memoryBudgetBytes else {
+                let suggested = binning * Int((Double(stackBytes) / Double(memoryBudgetBytes)).squareRoot().rounded(.up))
+                return FDSResult.failure(String(format: "This would need %.1f GB for %d virtual images. Raise the detector binning to about %d and try again.",
+                                                Double(stackBytes) / 1e9, grouping.groupCount, max(binning + 1, suggested)))
+            }
+            host.log("\(grouping.discPixelCount) disc pixels grouped into \(grouping.groupCount) virtual detectors (\(stackBytes / 1_048_576) MB).")
+
+            // 3. One pass over the 4D data to build every virtual image at once.
+            //    Everything after this works on the stack, not the raw dataset.
+            guard let built = buildVirtualImageStack(host: host, grouping: grouping,
+                                                     patternPixels: patternPixels,
+                                                     scanWidth: scanWidth, scanHeight: scanHeight) else {
+                return nil   // cancelled — leave the cache alone, it is still valid
+            }
+            stack = built
+            rebuilt = true
+
+            // Only commit a cache built from a complete pass.
+            cachedKey = key
+            cachedGrouping = grouping
+            cachedStack = built
         }
 
         // 4. Find the displacement, unless the user pinned it.
@@ -150,11 +197,20 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             defocusNote = String(format: " Defocus %.1f nm (disc edge %.1f mrad).", defocus, Double(radius) * diffStep)
         }
 
+        // A completed search hands its answer back to the controls and switches
+        // to manual, so the slider starts from what was found and the next drag
+        // refocuses live instead of searching again.
+        var writeBack: [String: Any] = [:]
+        if !useManual && !curveSharpness.isEmpty {
+            writeBack["edgeShift"] = NSNumber(value: Double(edgeShift))
+            writeBack["useManual"] = NSNumber(value: true)
+        }
+
         if output == "Focus curve" {
             guard !curveSharpness.isEmpty else {
                 return FDSResult.failure("The focus curve is empty — try more search steps.")
             }
-            return FDSResult.plot(
+            var result = FDSResult.plot(
                 x: curveShifts, y: curveSharpness,
                 title: "tcBF Focus Curve — \(host.fileName)",
                 xLabel: "Disc-edge displacement (scan pixels)",
@@ -162,6 +218,8 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
                 message: String(format: "Sharpest at %.2f scan px.%@ %d virtual detectors, binning %d.",
                                 edgeShift, defocusNote, grouping.groupCount, binning)
             )
+            if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
+            return result
         }
 
         // 6. Final reconstruction at sub-pixel precision.
@@ -180,15 +238,18 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             message = String(format: "Plain sum of %d disc pixels, no tilt correction. For comparison the search found %.2f scan px.%@",
                              grouping.discPixelCount, edgeShift, defocusNote)
         } else {
-            message = String(format: "Edge displacement %.2f scan px%@%@ %d disc pixels in %d virtual detectors, binning %d. Edges are normalised by coverage.",
+            message = String(format: "Edge displacement %.2f scan px%@%@ %d disc pixels in %d virtual detectors, binning %d.%@",
                              edgeShift,
-                             useManual ? " (fixed)" : " (from sharpness search)",
+                             useManual ? "" : " (from sharpness search)",
                              defocusNote,
-                             grouping.discPixelCount, grouping.groupCount, binning)
+                             grouping.discPixelCount, grouping.groupCount, binning,
+                             rebuilt ? " Virtual images rebuilt from the 4D data." : " Reusing the cached virtual images.")
         }
 
-        return FDSResult.scanImage(image, rows: scanHeight, columns: scanWidth,
-                                   title: title, message: message)
+        var result = FDSResult.scanImage(image, rows: scanHeight, columns: scanWidth,
+                                         title: title, message: message)
+        if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
+        return result
     }
 
     // MARK: - Bright-field disc
@@ -280,6 +341,16 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         var pixelIndices: [Int]
         /// Start of each group's slice of `pixelIndices`, with a trailing end.
         var groupStart: [Int]
+
+        /// The same pixels as contiguous runs — a binned block covers whole
+        /// spans of a detector row, so each run can be summed with one vDSP
+        /// call instead of a scalar walk. Parallel arrays keep it flat.
+        var runOffset: [Int]
+        var runLength: [Int]
+        /// Start of each group's slice of the run arrays, with a trailing end.
+        var runStart: [Int]
+        /// Longest run, so the caller can tell whether vectorising is worth it.
+        var longestRun: Int
     }
 
     private func buildGroups(centerX: Float, centerY: Float, radius: Float, binning: Int,
@@ -306,6 +377,10 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         var tiltY: [Float] = []
         var pixelIndices: [Int] = []
         var groupStart: [Int] = [0]
+        var runOffset: [Int] = []
+        var runLength: [Int] = []
+        var runStart: [Int] = [0]
+        var longestRun = 0
 
         for key in members.keys.sorted() {
             guard let pixels = members[key], !pixels.isEmpty else { continue }
@@ -317,14 +392,41 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             let n = Float(pixels.count)
             tiltX.append(sumX / n)
             tiltY.append(sumY / n)
-            pixelIndices.append(contentsOf: pixels)
+
+            // Collapse the group's pixels into contiguous runs. They were
+            // collected in row-major order, so adjacent indices that differ by
+            // one and share a row belong to the same run.
+            let sorted = pixels.sorted()
+            var runBegin = sorted[0]
+            var runCount = 1
+            for index in sorted.dropFirst() {
+                let contiguous = index == runBegin + runCount
+                    && index / patternWidth == runBegin / patternWidth
+                if contiguous {
+                    runCount += 1
+                } else {
+                    runOffset.append(runBegin)
+                    runLength.append(runCount)
+                    longestRun = Swift.max(longestRun, runCount)
+                    runBegin = index
+                    runCount = 1
+                }
+            }
+            runOffset.append(runBegin)
+            runLength.append(runCount)
+            longestRun = Swift.max(longestRun, runCount)
+
+            pixelIndices.append(contentsOf: sorted)
             groupStart.append(pixelIndices.count)
+            runStart.append(runOffset.count)
         }
 
         return Grouping(groupCount: tiltX.count,
                         discPixelCount: pixelIndices.count,
                         tiltX: tiltX, tiltY: tiltY,
-                        pixelIndices: pixelIndices, groupStart: groupStart)
+                        pixelIndices: pixelIndices, groupStart: groupStart,
+                        runOffset: runOffset, runLength: runLength, runStart: runStart,
+                        longestRun: longestRun)
     }
 
     // MARK: - Virtual image stack
@@ -344,16 +446,34 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         stack.withUnsafeMutableBufferPointer { stackBuffer in
             guard let stackBase = stackBuffer.baseAddress else { return }
 
+            // Below this a vDSP call costs more than the adds it saves, which is
+            // the case at binning 1 where every run is a single pixel.
+            let vectorise = grouping.longestRun >= 4
+
             grouping.pixelIndices.withUnsafeBufferPointer { indices in
-                grouping.groupStart.withUnsafeBufferPointer { starts in
-                    for row in 0..<scanHeight {
-                        if host.isCancelled { return }
+            grouping.groupStart.withUnsafeBufferPointer { starts in
+            grouping.runOffset.withUnsafeBufferPointer { runOffsets in
+            grouping.runLength.withUnsafeBufferPointer { runLengths in
+            grouping.runStart.withUnsafeBufferPointer { runStarts in
+                for row in 0..<scanHeight {
+                    if host.isCancelled { return }
 
-                        for column in 0..<scanWidth {
-                            let probe = row * scanWidth + column
-                            guard host.copyPattern(row: row, column: column,
-                                                   into: pattern, capacity: patternPixels) else { continue }
+                    for column in 0..<scanWidth {
+                        let probe = row * scanWidth + column
+                        guard host.copyPattern(row: row, column: column,
+                                               into: pattern, capacity: patternPixels) else { continue }
 
+                        if vectorise {
+                            for group in 0..<grouping.groupCount {
+                                var sum: Float = 0
+                                for run in runStarts[group]..<runStarts[group + 1] {
+                                    var partial: Float = 0
+                                    vDSP_sve(pattern + runOffsets[run], 1, &partial, vDSP_Length(runLengths[run]))
+                                    sum += partial
+                                }
+                                stackBase[group * scanPixels + probe] = sum
+                            }
+                        } else {
                             for group in 0..<grouping.groupCount {
                                 var sum: Float = 0
                                 for slot in starts[group]..<starts[group + 1] {
@@ -362,13 +482,13 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
                                 stackBase[group * scanPixels + probe] = sum
                             }
                         }
-
-                        // Building the stack is the only pass over the raw data,
-                        // so it gets the bulk of the progress bar.
-                        host.reportProgress(0.7 * Double(row + 1) / Double(scanHeight))
                     }
+
+                    // Building the stack is the only pass over the raw data,
+                    // so it gets the bulk of the progress bar.
+                    host.reportProgress(0.7 * Double(row + 1) / Double(scanHeight))
                 }
-            }
+            }}}}}
         }
 
         return host.isCancelled ? nil : stack
@@ -392,7 +512,9 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
 
         var accumulator = [Float](repeating: 0, count: scanPixels)
         var coverage = [Float](repeating: 0, count: scanPixels)
+        var safeCoverage = [Float](repeating: 0, count: scanPixels)
         var normalised = [Float](repeating: 0, count: scanPixels)
+        var scratch = Scratch()
 
         let fullCoverage = 0.99 * Float(grouping.groupCount)
 
@@ -408,10 +530,12 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
                        edgeShift: edgeShift, radius: radius, bilinear: false,
                        accumulator: &accumulator, coverage: &coverage)
 
-            normalise(accumulator: accumulator, coverage: coverage, into: &normalised)
+            normalise(accumulator: accumulator, coverage: coverage,
+                      safeCoverage: &safeCoverage, into: &normalised)
             sharpness[step] = gradientEnergy(normalised, coverage: coverage,
                                              width: scanWidth, height: scanHeight,
-                                             minCoverage: fullCoverage)
+                                             minCoverage: fullCoverage,
+                                             scratch: &scratch)
 
             host.reportProgress(0.7 + 0.25 * Double(step + 1) / Double(steps))
         }
@@ -454,7 +578,9 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         let scanPixels = scanWidth * scanHeight
         let k = radius > 0 ? edgeShift / radius : 0   // scan px per detector px
 
-        for i in 0..<scanPixels { accumulator[i] = 0; coverage[i] = 0 }
+        var zero: Float = 0
+        vDSP_vfill(&zero, &accumulator, 1, vDSP_Length(scanPixels))
+        vDSP_vfill(&zero, &coverage, 1, vDSP_Length(scanPixels))
 
         stack.withUnsafeMutableBufferPointer { stackBuffer in
             accumulator.withUnsafeMutableBufferPointer { accBuffer in
@@ -516,11 +642,17 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     }
 
     /// Divides out coverage so the borders, where fewer tilts reach, are not dark.
-    private func normalise(accumulator: [Float], coverage: [Float], into result: inout [Float]) {
-        for i in 0..<result.count {
-            let weight = coverage[i]
-            result[i] = weight > 0 ? accumulator[i] / weight : 0
-        }
+    ///
+    /// Runs once per trial displacement over the whole scan, so it is on the
+    /// interactive path. Coverage is a count: clamping it up to 1 first means
+    /// the division needs no per-pixel branch, and uncovered pixels — where the
+    /// accumulator is 0 — still come out 0.
+    private func normalise(accumulator: [Float], coverage: [Float],
+                           safeCoverage: inout [Float], into result: inout [Float]) {
+        let n = vDSP_Length(result.count)
+        var one: Float = 1
+        vDSP_vthr(coverage, 1, &one, &safeCoverage, 1, n)
+        vDSP_vdiv(safeCoverage, 1, accumulator, 1, &result, 1, n)
     }
 
     // MARK: - Sharpness
@@ -528,32 +660,98 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     /// Mean squared gradient divided by the squared mean — scale-free, so trial
     /// displacements are compared on how sharp the image is, not how bright.
     /// Only fully covered pixels count, keeping partly filled borders out of it.
+    ///
+    /// Vectorised because it runs once per trial displacement over the whole
+    /// scan. The coverage test becomes a 0/1 mask multiplied into the gradient
+    /// energy, which is equivalent to the per-pixel branch it replaces but has
+    /// no branch in the inner loop.
     private func gradientEnergy(_ image: [Float], coverage: [Float],
-                                width: Int, height: Int, minCoverage: Float) -> Float {
+                                width: Int, height: Int, minCoverage: Float,
+                                scratch: inout Scratch) -> Float {
 
         guard width > 2, height > 2 else { return 0 }
-        var energy = 0.0
-        var total = 0.0
-        var counted = 0
+        let interiorWidth = width - 2
+        let rows = height - 2
+        let count = interiorWidth * rows
+        guard count > 0 else { return 0 }
 
-        for y in 1..<(height - 1) {
-            for x in 1..<(width - 1) {
-                let i = y * width + x
-                guard coverage[i] >= minCoverage,
-                      coverage[i - 1] >= minCoverage, coverage[i + 1] >= minCoverage,
-                      coverage[i - width] >= minCoverage, coverage[i + width] >= minCoverage else { continue }
-                let gx = Double(image[i + 1] - image[i - 1])
-                let gy = Double(image[i + width] - image[i - width])
-                energy += gx * gx + gy * gy
-                total += Double(image[i])
-                counted += 1
+        scratch.ensure(count: count)
+
+        var energySum: Float = 0
+        var valueSum: Float = 0
+        var maskSum: Float = 0
+
+        image.withUnsafeBufferPointer { img in
+            coverage.withUnsafeBufferPointer { cov in
+                guard let image = img.baseAddress, let coverage = cov.baseAddress else { return }
+
+                scratch.gx.withUnsafeMutableBufferPointer { gxBuf in
+                scratch.gy.withUnsafeMutableBufferPointer { gyBuf in
+                scratch.mask.withUnsafeMutableBufferPointer { maskBuf in
+                scratch.temp.withUnsafeMutableBufferPointer { tmpBuf in
+                    guard let gx = gxBuf.baseAddress, let gy = gyBuf.baseAddress,
+                          let mask = maskBuf.baseAddress, let temp = tmpBuf.baseAddress else { return }
+
+                    let n = vDSP_Length(interiorWidth)
+                    var limit = minCoverage
+                    var zero: Float = 0
+                    var one: Float = 1
+
+                    for row in 1..<(height - 1) {
+                        let centre = row * width + 1
+                        let out = (row - 1) * interiorWidth
+
+                        // Central differences, whole rows at a time.
+                        vDSP_vsub(image + centre - 1, 1, image + centre + 1, 1, gx + out, 1, n)
+                        vDSP_vsub(image + centre - width, 1, image + centre + width, 1, gy + out, 1, n)
+
+                        // Mask = 1 only where this pixel and its four neighbours
+                        // are all fully covered; built as a running minimum.
+                        vDSP_vmin(coverage + centre,         1, coverage + centre - 1,     1, mask + out, 1, n)
+                        vDSP_vmin(mask + out,                1, coverage + centre + 1,     1, mask + out, 1, n)
+                        vDSP_vmin(mask + out,                1, coverage + centre - width, 1, mask + out, 1, n)
+                        vDSP_vmin(mask + out,                1, coverage + centre + width, 1, mask + out, 1, n)
+                        // Below the limit -> 0, at or above -> 1.
+                        vDSP_vthrsc(mask + out, 1, &limit, &one, mask + out, 1, n)
+                        vDSP_vthres(mask + out, 1, &zero, mask + out, 1, n)
+
+                        vDSP_vmul(image + centre, 1, mask + out, 1, temp + out, 1, n)
+                    }
+
+                    let total = vDSP_Length(count)
+                    // energy = Σ mask · (gx² + gy²)
+                    vDSP_vsq(gx, 1, gx, 1, total)
+                    vDSP_vsq(gy, 1, gy, 1, total)
+                    vDSP_vadd(gx, 1, gy, 1, gx, 1, total)
+                    vDSP_dotpr(gx, 1, mask, 1, &energySum, total)
+
+                    vDSP_sve(temp, 1, &valueSum, total)
+                    vDSP_sve(mask, 1, &maskSum, total)
+                }}}}
             }
         }
 
-        guard counted > 0 else { return 0 }
-        let mean = total / Double(counted)
+        guard maskSum > 0 else { return 0 }
+        let mean = valueSum / maskSum
         guard mean > 0 else { return 0 }
-        return Float(energy / Double(counted) / (mean * mean))
+        return (energySum / maskSum) / (mean * mean)
+    }
+
+    /// Reusable buffers for `gradientEnergy`, so a 41-step search does not
+    /// allocate 41 times.
+    private struct Scratch {
+        var gx: [Float] = []
+        var gy: [Float] = []
+        var mask: [Float] = []
+        var temp: [Float] = []
+
+        mutating func ensure(count: Int) {
+            guard gx.count != count else { return }
+            gx = [Float](repeating: 0, count: count)
+            gy = [Float](repeating: 0, count: count)
+            mask = [Float](repeating: 0, count: count)
+            temp = [Float](repeating: 0, count: count)
+        }
     }
 
     // MARK: - Reconstruction
@@ -572,13 +770,17 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
 
         // Rescale to the intensity a plain BF sum would have given, so the
         // numbers stay comparable with the app's own integrating detector.
+        let n = vDSP_Length(scanPixels)
         var maximumCoverage: Float = 0
-        for value in coverage where value > maximumCoverage { maximumCoverage = value }
+        vDSP_maxv(coverage, 1, &maximumCoverage, n)
+
+        var safeCoverage = [Float](repeating: 0, count: scanPixels)
+        var one: Float = 1
+        vDSP_vthr(coverage, 1, &one, &safeCoverage, 1, n)
 
         var result = [Float](repeating: 0, count: scanPixels)
-        for i in 0..<scanPixels {
-            result[i] = coverage[i] > 0 ? accumulator[i] * maximumCoverage / coverage[i] : 0
-        }
+        vDSP_vdiv(safeCoverage, 1, accumulator, 1, &result, 1, n)
+        vDSP_vsmul(result, 1, &maximumCoverage, &result, 1, n)
         return result
     }
 }

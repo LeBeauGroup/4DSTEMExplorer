@@ -110,6 +110,42 @@ final class PluginParameterStore: ObservableObject {
         return result
     }
 
+    /// Writes plugin-supplied values back into the controls, so a plugin that
+    /// *measures* something can leave the control sitting at what it found.
+    /// Returns true if any control actually moved.
+    @discardableResult
+    func apply(_ values: [String: Any]) -> Bool {
+        var changed = false
+        for descriptor in descriptors {
+            guard let raw = values[descriptor.id] else { continue }
+            switch descriptor.type {
+            case FDSParameterType.toggle:
+                if let value = (raw as? NSNumber)?.boolValue, flags[descriptor.id] != value {
+                    flags[descriptor.id] = value
+                    changed = true
+                }
+            case FDSParameterType.choice:
+                if let value = raw as? String, descriptor.choices.contains(value), strings[descriptor.id] != value {
+                    strings[descriptor.id] = value
+                    changed = true
+                }
+            case FDSParameterType.text:
+                if let value = raw as? String, strings[descriptor.id] != value {
+                    strings[descriptor.id] = value
+                    changed = true
+                }
+            default:
+                if let value = (raw as? NSNumber)?.doubleValue, value.isFinite {
+                    let clamped = clamp(value, descriptor)
+                    if let existing = numbers[descriptor.id], abs(existing - clamped) < 1e-12 { continue }
+                    numbers[descriptor.id] = clamped
+                    changed = true
+                }
+            }
+        }
+        return changed
+    }
+
     func binding(forNumber id: String) -> Binding<Double> {
         return Binding(get: { self.numbers[id] ?? 0 }, set: { self.numbers[id] = $0 })
     }
@@ -123,54 +159,28 @@ final class PluginParameterStore: ObservableObject {
     }
 }
 
-// MARK: - Parameter sheet
+// MARK: - Parameter controls
 
-struct PluginParameterSheet: View {
-    let pluginName: String
-    let summary: String
+/// The controls a plugin declared, laid out. Shared by the modal sheet and the
+/// live window so both stay in step.
+struct PluginParameterControls: View {
     @ObservedObject var store: PluginParameterStore
-    let onCancel: () -> Void
-    let onRun: () -> Void
 
     var body: some View {
-        // Summary and buttons take their natural height; the scroll view in the
-        // middle absorbs whatever is left over. That ordering is what keeps the
-        // buttons on screen no matter how the panel ends up being sized.
-        VStack(alignment: .leading, spacing: 12) {
-            if !summary.isEmpty {
-                Text(summary)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(store.descriptors) { descriptor in
-                        VStack(alignment: .leading, spacing: 3) {
-                            control(for: descriptor)
-                            if !descriptor.help.isEmpty {
-                                Text(descriptor.help)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(store.descriptors) { descriptor in
+                VStack(alignment: .leading, spacing: 3) {
+                    control(for: descriptor)
+                    if !descriptor.help.isEmpty {
+                        Text(descriptor.help)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 2)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                Button("Run", action: onRun)
-                    .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -207,17 +217,57 @@ struct PluginParameterSheet: View {
             }
 
         default:
-            HStack {
-                Text(descriptor.label)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(descriptor.label)
+                    Spacer()
+                    TextField("", value: store.binding(forNumber: descriptor.id), format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                }
                 if let minimum = descriptor.minimum, let maximum = descriptor.maximum, maximum > minimum {
                     Slider(value: store.binding(forNumber: descriptor.id), in: minimum...maximum)
                 }
-                Spacer(minLength: 4)
-                TextField("", value: store.binding(forNumber: descriptor.id), format: .number)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 90)
             }
         }
+    }
+}
+
+// MARK: - Parameter sheet
+
+struct PluginParameterSheet: View {
+    let pluginName: String
+    let summary: String
+    @ObservedObject var store: PluginParameterStore
+    let onCancel: () -> Void
+    let onRun: () -> Void
+
+    var body: some View {
+        // Summary and buttons take their natural height; the scroll view in the
+        // middle absorbs whatever is left over. That ordering is what keeps the
+        // buttons on screen no matter how the panel ends up being sized.
+        VStack(alignment: .leading, spacing: 12) {
+            if !summary.isEmpty {
+                Text(summary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ScrollView {
+                PluginParameterControls(store: store)
+                    .padding(.trailing, 2)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("Run", action: onRun)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
     }
 }
 

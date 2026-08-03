@@ -590,7 +590,7 @@ struct RootView: View {
         }
         .onDrop(of: [UTType.fileURL], isTargeted: $isFileDropTargeted) { providers in
             guard let provider = providers.first else { return false }
-            let supportedExtensions = ["dm4", "mrc", "tif", "tiff", "raw"]
+            let supportedExtensions = ["dm4", "mrc", "tif", "tiff", "raw", "emd", "h5", "hdf5"]
             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                 let url: URL?
                 if let data = item as? Data {

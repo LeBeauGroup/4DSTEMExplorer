@@ -27,7 +27,10 @@ final class OpenPanelController: ObservableObject {
             UTType(filenameExtension: "mrc") ?? .data,
             UTType.tiff,
             UTType(filenameExtension: "tif") ?? .tiff,
-            UTType(filenameExtension: "raw") ?? .data
+            UTType(filenameExtension: "raw") ?? .data,
+            UTType(filenameExtension: "emd") ?? .data,
+            UTType(filenameExtension: "h5") ?? .data,
+            UTType(filenameExtension: "hdf5") ?? .data
         ]
         panel.begin { resp in
             if resp == .OK, let url = panel.url {

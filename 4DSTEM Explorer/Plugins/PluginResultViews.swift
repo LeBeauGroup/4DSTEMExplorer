@@ -128,6 +128,10 @@ struct PluginResultView: View {
     @State private var fitRequest: Int = 0
     @State private var actualSizeRequest: Int = 0
 
+    /// Visible x span of a plot result; nil shows the full extent.
+    @State private var plotXRange: ClosedRange<Double>?
+    @State private var plotAutoScaleY: Bool = true
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             switch payload.kind {
@@ -223,16 +227,39 @@ struct PluginResultView: View {
 
     @ViewBuilder
     private var plotBody: some View {
-        PluginPlotView(x: payload.x, y: payload.y, xLabel: payload.xLabel, yLabel: payload.yLabel)
+        PluginPlotView(x: payload.x, y: payload.y,
+                       xLabel: payload.xLabel, yLabel: payload.yLabel,
+                       xRange: $plotXRange, autoScaleY: plotAutoScaleY)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-        HStack {
-            Text("\(payload.y.count) points")
+        HStack(spacing: 10) {
+            Text(plotRangeCaption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Spacer()
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Toggle("Auto Y", isOn: $plotAutoScaleY)
+                .toggleStyle(.checkbox)
+                .controlSize(.small)
+                .help("Rescale the vertical axis to the visible range")
+
+            Button("Reset") { plotXRange = nil }
+                .disabled(plotXRange == nil)
+                .help("Show the full range")
+
             Button("Export CSV…") { PluginResultExporter.exportCSV(payload) }
         }
+    }
+
+    private var plotRangeCaption: String {
+        guard let range = plotXRange else {
+            return "\(payload.y.count) points · drag across the plot to zoom"
+        }
+        let visible = payload.x.filter { Double($0) >= range.lowerBound && Double($0) <= range.upperBound }
+        return String(format: "%d of %d points · x %.4g to %.4g",
+                      visible.count, payload.y.count, range.lowerBound, range.upperBound)
     }
 
     // MARK: Text
@@ -394,119 +421,374 @@ private final class PluginImageCanvas: NSView {
     }
 }
 
+
+/// x-axis zoom arithmetic, kept out of the view so its edge cases can be
+/// checked directly: a minimum usable span, panning that must not change width
+/// when it hits an end stop, and a selection covering everything collapsing
+/// back to "no zoom".
+struct PlotXZoom {
+
+    /// Smallest zoom, as a fraction of the full extent.
+    static let minimumSpanFraction = 1.0 / 5000.0
+
+    /// Takes loose bounds rather than a `ClosedRange`: a range traps on
+    /// construction when its bounds are the wrong way round, which would put the
+    /// crash at the call site, before any normalisation could run.
+    /// Returns nil when the result is the full extent — i.e. not zoomed.
+    static func clamped(low requestedLow: Double,
+                        high requestedHigh: Double,
+                        full: ClosedRange<Double>,
+                        preserveSpan: Bool = false) -> ClosedRange<Double>? {
+
+        let fullSpan = full.upperBound - full.lowerBound
+        guard fullSpan > 0, requestedLow.isFinite, requestedHigh.isFinite else { return nil }
+
+        var low = Swift.min(requestedLow, requestedHigh)
+        var high = Swift.max(requestedLow, requestedHigh)
+
+        let minimumSpan = fullSpan * minimumSpanFraction
+        if high - low < minimumSpan {
+            let centre = (low + high) / 2
+            low = centre - minimumSpan / 2
+            high = centre + minimumSpan / 2
+        }
+
+        if preserveSpan {
+            // Panning: slide against the end stop rather than squashing.
+            let span = Swift.min(high - low, fullSpan)
+            if low < full.lowerBound { low = full.lowerBound; high = low + span }
+            if high > full.upperBound { high = full.upperBound; low = high - span }
+        }
+        low = Swift.max(low, full.lowerBound)
+        high = Swift.min(high, full.upperBound)
+
+        guard high > low else { return nil }
+        if low <= full.lowerBound && high >= full.upperBound { return nil }
+        return low...high
+    }
+}
+
 // MARK: - Plot
 
-/// Minimal line plot. Deliberately hand-drawn rather than pulling in Charts so
-/// the plugin surface adds no framework dependency to the app.
+/// Minimal line plot with x-axis zooming. Deliberately hand-drawn rather than
+/// pulling in Charts so the plugin surface adds no framework dependency.
+///
+/// Drag across the plot to zoom into a span, pinch to zoom about the centre,
+/// scroll to pan once zoomed, double-click to reset. Hovering reads out the
+/// nearest point, which is how you get a number off a histogram peak.
 struct PluginPlotView: View {
+
     let x: [Float]
     let y: [Float]
     let xLabel: String
     let yLabel: String
+    @Binding var xRange: ClosedRange<Double>?
+    let autoScaleY: Bool
 
-    private let inset = EdgeInsets(top: 12, leading: 56, bottom: 40, trailing: 14)
+    @State private var dragStartX: CGFloat?
+    @State private var dragCurrentX: CGFloat?
+    @State private var pinchBaseRange: ClosedRange<Double>?
+    @State private var hoverIndex: Int?
+
+    private let inset = EdgeInsets(top: 12, leading: 62, bottom: 44, trailing: 16)
 
     var body: some View {
         GeometryReader { geo in
             let plotRect = CGRect(
                 x: inset.leading,
                 y: inset.top,
-                width: max(1, geo.size.width - inset.leading - inset.trailing),
-                height: max(1, geo.size.height - inset.top - inset.bottom)
+                width: Swift.max(1, geo.size.width - inset.leading - inset.trailing),
+                height: Swift.max(1, geo.size.height - inset.top - inset.bottom)
             )
-            let bounds = PluginPlotView.bounds(x: x, y: y)
+            let bounds = self.bounds()
 
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 Canvas { context, _ in
-                    // Frame
-                    var frame = Path()
-                    frame.addRect(plotRect)
-                    context.stroke(frame, with: .color(.secondary.opacity(0.5)), lineWidth: 1)
+                    draw(in: &context, plotRect: plotRect, bounds: bounds)
+                }
 
-                    // Gridlines at the tick positions
-                    var grid = Path()
-                    for fraction in [0.25, 0.5, 0.75] {
-                        let gx = plotRect.minX + plotRect.width * fraction
-                        grid.move(to: CGPoint(x: gx, y: plotRect.minY))
-                        grid.addLine(to: CGPoint(x: gx, y: plotRect.maxY))
-                        let gy = plotRect.minY + plotRect.height * fraction
-                        grid.move(to: CGPoint(x: plotRect.minX, y: gy))
-                        grid.addLine(to: CGPoint(x: plotRect.maxX, y: gy))
-                    }
-                    context.stroke(grid, with: .color(.secondary.opacity(0.18)), lineWidth: 1)
+                axisLabels(plotRect: plotRect, bounds: bounds)
 
-                    // Series
-                    guard x.count == y.count, x.count > 1 else { return }
-                    var line = Path()
-                    var started = false
-                    for i in 0..<x.count {
-                        guard x[i].isFinite, y[i].isFinite else { started = false; continue }
-                        let point = CGPoint(
-                            x: plotRect.minX + CGFloat((x[i] - bounds.xMin) / bounds.xSpan) * plotRect.width,
-                            y: plotRect.maxY - CGFloat((y[i] - bounds.yMin) / bounds.ySpan) * plotRect.height
-                        )
-                        if started {
-                            line.addLine(to: point)
-                        } else {
-                            line.move(to: point)
-                            started = true
+                if let index = hoverIndex, index < x.count {
+                    crosshair(index: index, plotRect: plotRect, bounds: bounds)
+                }
+
+                // Transparent hit area on top, so gestures work anywhere over
+                // the plot without the Canvas having to handle them.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            hoverIndex = plotRect.contains(location)
+                                ? nearestIndex(toViewX: location.x, plotRect: plotRect, bounds: bounds)
+                                : nil
+                        case .ended:
+                            hoverIndex = nil
                         }
                     }
-                    context.stroke(line, with: .color(.accentColor), lineWidth: 1.5)
-                }
+                    .onTapGesture(count: 2) { xRange = nil }
+                    .gesture(
+                        DragGesture(minimumDistance: 3)
+                            .onChanged { value in
+                                if dragStartX == nil { dragStartX = value.startLocation.x }
+                                dragCurrentX = value.location.x
+                            }
+                            .onEnded { value in
+                                let start = dragStartX
+                                dragStartX = nil
+                                dragCurrentX = nil
+                                guard let start = start else { return }
+                                let lowX = Swift.min(start, value.location.x)
+                                let highX = Swift.max(start, value.location.x)
+                                // Too small to be a deliberate selection.
+                                guard highX - lowX > 6 else { return }
+                                let low = dataX(fromView: lowX, plotRect: plotRect, bounds: bounds)
+                                let high = dataX(fromView: highX, plotRect: plotRect, bounds: bounds)
+                                xRange = clamped(low: low, high: high)
+                            }
+                    )
+                    .simultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let base = pinchBaseRange ?? (bounds.xMin...bounds.xMax)
+                                if pinchBaseRange == nil { pinchBaseRange = base }
+                                let centre = (base.lowerBound + base.upperBound) / 2
+                                let half = (base.upperBound - base.lowerBound) / 2 / Swift.max(0.05, Double(value))
+                                xRange = clamped(low: centre - half, high: centre + half)
+                            }
+                            .onEnded { _ in pinchBaseRange = nil }
+                    )
+                    .overlay(PlotScrollReceiver { delta in
+                        guard xRange != nil else { return }   // nothing to pan when fully zoomed out
+                        let span = bounds.xMax - bounds.xMin
+                        let shift = -Double(delta) * span / Double(plotRect.width)
+                        xRange = clamped(low: bounds.xMin + shift, high: bounds.xMax + shift, preserveSpan: true)
+                    })
 
-                // Tick labels and axis titles, drawn as views so they pick up
-                // the system font and colour automatically.
-                ForEach(0..<5) { step in
-                    let fraction = Double(step) / 4.0
-                    Text(PluginPlotView.format(bounds.xMin + Float(fraction) * bounds.xSpan))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .position(x: plotRect.minX + plotRect.width * fraction, y: plotRect.maxY + 12)
-
-                    Text(PluginPlotView.format(bounds.yMin + Float(fraction) * bounds.ySpan))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: inset.leading - 8, alignment: .trailing)
-                        .position(x: (inset.leading - 8) / 2, y: plotRect.maxY - plotRect.height * fraction)
-                }
-
-                if !xLabel.isEmpty {
-                    Text(xLabel)
-                        .font(.caption)
-                        .position(x: plotRect.midX, y: plotRect.maxY + 30)
-                }
-                if !yLabel.isEmpty {
-                    Text(yLabel)
-                        .font(.caption)
-                        .rotationEffect(.degrees(-90))
-                        .position(x: 12, y: plotRect.midY)
+                if let start = dragStartX, let current = dragCurrentX {
+                    let low = Swift.min(start, current)
+                    let width = abs(current - start)
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.18))
+                        .overlay(Rectangle().stroke(Color.accentColor.opacity(0.6), lineWidth: 1))
+                        .frame(width: width, height: plotRect.height)
+                        .position(x: low + width / 2, y: plotRect.midY)
+                        .allowsHitTesting(false)
                 }
             }
         }
     }
 
-    private struct Bounds {
-        var xMin: Float, xSpan: Float, yMin: Float, ySpan: Float
+    // MARK: Drawing
+
+    private func draw(in context: inout GraphicsContext, plotRect: CGRect, bounds: Bounds) {
+        var frame = Path()
+        frame.addRect(plotRect)
+        context.stroke(frame, with: .color(.secondary.opacity(0.5)), lineWidth: 1)
+
+        var grid = Path()
+        for fraction in [0.25, 0.5, 0.75] {
+            let gx = plotRect.minX + plotRect.width * fraction
+            grid.move(to: CGPoint(x: gx, y: plotRect.minY))
+            grid.addLine(to: CGPoint(x: gx, y: plotRect.maxY))
+            let gy = plotRect.minY + plotRect.height * fraction
+            grid.move(to: CGPoint(x: plotRect.minX, y: gy))
+            grid.addLine(to: CGPoint(x: plotRect.maxX, y: gy))
+        }
+        context.stroke(grid, with: .color(.secondary.opacity(0.18)), lineWidth: 1)
+
+        guard x.count == y.count, x.count > 1 else { return }
+
+        // Clip to the plot so a zoomed range cannot draw over the axes.
+        context.clip(to: Path(plotRect))
+
+        var line = Path()
+        var started = false
+        for i in 0..<x.count {
+            guard x[i].isFinite, y[i].isFinite else { started = false; continue }
+            let point = viewPoint(index: i, plotRect: plotRect, bounds: bounds)
+            // One point either side of the visible span keeps the line running
+            // to the edges instead of stopping short.
+            guard point.x >= plotRect.minX - plotRect.width, point.x <= plotRect.maxX + plotRect.width else {
+                started = false
+                continue
+            }
+            if started {
+                line.addLine(to: point)
+            } else {
+                line.move(to: point)
+                started = true
+            }
+        }
+        context.stroke(line, with: .color(.accentColor), lineWidth: 1.5)
     }
 
-    private static func bounds(x: [Float], y: [Float]) -> Bounds {
-        let finiteX = x.filter { $0.isFinite }
-        let finiteY = y.filter { $0.isFinite }
-        let xMin = finiteX.min() ?? 0
-        let xMax = finiteX.max() ?? 1
-        let yMin = finiteY.min() ?? 0
-        let yMax = finiteY.max() ?? 1
-        return Bounds(
-            xMin: xMin,
-            xSpan: (xMax - xMin) > 0 ? (xMax - xMin) : 1,
-            yMin: yMin,
-            ySpan: (yMax - yMin) > 0 ? (yMax - yMin) : 1
+    @ViewBuilder
+    private func axisLabels(plotRect: CGRect, bounds: Bounds) -> some View {
+        ForEach(0..<5) { step in
+            let fraction = Double(step) / 4.0
+            Text(PluginPlotView.format(bounds.xMin + fraction * (bounds.xMax - bounds.xMin)))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .position(x: plotRect.minX + plotRect.width * fraction, y: plotRect.maxY + 12)
+
+            Text(PluginPlotView.format(bounds.yMin + fraction * (bounds.yMax - bounds.yMin)))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: inset.leading - 8, alignment: .trailing)
+                .position(x: (inset.leading - 8) / 2, y: plotRect.maxY - plotRect.height * fraction)
+        }
+
+        if !xLabel.isEmpty {
+            Text(xLabel)
+                .font(.caption)
+                .position(x: plotRect.midX, y: plotRect.maxY + 32)
+        }
+        if !yLabel.isEmpty {
+            Text(yLabel)
+                .font(.caption)
+                .rotationEffect(.degrees(-90))
+                .position(x: 13, y: plotRect.midY)
+        }
+    }
+
+    @ViewBuilder
+    private func crosshair(index: Int, plotRect: CGRect, bounds: Bounds) -> some View {
+        let point = viewPoint(index: index, plotRect: plotRect, bounds: bounds)
+        if plotRect.contains(CGPoint(x: point.x, y: plotRect.midY)) {
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.45))
+                .frame(width: 1, height: plotRect.height)
+                .position(x: point.x, y: plotRect.midY)
+                .allowsHitTesting(false)
+
+            Circle()
+                .fill(Color.accentColor)
+                .frame(width: 5, height: 5)
+                .position(point)
+                .allowsHitTesting(false)
+
+            Text(String(format: "%@ = %.5g,  %@ = %.5g",
+                        xLabel.isEmpty ? "x" : xLabel, x[index],
+                        yLabel.isEmpty ? "y" : yLabel, y[index]))
+                .font(.caption2)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 4))
+                .fixedSize()
+                // Flip to the left of the crosshair near the right edge.
+                .position(x: Swift.min(Swift.max(point.x + 78, plotRect.minX + 78), plotRect.maxX - 4),
+                          y: plotRect.minY + 12)
+                .allowsHitTesting(false)
+        }
+    }
+
+    // MARK: Geometry
+
+    private struct Bounds {
+        var xMin: Double, xMax: Double, yMin: Double, yMax: Double
+    }
+
+    private var fullXExtent: ClosedRange<Double> {
+        let finite = x.filter { $0.isFinite }
+        let low = Double(finite.min() ?? 0)
+        let high = Double(finite.max() ?? 1)
+        return high > low ? low...high : low...(low + 1)
+    }
+
+    private func bounds() -> Bounds {
+        let visible = xRange ?? fullXExtent
+        let xMin = visible.lowerBound
+        let xMax = visible.upperBound > visible.lowerBound ? visible.upperBound : visible.lowerBound + 1
+
+        var yLow = Double.greatestFiniteMagnitude
+        var yHigh = -Double.greatestFiniteMagnitude
+        var sawAny = false
+
+        for i in 0..<Swift.min(x.count, y.count) {
+            guard y[i].isFinite, x[i].isFinite else { continue }
+            if autoScaleY {
+                let value = Double(x[i])
+                guard value >= xMin, value <= xMax else { continue }
+            }
+            yLow = Swift.min(yLow, Double(y[i]))
+            yHigh = Swift.max(yHigh, Double(y[i]))
+            sawAny = true
+        }
+        if !sawAny { yLow = 0; yHigh = 1 }
+
+        // Counts and other non-negative series read correctly only when the
+        // baseline is zero; series that go negative keep their own minimum.
+        if yLow >= 0 { yLow = 0 }
+        if yHigh <= yLow { yHigh = yLow + 1 }
+
+        return Bounds(xMin: xMin, xMax: xMax, yMin: yLow, yMax: yHigh)
+    }
+
+    private func viewPoint(index: Int, plotRect: CGRect, bounds: Bounds) -> CGPoint {
+        let spanX = bounds.xMax - bounds.xMin
+        let spanY = bounds.yMax - bounds.yMin
+        return CGPoint(
+            x: plotRect.minX + CGFloat((Double(x[index]) - bounds.xMin) / spanX) * plotRect.width,
+            y: plotRect.maxY - CGFloat((Double(y[index]) - bounds.yMin) / spanY) * plotRect.height
         )
     }
 
-    private static func format(_ value: Float) -> String {
+    private func dataX(fromView viewX: CGFloat, plotRect: CGRect, bounds: Bounds) -> Double {
+        let fraction = Double((viewX - plotRect.minX) / plotRect.width)
+        return bounds.xMin + fraction * (bounds.xMax - bounds.xMin)
+    }
+
+    private func nearestIndex(toViewX viewX: CGFloat, plotRect: CGRect, bounds: Bounds) -> Int? {
+        let target = dataX(fromView: viewX, plotRect: plotRect, bounds: bounds)
+        var best: Int?
+        var bestDistance = Double.greatestFiniteMagnitude
+        for i in 0..<Swift.min(x.count, y.count) {
+            guard x[i].isFinite, y[i].isFinite else { continue }
+            let value = Double(x[i])
+            guard value >= bounds.xMin, value <= bounds.xMax else { continue }
+            let distance = abs(value - target)
+            if distance < bestDistance {
+                bestDistance = distance
+                best = i
+            }
+        }
+        return best
+    }
+
+    private func clamped(low: Double, high: Double, preserveSpan: Bool = false) -> ClosedRange<Double>? {
+        return PlotXZoom.clamped(low: low, high: high, full: fullXExtent, preserveSpan: preserveSpan)
+    }
+
+    private static func format(_ value: Double) -> String {
         return String(format: "%.4g", value)
+    }
+}
+
+/// Forwards scroll-wheel deltas without swallowing clicks or drags.
+private struct PlotScrollReceiver: NSViewRepresentable {
+    let onScroll: (CGFloat) -> Void
+
+    func makeNSView(context: Context) -> ScrollCatcher { return ScrollCatcher() }
+
+    func updateNSView(_ nsView: ScrollCatcher, context: Context) {
+        nsView.onScroll = onScroll
+    }
+
+    final class ScrollCatcher: NSView {
+        var onScroll: ((CGFloat) -> Void)?
+
+        // Claim the hit test only for scroll events; everything else falls
+        // through to the SwiftUI gestures underneath.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            return NSApp.currentEvent?.type == .scrollWheel ? self : nil
+        }
+
+        override func scrollWheel(with event: NSEvent) {
+            let delta = event.scrollingDeltaX != 0 ? event.scrollingDeltaX : event.scrollingDeltaY
+            onScroll?(delta)
+        }
     }
 }
 

@@ -126,6 +126,10 @@ class STEMDataController: NSObject {
     var fileStream:InputStream?
     
     var patternPointer:UnsafeMutablePointer<Float32>?
+
+    // Held between inspecting an EMD file and reading it.
+    private var emdFile:HDF5File?
+    private var emdDataset:EMDDataset?
     
     var dwi: DispatchWorkItem?
 
@@ -426,6 +430,7 @@ class STEMDataController: NSObject {
         let isMRC = ext == "mrc"
         let isDM4 = ext == "dm4"
         let isRaw = ext == "raw"
+        let isEMD = ext == "emd" || ext == "h5" || ext == "hdf5"
         
 
         var dataType: DataType = .unknown
@@ -453,6 +458,26 @@ class STEMDataController: NSObject {
             self.patternSize = detectorSize
             
             self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
+        } else if isEMD {
+            self.emdFile = nil
+            self.emdDataset = nil
+            self.calibrations = nil
+
+            let (dataset, file) = try EMDReader.inspect(url: url)
+
+            // libhdf5 converts whatever the file holds into Float on read, so
+            // the sample format never reaches the streaming path below.
+            dataType = .float32
+            firstImageOffset = 0
+            self.detectorSize = IntSize(width: dataset.patternWidth, height: dataset.patternHeight)
+            self.patternSize = detectorSize
+            self.imageSize = IntSize(width: dataset.scanWidth, height: dataset.scanHeight)
+            self.calibrations = dataset.calibrations
+            self.emdFile = file
+            self.emdDataset = dataset
+#if DEBUG
+            NSLog("[EMD] %@ — %@", dataset.datasetPath, dataset.summary)
+#endif
         } else if isDM4{
             
             let dm4 = try DigitalMicrographReader(fileURL: url)
@@ -642,9 +667,12 @@ class STEMDataController: NSObject {
             throw FileReadError.invalidDimensions
         }
 
-        let doFlipRows = rawFlipRows
-        let doFlipCols = rawFlipCols
-        let doTranspose = rawTranspose
+        // The row flip is an EMPAD RAW convention. EMD files store the stack in
+        // the orientation they mean, and the transforms are instance state left
+        // over from whatever was opened last, so don't apply them here.
+        let doFlipRows = isEMD ? false : rawFlipRows
+        let doFlipCols = isEMD ? false : rawFlipCols
+        let doTranspose = isEMD ? false : rawTranspose
 
         let batchSize = 64
         let totalBatches = (totalImages + batchSize - 1) / batchSize
@@ -657,6 +685,26 @@ class STEMDataController: NSObject {
                 DispatchQueue.main.async {
                     self.delegate?.didFailLoadingData(error)
                 }
+            }
+
+            // EMD goes through libhdf5 rather than the raw byte stream below,
+            // so that chunking, compression and sample format are its problem.
+            if let hdf5 = self.emdFile, let dataset = self.emdDataset {
+                do {
+                    try self.readEMD(hdf5, dataset,
+                                     patternPixels: patternPixels,
+                                     totalImages: totalImages,
+                                     nc: nc)
+                } catch {
+                    fail(error)
+                    return
+                }
+                if self.dwi?.isCancelled ?? false { return }
+                DispatchQueue.main.async(execute: DispatchWorkItem {
+                    _ = self.delegate?.didFinishLoadingData()
+                    nc.post(name: .fileLoaded, object: nil)
+                })
+                return
             }
 
             self.openFileHandle(url: url)
@@ -768,6 +816,26 @@ class STEMDataController: NSObject {
         DispatchQueue.global().async(execute: dwi!)
     }
     
+    /// Streams an EMD stack into the pattern buffer, reporting progress and
+    /// honouring cancellation between slabs.
+    private func readEMD(_ file: HDF5File, _ dataset: EMDDataset,
+                         patternPixels: Int, totalImages: Int,
+                         nc: NotificationCenter) throws {
+
+        let total = patternPixels * totalImages
+        guard total > 0 else { throw FileReadError.invalidDimensions }
+
+        self.patternPointer?.deallocate()
+        self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: total)
+
+        try EMDReader.read(dataset, from: file, into: self.patternPointer!) { [weak self] fraction in
+            guard let self = self else { return false }
+            if self.dwi?.isCancelled ?? false { return false }
+            DispatchQueue.main.async { nc.post(name: .taskProgressUpdated, object: fraction) }
+            return true
+        }
+    }
+
     func openFileHandle(url:URL){
        
         let bufferStream:FileHandle?
