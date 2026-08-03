@@ -1,6 +1,31 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
+private class ScrollOnlyNSView: NSView {
+    var onScroll: ((CGFloat, CGFloat) -> Void)?
+
+    // Accept hit tests only for scroll wheel events; all other events fall through to SwiftUI content below
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        NSApp.currentEvent?.type == .scrollWheel ? self : nil
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        onScroll?(event.scrollingDeltaX, event.scrollingDeltaY)
+    }
+}
+
+private struct ScrollOnlyReceiver: NSViewRepresentable {
+    let onScroll: (CGFloat, CGFloat) -> Void
+
+    func makeNSView(context: Context) -> ScrollOnlyNSView {
+        ScrollOnlyNSView()
+    }
+
+    func updateNSView(_ nsView: ScrollOnlyNSView, context: Context) {
+        nsView.onScroll = onScroll
+    }
+}
 
 struct RootView: View {
     @EnvironmentObject private var model: DataViewModel
@@ -30,7 +55,14 @@ struct RootView: View {
     @State private var pattern_mat:Matrix?
     @Binding var showDetector: Bool
     @State private var interactive:Bool = false
+    @State private var isDetectorDragging: Bool = false
+    @State private var isFileDropTargeted: Bool = false
     @Binding var calculationMode:CalculationMode
+    @State private var patternZoom: CGFloat = 1.0
+    @State private var patternZoomStart: CGFloat = 1.0
+    @State private var patternOffset: CGSize = .zero
+    @State private var patternOffsetStart: CGSize = .zero
+    @State private var patternViewSize: CGSize = .zero
 
     private func detectorShapeLabel(_ shape: DetectorShape) -> String {
         switch shape {
@@ -75,56 +107,27 @@ struct RootView: View {
         }
     }
     
-    private func scaleBarPixelsAndLabel(for viewWidth: CGFloat) -> (pixels: CGFloat, label: String)? {
-        
+    private func scaleBarPixelsAndLabel(viewWidth: CGFloat, zoomScale: CGFloat) -> (imagePixels: CGFloat, label: String)? {
         guard let step = model.calibrations?.scan_step, step.isFinite, step > 0 else { return nil }
-        // step is distance per pixel (e.g., nm/px or um/px). We'll assume meters per pixel if step is SI; format to nm/µm/mm intelligently.
-        // Choose a target on-screen bar width ~120-180pt (depends on image scale) by picking a nice round physical length.
-        // We don't know units, but we can format in nm/µm/mm by scaling step.
-        let metersPerPixel = step*1e-9 // assume meters per pixel
-        // Candidate nice lengths in meters
-        let niceMeters: [Float] = [1e-9, 2e-9, 5e-9, 1e-8, 2e-8, 5e-8, 1e-7, 2e-7, 5e-7, 1e-6, 2e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3]
-        // Desired pixel width range
-        
-        let minPx: Float = 80
-        let maxPx: Float = 160
-        var best: (px: Float, m: Float)? = nil
-        
-        for m in niceMeters {
-            let px = (m / metersPerPixel)
-            if px >= minPx && px <= maxPx {
-                best = (px, m)
-                break
-            }
-        }
-        // Fallback: pick closest within range
-        if best == nil {
-            var closest: (diff: Float, px: Float, m: Float)? = nil
-            for m in niceMeters {
-                let px = Float(m / metersPerPixel)
-                let diff = abs(px - (minPx + maxPx) / 2)
-                if closest == nil || diff < closest!.diff {
-                    closest = (diff, px, m)
+        // step is nm per image pixel
+        // Limit bar to 10% of the displayed image width in image pixels
+        let maxImagePixels = (viewWidth / max(zoomScale, 0.01)) * 0.20
+        // Candidate nice lengths in nm
+        let niceNm: [Float] = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
+        // Pick the largest length whose image-pixel width fits within the limit
+        for length in niceNm.reversed() {
+            let imagePixels = CGFloat(length / step)
+            if imagePixels <= maxImagePixels {
+                let label: String
+                if length < 1000 {
+                    label = String(format: "%.0f nm", length)
+                } else {
+                    label = String(format: "%.0f µm", length / 1000)
                 }
+                return (imagePixels, label)
             }
-            if let c = closest { best = (c.px, c.m) }
         }
-        guard let chosen = best else { return nil }
-        let label = formatMeters(chosen.m)
-        return (pixels: CGFloat(chosen.px), label: label)
-    }
-
-    private func formatMeters(_ m: Float) -> String {
-        let absM = abs(m)
-        if absM < 1e-6 {
-            return String(format: "%.0f nm", m * 1e9)
-        } else if absM < 1e-3 {
-            return String(format: "%.0f µm", m * 1e6)
-        } else if absM < 1.0 {
-            return String(format: "%.2f mm", m * 1e3)
-        } else {
-            return String(format: "%.2f m", m)
-        }
+        return nil
     }
 
     private func updateVirtual(_ interactive:Bool = false) {
@@ -207,10 +210,16 @@ struct RootView: View {
     }
 
     private var patternHoverText: String {
-        guard let info = patternHoverInfo else {
-            return "(i: -, j: -, intensity: -)"
+        guard let info = patternHoverInfo, !isDetectorDragging else {
+            let c = model.detectorCenter
+            if let name = model.selectedDetector?.name{
+                return "\(name) i: \(Int(round(c.y))), j: \(Int(round(c.x)))"
+            }else{
+                return "no detector selected"
+            }
+            
+            
         }
-
         return "(i: \(info.i), j: \(info.j), intensity: \(formatIntensity(info.intensity)))"
     }
 
@@ -241,12 +250,51 @@ struct RootView: View {
                                 tintColor: detector.color,
                                 patternWidth: Int(pi.size.width),
                                 patternHeight: Int(pi.size.height),
+                                isActive: detector.id == model.selectedDetectorID,
                                 showDetector: $showDetector,
+                                onActivate: { tapLocation in
+                                    // Z-ordered hit test: find the topmost selected detector whose circle
+                                    // contains tapLocation and make it the primary selected detector.
+                                    let patternW = Int(pi.size.width)
+                                    let patternH = Int(pi.size.height)
+                                    let dr = fittedImageRect(viewSize: geo.size, imageWidth: patternW, imageHeight: patternH)
+                                    let sc = min(dr.width / CGFloat(max(patternW, 1)), dr.height / CGFloat(max(patternH, 1)))
+                                    let tol: CGFloat = 10
+                                    for det in model.detectors.filter({ model.selectedDetectorIDs.contains($0.id) }).reversed() {
+                                        let nx = det.center.x / CGFloat(max(patternW - 1, 1))
+                                        let ny = 1.0 - det.center.y / CGFloat(max(patternH - 1, 1))
+                                        let dc = CGPoint(x: dr.minX + nx * dr.width, y: dr.minY + ny * dr.height)
+                                        let dx = tapLocation.x - dc.x
+                                        let dy = tapLocation.y - dc.y
+                                        let dist = sqrt(dx * dx + dy * dy)
+                                        let hit: Bool
+                                        switch det.shape {
+                                        case .bf:  hit = dist <= det.outerRadius * sc + tol
+                                        case .adf: hit = dist <= det.innerRadius * sc + tol
+                                        case .af:  hit = dist <= det.outerRadius * sc + tol
+                                        default:   hit = false
+                                        }
+                                        if hit { model.selectedDetectorID = det.id; break }
+                                    }
+                                },
                                 onCenterChange: { point, interactive in
+                                    isDetectorDragging = interactive
                                     if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
                                         model.detectors[idx].center = point
                                         if detector.id == model.selectedDetectorID {
                                             model.detectorCenter = point
+                                        }
+                                    }
+                                    updateVirtual(interactive)
+                                },
+                                onRadiusChange: { innerR, outerR, interactive in
+                                    isDetectorDragging = interactive
+                                    if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
+                                        model.detectors[idx].innerRadius = innerR
+                                        model.detectors[idx].outerRadius = outerR
+                                        if detector.id == model.selectedDetectorID {
+                                            model.detectorInnerRadius = innerR
+                                            model.detectorOuterRadius = outerR
                                         }
                                     }
                                     updateVirtual(interactive)
@@ -284,7 +332,6 @@ struct RootView: View {
                             patternHoverInfo = nil
                             return
                         }
-
                         switch phase {
                         case .active(let location):
                             updatePatternHover(
@@ -297,10 +344,66 @@ struct RootView: View {
                             patternHoverInfo = nil
                         }
                     }
+                    .simultaneousGesture(TapGesture().onEnded { model.focusedPanel = .pattern })
+                    .scaleEffect(patternZoom, anchor: .center)
+                    .offset(patternOffset)
+                    .clipped()
+                    .overlay(ScrollOnlyReceiver { dx, dy in
+                        guard patternZoom > 1 else { return }
+                        let maxX = geo.size.width  * (patternZoom - 1) / 2
+                        let maxY = geo.size.height * (patternZoom - 1) / 2
+                        patternOffset.width  = max(-maxX, min(maxX, patternOffset.width  + dx))
+                        patternOffset.height = max(-maxY, min(maxY, patternOffset.height + dy))
+                        patternOffsetStart = patternOffset
+                    })
+                    .gesture(MagnificationGesture()
+                        .onChanged { value in
+                            patternZoom = max(0.5, patternZoomStart * value)
+                        }
+                        .onEnded { value in
+                            patternZoom = max(0.5, patternZoomStart * value)
+                            patternZoomStart = patternZoom
+                            let maxX = max(0, geo.size.width  * (patternZoom - 1) / 2)
+                            let maxY = max(0, geo.size.height * (patternZoom - 1) / 2)
+                            patternOffset.width  = max(-maxX, min(maxX, patternOffset.width))
+                            patternOffset.height = max(-maxY, min(maxY, patternOffset.height))
+                            patternOffsetStart = patternOffset
+                        }
+                    )
+                    .onAppear { patternViewSize = geo.size }
+                    .onChange(of: geo.size) { _, size in patternViewSize = size }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .fileLoaded)) { _ in
                     updatePattern(0, 0)
                     updateVirtual()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .imageViewClicked)) { _ in
+                    model.focusedPanel = .image
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .zoomInPattern)) { _ in
+                    patternZoom = patternZoom * 1.25
+                    patternZoomStart = patternZoom
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .zoomOutPattern)) { _ in
+                    patternZoom = max(0.5, patternZoom / 1.25)
+                    patternZoomStart = patternZoom
+                    let maxX = max(0, patternViewSize.width  * (patternZoom - 1) / 2)
+                    let maxY = max(0, patternViewSize.height * (patternZoom - 1) / 2)
+                    patternOffset.width  = max(-maxX, min(maxX, patternOffset.width))
+                    patternOffset.height = max(-maxY, min(maxY, patternOffset.height))
+                    patternOffsetStart = patternOffset
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .zoomToFitPattern)) { _ in
+                    patternZoom = 1.0
+                    patternZoomStart = 1.0
+                    patternOffset = .zero
+                    patternOffsetStart = .zero
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .zoomToActualPattern)) { _ in
+                    patternZoom = 1.0
+                    patternZoomStart = 1.0
+                    patternOffset = .zero
+                    patternOffsetStart = .zero
                 }
                 .aspectRatio(1.0, contentMode: .fit)
 
@@ -417,31 +520,24 @@ struct RootView: View {
                                     .allowsHitTesting(false)
                             }
 
-//                        GeometryReader { geo in
-//                            if let bar = scaleBarPixelsAndLabel(for: geo.size.width) {
-//                                VStack {
-//                                    Spacer()
-//                                    HStack {
-//                                        // Draw bar
-//                                        Rectangle()
-//                                            .fill(Color.primary)
-//                                            .frame(width: bar.pixels, height: 2)
-//                                            .overlay(
-//                                                Text(bar.label)
-//                                                    .font(.caption2)
-//                                                    .foregroundStyle(.secondary)
-//                                                    .padding(.top, 2)
-//                                                    .frame(maxWidth: .infinity, alignment: .leading)
-//                                                    .offset(y: 6)
-//                                                , alignment: .bottomLeading
-//                                            )
-//                                        Spacer()
-//                                    }
-//                                }
-//                                .padding(8)
-//                                .allowsHitTesting(false)
-//                            }
-//                        }
+                        }
+                        .overlay(alignment: .bottom) {
+                            GeometryReader { geo in
+                                if let bar = scaleBarPixelsAndLabel(viewWidth: geo.size.width, zoomScale: zoomScale) {
+                                    VStack(spacing: 4) {
+                                        Rectangle()
+                                            .fill(Color.white)
+                                            .frame(width: bar.imagePixels * zoomScale, height: 2)
+                                        Text(bar.label)
+                                            .font(.caption2)
+                                            .foregroundStyle(.white)
+                                    }
+                                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 0)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.bottom, 10)
+                                }
+                            }
+                            .allowsHitTesting(false)
                         }
 
                         if !coordinateText.isEmpty {
@@ -467,8 +563,7 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 12) {
                 patternPanel
                 detectorSettings
-                    .frame(width: 240)
-                Spacer()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .padding(12)
             .toolbar(removing: .sidebarToggle)
@@ -486,65 +581,80 @@ struct RootView: View {
                 }
             }
         }
-        
-//        .padding(12)
-//        .frame(minWidth: 800, minHeight: 500)
+        .overlay {
+            if isFileDropTargeted {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.accentColor, lineWidth: 3)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [UTType.fileURL], isTargeted: $isFileDropTargeted) { providers in
+            guard let provider = providers.first else { return false }
+            let supportedExtensions = ["dm4", "mrc", "tif", "tiff", "raw"]
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                let url: URL?
+                if let data = item as? Data {
+                    url = URL(dataRepresentation: data, relativeTo: nil)
+                } else {
+                    url = item as? URL
+                }
+                guard let url,
+                      supportedExtensions.contains(url.pathExtension.lowercased()) else { return }
+                DispatchQueue.main.async {
+                    model.open(url: url)
+                }
+            }
+            return true
+        }
     }
 
     private var detectorSettings: some View {
         GroupBox("Detectors") {
             VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Name")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Shape")
-                            .frame(width: 48, alignment: .trailing)
-                        Text("Color")
-                            .frame(width: 36, alignment: .trailing)
+                Table(model.detectors, selection: Binding<Set<DetectorConfiguration.ID>>(
+                    get: { model.selectedDetectorIDs },
+                    set: { model.selectedDetectorIDs = $0 }
+                )) {
+                    TableColumn("Name") { (detector: DetectorConfiguration) in
+                        Text(detector.name).lineLimit(1)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                    List(selection: Binding<Set<DetectorConfiguration.ID>>(
-                        get: { model.selectedDetectorIDs },
-                        set: { model.selectedDetectorIDs = $0 }
-                    )) {
-                        ForEach(model.detectors) { detector in
-                            HStack {
-                                Text(detector.name)
-                                    .lineLimit(1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(detectorShapeLabel(detector.shape))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 48, alignment: .trailing)
-                                ColorPicker("", selection: Binding<Color>(
-                                    get: { detector.color },
-                                    set: { newColor in
-                                        if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
-                                            model.detectors[idx].color = newColor
-                                            if detector.id == model.selectedDetectorID {
-                                                model.detectorColor = newColor
-                                            }
-                                        }
+                    TableColumn("Shape") { (detector: DetectorConfiguration) in
+                        Text(detectorShapeLabel(detector.shape))
+                            .foregroundStyle(.secondary)
+                    }
+                    .width(48)
+                    TableColumn("Color") { (detector: DetectorConfiguration) in
+                        ColorPicker("", selection: Binding<Color>(
+                            get: { detector.color },
+                            set: { newColor in
+                                if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
+                                    model.detectors[idx].color = newColor
+                                    if detector.id == model.selectedDetectorID {
+                                        model.detectorColor = newColor
                                     }
-                                ), supportsOpacity: false)
-                                .labelsHidden()
-                                .frame(width: 36)
+                                    if model.selectedDetectorIDs.contains(detector.id) {
+                                        updateVirtual()
+                                    }
+                                }
                             }
-                            .tag(detector.id as DetectorConfiguration.ID?)
-                        }
+                        ), supportsOpacity: false)
+                        .labelsHidden()
+                        .controlSize(.small)
                     }
-                    .frame(height: 96)
-                    .onChange(of: model.selectedDetectorID) { _, _ in
-                        updateVirtual()
-                    }
-                    .onChange(of: model.selectedDetectorIDs) { _, _ in
-                        updateVirtual()
-                    }
-                    .onChange(of: model.detectorColor) { _, _ in
-                        updateVirtual()
-                    }
+                    .width(44)
+                }
+                .tableStyle(.inset(alternatesRowBackgrounds: false))
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 60, maxHeight: .infinity)
+                .onChange(of: model.selectedDetectorID) { _, _ in
+                    updateVirtual()
+                }
+                .onChange(of: model.selectedDetectorIDs) { _, _ in
+                    updateVirtual()
+                }
+                .onChange(of: model.detectorColor) { _, _ in
+                    updateVirtual()
+                }
 
                     HStack(spacing: 8) {
                         Button {
@@ -567,7 +677,6 @@ struct RootView: View {
                         Spacer()
                     }
                     .buttonStyle(.borderless)
-                }
 
                 Divider()
 
@@ -683,6 +792,7 @@ struct RootView: View {
                     }
                 }
             }
+            .frame(maxHeight: .infinity)
             .disabled(model.imageWidth == 0)
             .padding(4)
         }

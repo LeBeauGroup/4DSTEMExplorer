@@ -18,6 +18,8 @@ enum CalculationMode: Hashable {
     case dpc
 }
 
+enum FocusedPanel { case image, pattern }
+
 enum DPCAxis: Hashable {
     case leftRight // maps to lrud = 1 in STEMDataController.dpc
     case upDown    // maps to lrud = 0 in STEMDataController.dpc
@@ -40,6 +42,8 @@ struct DetectorConfiguration: Identifiable, Equatable {
     var center: CGPoint
     var calculationMode: CalculationMode
     var color: Color
+    var dpcAxis: DPCAxis
+    var comAxis: COMAxis
 
     init(
         id: UUID = UUID(),
@@ -50,7 +54,9 @@ struct DetectorConfiguration: Identifiable, Equatable {
         outerRadius: CGFloat = 10,
         center: CGPoint = .zero,
         calculationMode: CalculationMode = .integrate,
-        color: Color = .white
+        color: Color = .white,
+        dpcAxis: DPCAxis = .leftRight,
+        comAxis: COMAxis = .x
     ) {
         self.id = id
         self.name = name
@@ -61,6 +67,8 @@ struct DetectorConfiguration: Identifiable, Equatable {
         self.center = center
         self.calculationMode = calculationMode
         self.color = color
+        self.dpcAxis = dpcAxis
+        self.comAxis = comAxis
     }
 }
 
@@ -153,10 +161,14 @@ final class DataViewModel: NSObject, ObservableObject {
             syncSelectedDetector { $0.color = detectorColor }
         }
     }
-    @Published var dpcAxis: DPCAxis = .leftRight
-    
-    @Published var comAxis: COMAxis = .x
+    @Published var dpcAxis: DPCAxis = .leftRight {
+        didSet { syncSelectedDetector { $0.dpcAxis = dpcAxis } }
+    }
+    @Published var comAxis: COMAxis = .x {
+        didSet { syncSelectedDetector { $0.comAxis = comAxis } }
+    }
     @Published var calibrations:Calibrations?
+    @Published var focusedPanel: FocusedPanel = .image
     @Published var pattern_mat:Matrix? = nil
     @Published var patternLogScaleEnabled: Bool = false
     
@@ -214,6 +226,8 @@ final class DataViewModel: NSObject, ObservableObject {
         detectorCenter = detector.center
         calculationMode = detector.calculationMode
         detectorColor = detector.color
+        dpcAxis = detector.dpcAxis
+        comAxis = detector.comAxis
         isApplyingDetectorSelection = false
     }
 
@@ -239,6 +253,8 @@ final class DataViewModel: NSObject, ObservableObject {
         detectorCenter = detector.center
         calculationMode = detector.calculationMode
         detectorColor = detector.color
+        dpcAxis = detector.dpcAxis
+        comAxis = detector.comAxis
         isApplyingDetectorSelection = false
     }
 
@@ -352,6 +368,290 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
 
+
+    func calibrate() {
+        let currentScanStep = calibrations?.scan_step.map { String($0) } ?? ""
+        let currentDiffStep = calibrations?.diff_step.map { String($0) } ?? ""
+
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 180),
+                            styleMask: [.titled, .closable],
+                            backing: .buffered,
+                            defer: false)
+        panel.title = "Calibrate"
+        panel.isFloatingPanel = false
+        panel.hidesOnDeactivate = false
+        panel.level = .modalPanel
+
+        let hosting = NSHostingView(rootView: CalibrationSheet(
+            scanStep: currentScanStep,
+            diffStep: currentDiffStep,
+            onCancel: {
+                if let parent = panel.sheetParent {
+                    parent.endSheet(panel, returnCode: .cancel)
+                } else {
+                    NSApp.stopModal(withCode: .cancel)
+                    panel.close()
+                }
+            },
+            onOK: { [weak self] scanStepStr, diffStepStr in
+                let newScanStep = Float(scanStepStr)
+                let newDiffStep = Float(diffStepStr)
+                self?.calibrations = Calibrations(scan_step: newScanStep, diff_step: newDiffStep)
+                if let parent = panel.sheetParent {
+                    parent.endSheet(panel, returnCode: .OK)
+                } else {
+                    NSApp.stopModal(withCode: .OK)
+                    panel.close()
+                }
+            }
+        ))
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+
+        let contentView = NSView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(hosting)
+        panel.contentView = contentView
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: contentView.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        ])
+
+        func hostWindow() -> NSWindow? {
+            func isContentWindow(_ w: NSWindow) -> Bool {
+                !(w is NSPanel) && w.isVisible && w.styleMask.contains(.titled)
+            }
+            let preferred = [NSApp.keyWindow, NSApp.mainWindow].compactMap { $0 }
+            if let w = preferred.first(where: isContentWindow) { return w }
+            return NSApp.windows.first(where: isContentWindow)
+        }
+
+        if let host = hostWindow() {
+            host.beginSheet(panel, completionHandler: nil)
+        } else {
+            NSApp.runModal(for: panel)
+        }
+    }
+
+    func exportAll() {
+        guard let fileroot = selectedURL?.deletingPathExtension().lastPathComponent,
+              !fileroot.isEmpty,
+              dataController.patternSize.width > 0 else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Export Here"
+        panel.message = "Choose a folder to export images into"
+
+        panel.begin { [weak self] response in
+            guard response == .OK, let folder = panel.url, let self else { return }
+            self.performExportAll(to: folder, fileroot: fileroot)
+        }
+    }
+
+    private func performExportAll(to folder: URL, fileroot: String) {
+        let niceNm: [Float] = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
+        let fmtNm:  (Float) -> String = { $0 < 1000 ? String(format: "%.0f nm", $0) : String(format: "%.0f µm", $0 / 1000) }
+
+        let withRGBBar: (CGImage, [Float], (Float) -> String, Float?) -> CGImage = { [weak self] ci, units, fmt, step in
+            guard let self, let step, step > 0, step.isFinite,
+                  let bar = self.exportScaleBar(imageWidth: ci.width, unitsPerPixel: step, niceUnits: units, formatUnit: fmt),
+                  let result = self.appendDataBar(to: ci, barPixelWidth: bar.barPixels, label: bar.label)
+            else { return ci }
+            return result
+        }
+
+        let scanStep = calibrations?.scan_step
+
+        // Per-detector export, branching on calculation mode
+        for config in detectors {
+            let det = makeDetector(from: config)
+            let name = config.name.isEmpty ? "detector" : config.name
+
+            switch config.calculationMode {
+            case .integrate:
+                let mat = dataController.integrating(det, strideLength: 1)
+                guard mat.rows > 0 else { continue }
+                saveTiff(matrix: mat, to: folder.appendingPathComponent("\(fileroot)_\(name).tif"))
+                let nsColor = NSColor(config.color).usingColorSpace(.sRGB) ?? NSColor.white
+                if let colorCI = makeColorizedImage(matrix: mat, color: nsColor) {
+                    saveRawCGImageTiff(withRGBBar(colorCI, niceNm, fmtNm, scanStep),
+                                       to: folder.appendingPathComponent("\(fileroot)_\(name)_rgb.tif"))
+                }
+
+            case .com:
+                let comX = dataController.com(det, strideLength: 1, xy: .x)
+                let comY = dataController.com(det, strideLength: 1, xy: .y)
+                guard comX.rows > 0, comY.rows > 0 else { continue }
+                saveTiff(matrix: comX, to: folder.appendingPathComponent("\(fileroot)_\(name)_com_x.tif"))
+                saveTiff(matrix: comY, to: folder.appendingPathComponent("\(fileroot)_\(name)_com_y.tif"))
+                if let (nsImage, _) = colorCom(comX, comY, removeDCOffset: true),
+                   let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    saveRawCGImageTiff(withRGBBar(cgImage, niceNm, fmtNm, scanStep),
+                                       to: folder.appendingPathComponent("\(fileroot)_\(name)_com_rgb.tif"))
+                }
+
+            case .dpc:
+                let dpcLR = dataController.dpc(det, strideLength: 1, lrud: 1)
+                let dpcUD = dataController.dpc(det, strideLength: 1, lrud: 0)
+                guard dpcLR.rows > 0, dpcUD.rows > 0 else { continue }
+                saveTiff(matrix: dpcLR, to: folder.appendingPathComponent("\(fileroot)_\(name)_dpc_lr.tif"))
+                saveTiff(matrix: dpcUD, to: folder.appendingPathComponent("\(fileroot)_\(name)_dpc_ud.tif"))
+                if let (nsImage, _) = colorCom(dpcLR, dpcUD, removeDCOffset: true),
+                   let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    saveRawCGImageTiff(withRGBBar(cgImage, niceNm, fmtNm, scanStep),
+                                       to: folder.appendingPathComponent("\(fileroot)_\(name)_dpc_rgb.tif"))
+                }
+            }
+        }
+
+        // Color-mixed image if multiple detectors selected
+        if selectedDetectorIDs.count > 1 {
+            let configs = detectors.filter { selectedDetectorIDs.contains($0.id) }
+            if let (blended, _) = blendDetectorImages(configs: configs, strideLength: 1),
+               let cgImage = make32BitRGBImage(from: blended) {
+                saveRawCGImageTiff(withRGBBar(cgImage, niceNm, fmtNm, scanStep),
+                                   to: folder.appendingPathComponent("\(fileroot)_colormix.tif"))
+            }
+        }
+
+        // Current diffraction pattern — raw 32-bit float, no scale bar
+        if let mat = pattern_mat {
+            let suffix: String
+            if let (y, x) = selected as? (Int, Int) { suffix = "_pattern_x\(x)_y\(y)" }
+            else { suffix = "_pattern" }
+            saveTiff(matrix: mat, to: folder.appendingPathComponent("\(fileroot)\(suffix).tif"))
+        }
+    }
+
+    private func exportScaleBar(
+        imageWidth: Int,
+        unitsPerPixel: Float,
+        niceUnits: [Float],
+        formatUnit: (Float) -> String
+    ) -> (barPixels: Int, label: String)? {
+        guard imageWidth > 0, unitsPerPixel > 0 else { return nil }
+        let maxPx = Float(imageWidth) * 0.20
+        for unit in niceUnits.reversed() {
+            let px = unit / unitsPerPixel
+            if px <= maxPx {
+                return (max(1, Int(round(px))), formatUnit(unit))
+            }
+        }
+        return nil
+    }
+
+    private func appendDataBar(to image: CGImage, barPixelWidth: Int, label: String) -> CGImage? {
+        let imgW = image.width
+        let imgH = image.height
+        guard imgW > 0, imgH > 0, barPixelWidth > 0 else { return nil }
+
+        let barH      = max(24, min(64, imgH / 8))
+        let lineThick = max(1, barH / 12)
+        let lineY     = barH * 2 / 3
+        let fontSize  = CGFloat(max(8, barH * 2 / 5))
+
+        let cs = CGColorSpaceCreateDeviceRGB()
+        let bi = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let ctx = CGContext(data: nil, width: imgW, height: imgH + barH,
+                                  bitsPerComponent: 8, bytesPerRow: imgW * 4,
+                                  space: cs, bitmapInfo: bi) else { return nil }
+
+        // Original image in upper region
+        ctx.draw(image, in: CGRect(x: 0, y: barH, width: imgW, height: imgH))
+
+        // Dark data bar background
+        ctx.setFillColor(red: 0.10, green: 0.10, blue: 0.10, alpha: 1)
+        ctx.fill(CGRect(x: 0, y: 0, width: imgW, height: barH))
+
+        // Scale bar line (centered)
+        let barX = (imgW - barPixelWidth) / 2
+        ctx.setFillColor(red: 1, green: 1, blue: 1, alpha: 1)
+        ctx.fill(CGRect(x: barX, y: lineY, width: barPixelWidth, height: lineThick))
+        // End caps
+        let capH = lineThick * 3
+        let capY = lineY - (capH - lineThick) / 2
+        ctx.fill(CGRect(x: barX,                              y: capY, width: lineThick, height: capH))
+        ctx.fill(CGRect(x: barX + barPixelWidth - lineThick,  y: capY, width: lineThick, height: capH))
+
+        // Label (centered, below the line)
+        let font = CTFontCreateWithName("HelveticaNeue" as CFString, fontSize, nil)
+        let white = CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+        let attrs: [CFString: Any] = [kCTFontAttributeName: font, kCTForegroundColorAttributeName: white]
+        let attrStr = CFAttributedStringCreate(nil, label as CFString, attrs as CFDictionary)!
+        let ctLine = CTLineCreateWithAttributedString(attrStr)
+        let bounds = CTLineGetBoundsWithOptions(ctLine, [.useOpticalBounds])
+        let textX = max(2, (CGFloat(imgW) - bounds.width) / 2)
+        let textY = max(2, CGFloat(lineY) - fontSize - 3)
+        ctx.textPosition = CGPoint(x: textX, y: textY)
+        CTLineDraw(ctLine, ctx)
+
+        return ctx.makeImage()
+    }
+
+    private func saveTiff(matrix: Matrix, to url: URL) {
+        guard let cgImage = matrix.floatImageRep().cgImage,
+              let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil)
+        else { return }
+        CGImageDestinationAddImage(dest, cgImage, nil)
+        CGImageDestinationFinalize(dest)
+    }
+
+    private func saveRawCGImageTiff(_ cgImage: CGImage, to url: URL) {
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil)
+        else { return }
+        CGImageDestinationAddImage(dest, cgImage, nil)
+        CGImageDestinationFinalize(dest)
+    }
+
+    private func makeColorizedImage(matrix: Matrix, color: NSColor) -> CGImage? {
+        let data = matrix.real
+        let rows = matrix.rows
+        let cols = matrix.columns
+        guard data.count == rows * cols, rows > 0 else { return nil }
+        let count = rows * cols
+
+        let minVal = data.min() ?? 0
+        let maxVal = data.max() ?? 1
+        let invRange: Float = (maxVal - minVal) > 0 ? 1.0 / (maxVal - minVal) : 1.0
+
+        var cr: CGFloat = 1, cg: CGFloat = 1, cb: CGFloat = 1, ca: CGFloat = 1
+        (color.usingColorSpace(.sRGB) ?? NSColor.white).getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+        let fr = Float(cr), fg = Float(cg), fb = Float(cb)
+
+        var pixelData = [UInt8](repeating: 255, count: count * 4)
+        for i in 0..<count {
+            let t = max(0, min(1, (data[i] - minVal) * invRange))
+            pixelData[i * 4 + 0] = UInt8(t * fr * 255)
+            pixelData[i * 4 + 1] = UInt8(t * fg * 255)
+            pixelData[i * 4 + 2] = UInt8(t * fb * 255)
+            pixelData[i * 4 + 3] = 255
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let provider = CGDataProvider(data: Data(pixelData) as CFData),
+              let cgImage = CGImage(
+                  width: cols, height: rows,
+                  bitsPerComponent: 8, bitsPerPixel: 32,
+                  bytesPerRow: cols * 4,
+                  space: colorSpace,
+                  bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                  provider: provider, decode: nil, shouldInterpolate: false,
+                  intent: .defaultIntent
+              ) else { return nil }
+        return cgImage
+    }
+
+    private func saveColorTiff(image: NSImage, to url: URL) {
+        guard let cgImage = make32BitRGBImage(from: image),
+              let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 1, nil)
+        else { return }
+        CGImageDestinationAddImage(dest, cgImage, nil)
+        CGImageDestinationFinalize(dest)
+    }
 
     private var isColorScanImageMode: Bool {
         switch calculationMode {
@@ -501,7 +801,7 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
 // SwiftUI panel to prompt for RAW dimensions
-    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step:Float?, diff_step:Float?)?) -> Void) {
+    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step: Float?, diff_step: Float?, flipRows: Bool, flipCols: Bool, transpose: Bool)?) -> Void) {
         // Helper to parse strings like "80x80", "256×128", "64 X 32"
         func parseXY(_ text: String) -> (Int, Int)? {
             // Normalize input: trim, lowercase, unify separators, and be tolerant to spaces
@@ -545,7 +845,7 @@ final class DataViewModel: NSObject, ObservableObject {
         }
 
         // State holders for the sheet lifecycle
-        var result: (Int, Int, Float?, Float?)? = nil
+        var result: (Int, Int, Float?, Float?, Bool, Bool, Bool)? = nil
 
         // SwiftUI content
         
@@ -562,7 +862,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
         let fileHint = self.selectedURL?.lastPathComponent ?? ""
 
-        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step:"None", fileHint: fileHint, onCancel: {
+        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step: "None", fileHint: fileHint, onCancel: {
             if let parent = panel.sheetParent {
                 parent.endSheet(panel, returnCode: .cancel)
                 DispatchQueue.main.async { completion(nil) }
@@ -571,14 +871,11 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { scan_dims, scan_step, diff_step in
+        }, onOK: { scan_dims, scan_step, diff_step, flipRows, flipCols, transpose in
             if let xy = parseXY(scan_dims) {
-                
                 let scan_step = Float(scan_step) ?? nil
                 let diff_step = Float(diff_step) ?? nil
-                
-                
-                result = (xy.0, xy.1, scan_step, diff_step)
+                result = (xy.0, xy.1, scan_step, diff_step, flipRows, flipCols, transpose)
                 if let parent = panel.sheetParent {
                     parent.endSheet(panel, returnCode: .OK)
                     DispatchQueue.main.async { completion(result) }
@@ -674,9 +971,8 @@ final class DataViewModel: NSObject, ObservableObject {
                 guard let self = self else { return }
                 if let dims = dims {
                     self.dataController.setRawImageSize(width: dims.w, height: dims.h)
-                    
+                    self.dataController.setRawTransforms(flipRows: dims.flipRows, flipCols: dims.flipCols, transpose: dims.transpose)
                     self.calibrations = Calibrations(scan_step: dims.scan_step, diff_step: dims.diff_step)
-                    
                     self.continueOpen(afterPromptFor: url)
                 } else {
                     self.isLoading = false
@@ -1133,12 +1429,19 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
     private func patternDisplayMatrix(from matrix: Matrix) -> Matrix {
         guard patternLogScaleEnabled else { return matrix }
 
-        let logValues = matrix.real.map { value -> Float in
-            guard value.isFinite, value > 0 else { return 0 }
-            return log1p(value)
-        }
+        let data = matrix.real
+        let n = data.count
+        var result = [Float](repeating: 0, count: n)
 
-        return Matrix(array: logValues, matrix.rows, matrix.columns)
+        // Clamp to small positive to avoid log10(0) = -inf or log10(negative) = NaN,
+        // which would corrupt the quantile normalization in uInt8ImageRep.
+        var eps: Float = Float.leastNormalMagnitude
+        vDSP_vthres(data, 1, &eps, &result, 1, vDSP_Length(n))
+
+        var count = Int32(n)
+        vvlog10f(&result, result, &count)
+
+        return Matrix(array: result, matrix.rows, matrix.columns)
     }
     
     func makeImage(from m:Matrix)->NSImage? {

@@ -263,8 +263,8 @@ struct FourDSTEMExplorerApp: App {
     @StateObject private var recentFiles = RecentFilesController()
 
     @StateObject private var openPanel = OpenPanelController()
-    // Local state for user-editable scale text field (percent formatted)
     @State private var zoomScale: CGFloat = 1.0
+    @State private var zoomText: String = "100"
     @State private var showDetector:Bool = true
     @State private var calculationMode:CalculationMode = .integrate
 
@@ -298,9 +298,13 @@ struct FourDSTEMExplorerApp: App {
 
                         // Export Menu
                         Menu {
+                            Button("Export All…") {
+                                model.exportAll()
+                            }
+                            .disabled(model.selectedURL == nil)
+                            Divider()
                             Button("Image") {
                                 model.export(type: "image")
-                                
                             }
                             .disabled(model.selectedURL == nil)
                             Button("Pattern") {
@@ -332,28 +336,54 @@ struct FourDSTEMExplorerApp: App {
                             }
                         }
 
-                        // Zoom Controls
+                        // Zoom Controls — route to active panel (image or pattern)
                         Button {
-                            NotificationCenter.default.post(name: .zoomOut, object: nil)
-//                            scale = model.currentScale
+                            NotificationCenter.default.post(
+                                name: model.focusedPanel == .image ? .zoomOut : .zoomOutPattern,
+                                object: nil)
                         } label: {
                             Image(systemName: "minus.magnifyingglass")
                         }
 
                         Button {
-                            NotificationCenter.default.post(name: .zoomIn, object: nil)
-//                            scale = model.currentScale
+                            NotificationCenter.default.post(
+                                name: model.focusedPanel == .image ? .zoomToFit : .zoomToFitPattern,
+                                object: nil)
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                        }
+
+                        Button {
+                            NotificationCenter.default.post(
+                                name: model.focusedPanel == .image ? .zoomIn : .zoomInPattern,
+                                object: nil)
                         } label: {
                             Image(systemName: "plus.magnifyingglass")
                         }
 
-                        // Scale TextField
-                        TextField("Scale", value: Binding<Double>(
-                            get: { Double(zoomScale) },
-                            set: { zoomScale = CGFloat($0) }
-                        ), format: .percent.precision(.fractionLength(0)))
-                            .frame(width: 70)
-                            .textFieldStyle(.roundedBorder)
+                        // Scale TextField — apply only on Enter, display updates from external zoom changes
+                        HStack(spacing: 2) {
+                            TextField("", text: $zoomText)
+                                .frame(width: 48)
+                                .textFieldStyle(.roundedBorder)
+                                .controlSize(.small)
+                                .onSubmit {
+                                    let cleaned = zoomText
+                                        .trimmingCharacters(in: .whitespaces)
+                                        .replacingOccurrences(of: "%", with: "")
+                                    if let value = Double(cleaned), value > 0 {
+                                        zoomScale = CGFloat(value / 100)
+                                    } else {
+                                        zoomText = "\(Int((Double(zoomScale) * 100).rounded()))%"
+                                    }
+                                }
+                                .onChange(of: zoomScale) { _, newZoom in
+                                    zoomText = "\(Int((Double(newZoom) * 100).rounded()))%"
+                                }
+//                            Text("%")
+//                                .font(.callout)
+//                                .foregroundStyle(.secondary)
+                        }
                             
 
                         
