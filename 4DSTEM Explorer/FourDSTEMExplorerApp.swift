@@ -263,6 +263,8 @@ struct FourDSTEMExplorerApp: App {
     @StateObject private var recentFiles = RecentFilesController()
 
     @StateObject private var openPanel = OpenPanelController()
+    @StateObject private var pluginManager = PluginManager.shared
+    @StateObject private var pluginRunner = PluginRunner.shared
     @State private var zoomScale: CGFloat = 1.0
     @State private var zoomText: String = "100"
     @State private var showDetector:Bool = true
@@ -411,11 +413,18 @@ struct FourDSTEMExplorerApp: App {
                     }
                 }.onAppear {
                     NSWindow.allowsAutomaticWindowTabbing = false
+                    PluginSheetController.preferredHostWindowIdentifier = ExternalFileOpenHandler.mainWindowIdentifier
+                    pluginManager.reload()
                 }
         }
         .defaultLaunchBehavior(.presented)
         .commands {
-            FourDSTEMMenuCommands(model: model, openPanel: openPanel, recentFiles: recentFiles, showDetector: $showDetector)
+            FourDSTEMMenuCommands(model: model,
+                                  openPanel: openPanel,
+                                  recentFiles: recentFiles,
+                                  pluginManager: pluginManager,
+                                  pluginRunner: pluginRunner,
+                                  showDetector: $showDetector)
         }
     }
 }

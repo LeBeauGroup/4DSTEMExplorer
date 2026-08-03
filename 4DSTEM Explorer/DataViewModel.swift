@@ -171,6 +171,9 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var focusedPanel: FocusedPanel = .image
     @Published var pattern_mat:Matrix? = nil
     @Published var patternLogScaleEnabled: Bool = false
+    /// Most recent computed-image matrix. Kept so plugins can post-process the
+    /// displayed result; not @Published because nothing observes it.
+    var lastScanMatrix:Matrix? = nil
     
     var selectedDetector: DetectorConfiguration? {
         guard let selectedDetectorID else { return nil }
@@ -722,7 +725,8 @@ final class DataViewModel: NSObject, ObservableObject {
         isDragging = false
     }
 
-    private let dataController = STEMDataController()
+    // Not private: PluginHostContext reads the 4D stack through this.
+    let dataController = STEMDataController()
     private var progressObserver: NSObjectProtocol?
     private var imageUpdateObserver: NSObjectProtocol?
     private var securityScopedURL: URL?
@@ -1098,6 +1102,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
             let configs = detectors.filter { selectedDetectorIDs.contains($0.id) }
             if let (blended, mat) = blendDetectorImages(configs: configs, strideLength: stride),
                let scaled = scaleStrideImage(blended, stride) {
+                lastScanMatrix = mat
                 return (scaled, mat)
             }
             return nil
@@ -1150,8 +1155,9 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
             
             if let finalImage = scaleStrideImage(tempImage, stride)
             {
+                    lastScanMatrix = mat
                     return (finalImage, mat)
-               
+
             }
         }
 
