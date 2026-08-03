@@ -29,6 +29,11 @@ extension Notification.Name {
     static let zoomOut = Notification.Name("zoomOut")
     static let zoomToFit = Notification.Name("zoomToFit")
     static let zoomToActual = Notification.Name("zoomToActual")
+    static let zoomInPattern = Notification.Name("zoomInPattern")
+    static let zoomOutPattern = Notification.Name("zoomOutPattern")
+    static let zoomToFitPattern = Notification.Name("zoomToFitPattern")
+    static let zoomToActualPattern = Notification.Name("zoomToActualPattern")
+    static let imageViewClicked = Notification.Name("imageViewClicked")
 }
     
 final class CenteringClipView: NSClipView {
@@ -89,25 +94,25 @@ struct ZoomableImageView: NSViewRepresentable {
         
         scrollView.allowsMagnification = true
         scrollView.minMagnification = 0.10
-        scrollView.maxMagnification = 20.0
+        scrollView.maxMagnification = 500.0
         
         NotificationCenter.default.addObserver(forName: .zoomIn, object: nil, queue: .main) { _ in
-            let newZoom = min(scrollView.magnification*1.25, scrollView.maxMagnification)
+            let newZoom = min(scrollView.magnification * 1.25, scrollView.maxMagnification)
             scrollView.setMagnification(newZoom, centeredAt: .zero)
-            zoomScale = scrollView.magnification
+            // zoomScale updated by KVO observer
         }
         NotificationCenter.default.addObserver(forName: .zoomToActual, object: nil, queue: .main) { _ in
             scrollView.setMagnification(1.0, centeredAt: .zero)
-            zoomScale = scrollView.magnification
+            // zoomScale updated by KVO observer
         }
         NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
-            let newZoom = max(scrollView.magnification/1.25, scrollView.minMagnification)
+            let newZoom = max(scrollView.magnification / 1.25, scrollView.minMagnification)
             scrollView.setMagnification(newZoom, centeredAt: .zero)
-            zoomScale = scrollView.magnification
+            // zoomScale updated by KVO observer
         }
         NotificationCenter.default.addObserver(forName: .zoomToFit, object: nil, queue: .main) { _ in
             scrollView.magnify(toFit: scrollView.documentView?.frame ?? .zero)
-            zoomScale = scrollView.magnification
+            // zoomScale updated by KVO observer
         }
         
 //        NotificationCenter.default.addObserver(forName: .zoomOut, object: nil, queue: .main) { _ in
@@ -126,17 +131,29 @@ struct ZoomableImageView: NSViewRepresentable {
             context.coordinator.isFirstLoad = false
         }
         
-        zoomScale = scrollView.magnification
-        
+        context.coordinator.lastSyncedZoom = scrollView.magnification
+        context.coordinator.scrollViewObservation = scrollView.observe(\.magnification, options: [.new]) { [weak scrollView] _, change in
+            guard let mag = change.newValue, scrollView != nil else { return }
+            context.coordinator.lastSyncedZoom = mag
+            DispatchQueue.main.async {
+                zoomScale = mag
+            }
+        }
 
         return scrollView
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
-        
+
         guard let container = nsView.documentView as? InteractiveMarkerView else { return }
-        
-        zoomScale = nsView.magnification
+
+        // If zoomScale was changed externally (user typed in the text field), apply it.
+        // Otherwise the KVO observer keeps zoomScale in sync with the scroll view.
+        if abs(zoomScale - context.coordinator.lastSyncedZoom) > 0.001 {
+            let clamped = max(nsView.minMagnification, min(nsView.maxMagnification, zoomScale))
+            nsView.setMagnification(clamped, centeredAt: .zero)
+            // KVO observer will update lastSyncedZoom and zoomScale to the (possibly clamped) value
+        }
 
         // 1. Detect if the image object has actually changed
         if container.image != image {
@@ -159,6 +176,8 @@ struct ZoomableImageView: NSViewRepresentable {
           var parent: ZoomableImageView
           var isFirstLoad = true
           weak var scrollView: NSScrollView?
+          var lastSyncedZoom: CGFloat = 1.0
+          var scrollViewObservation: NSKeyValueObservation?
 
           init(_ parent: ZoomableImageView) {
               self.parent = parent
@@ -315,7 +334,8 @@ class InteractiveMarkerView: NSView {
     // Capture click, convert coordinates, and update SwiftUI state
     override func mouseDown(with event: NSEvent) {
         self.window?.makeFirstResponder(self)
-        
+        NotificationCenter.default.post(name: .imageViewClicked, object: nil)
+
         let clickPoint = self.convert(event.locationInWindow, from: nil)
         
         // Point mode: record single point and hide marquee

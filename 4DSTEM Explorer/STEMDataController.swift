@@ -79,6 +79,9 @@ class STEMDataController: NSObject {
     var patternSize:IntSize = empadSize
     
     var providedRawImageSize: IntSize? = nil
+    var rawFlipRows: Bool = true
+    var rawFlipCols: Bool = false
+    var rawTranspose: Bool = false
     
     var patternPixels:Int{
         get{
@@ -112,6 +115,12 @@ class STEMDataController: NSObject {
     
     func setRawImageSize(width: Int, height: Int) {
         self.providedRawImageSize = IntSize(width: width, height: height)
+    }
+
+    func setRawTransforms(flipRows: Bool, flipCols: Bool, transpose: Bool) {
+        self.rawFlipRows = flipRows
+        self.rawFlipCols = flipCols
+        self.rawTranspose = transpose
     }
 
     var fileStream:InputStream?
@@ -633,6 +642,10 @@ class STEMDataController: NSObject {
             throw FileReadError.invalidDimensions
         }
 
+        let doFlipRows = rawFlipRows
+        let doFlipCols = rawFlipCols
+        let doTranspose = rawTranspose
+
         let batchSize = 64
         let totalBatches = (totalImages + batchSize - 1) / batchSize
 
@@ -658,6 +671,16 @@ class STEMDataController: NSObject {
             let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: detectorPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
 
+            // Pre-allocate a single pattern-sized buffer for transpose; reused each image
+            let transposeBuf: UnsafeMutablePointer<Float32>? = doTranspose
+                ? UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+                : nil
+            defer { transposeBuf?.deallocate() }
+
+            // Output dimensions after optional transpose
+            let outH = doTranspose ? width  : height
+            let outW = doTranspose ? height : width
+
             fileHandle.seek(toFileOffset: firstImageOffset)
             let fracComplete = max(1, Int(Double(totalImages) * 0.05))
 
@@ -672,7 +695,7 @@ class STEMDataController: NSObject {
                     fail(FileReadError.invalidDimensions)
                     return
                 }
-                
+
                 let count = imagesInBatch * totalPatternPixels
 
                 self.convertToFloat(dataType: dataType, sourceData: batchData, destinationBuffer: floatTempBuffer, count: count)
@@ -685,11 +708,25 @@ class STEMDataController: NSObject {
                     let outPointer = self.patternPointer! + globalIndex * patternPixels
                     let srcPointer = floatTempBuffer + img * (totalPatternPixels)
 
-                    for row in 0..<height {
-                        let destRow = height - row - 1
-                        let dst = outPointer + destRow * width
-                        let src = srcPointer + row * width
-                        dst.update(from: src, count: width)
+                    // Determine the source for row operations (possibly transposed)
+                    let rowSrc: UnsafeMutablePointer<Float32>
+                    if doTranspose, let tb = transposeBuf {
+                        // vDSP_mtrans: transposes height×width → width×height (row-major)
+                        vDSP_mtrans(srcPointer, 1, tb, 1, vDSP_Length(height), vDSP_Length(width))
+                        rowSrc = tb
+                    } else {
+                        rowSrc = srcPointer
+                    }
+
+                    // Copy rows (with optional vertical flip) then reverse each row for horizontal flip
+                    for row in 0..<outH {
+                        let destRow = doFlipRows ? outH - 1 - row : row
+                        let dst = outPointer + destRow * outW
+                        let src = rowSrc + row * outW
+                        dst.update(from: src, count: outW)
+                        if doFlipCols {
+                            vDSP_vrvrs(dst, 1, vDSP_Length(outW))
+                        }
                     }
 
                     if globalIndex % fracComplete == 0 {
@@ -701,6 +738,9 @@ class STEMDataController: NSObject {
             }
 
             DispatchQueue.main.async(execute: DispatchWorkItem {
+                if doTranspose {
+                    self.patternSize = IntSize(width: self.patternSize.height, height: self.patternSize.width)
+                }
                 _ = self.delegate?.didFinishLoadingData()
                 nc.post(name: .fileLoaded, object: nil)
 //                self.progressdelegate?.didFinishLoadingData()
@@ -757,11 +797,9 @@ class STEMDataController: NSObject {
         
         let endi = starti + Int(floor(rect.size.height))
         let endj = startj + Int(floor(rect.size.width))
-        print(starti, endi)
-        
         var strideDirectioni = 1
         var strideDirectionj = 1
-        
+
         if starti > endi{
             strideDirectioni = -1
         }
@@ -769,8 +807,6 @@ class STEMDataController: NSObject {
         if startj > endj{
             strideDirectionj = -1
         }
-        
-        print(starti, startj, endi, endj)
         
         
         var patternCount = 0

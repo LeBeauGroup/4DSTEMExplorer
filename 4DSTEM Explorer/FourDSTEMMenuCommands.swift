@@ -47,6 +47,11 @@ struct FourDSTEMMenuCommands: Commands {
             }
 
             Menu("Export") {
+                Button("Export All…") {
+                    model.exportAll()
+                }
+                .disabled(model.selectedURL == nil)
+                Divider()
                 Button("Image") {
                     model.export(type: "image")
                 }.keyboardShortcut("i").disabled(model.selected == nil)
@@ -55,6 +60,13 @@ struct FourDSTEMMenuCommands: Commands {
                 }.keyboardShortcut("p")
                     .disabled(model.selected == nil)
             }
+
+            Divider()
+
+            Button("Calibrate…") {
+                model.calibrate()
+            }
+            .disabled(model.selectedURL == nil)
         }
 
         // Export menu
@@ -110,23 +122,26 @@ struct FourDSTEMMenuCommands: Commands {
         // Image menu
         CommandMenu("Image") {
             Button("Zoom in") {
-                NotificationCenter.default.post(name: .zoomIn, object: nil)
+                NotificationCenter.default.post(
+                    name: model.focusedPanel == .image ? .zoomIn : .zoomInPattern, object: nil)
             }
             .keyboardShortcut("+")
 
             Button("Zoom out") {
-                NotificationCenter.default.post(name: .zoomOut, object: nil)
+                NotificationCenter.default.post(
+                    name: model.focusedPanel == .image ? .zoomOut : .zoomOutPattern, object: nil)
             }
             .keyboardShortcut("-")
 
             Button("Zoom to fit") {
-                NotificationCenter.default.post(name: .zoomToFit, object: nil)
-
+                NotificationCenter.default.post(
+                    name: model.focusedPanel == .image ? .zoomToFit : .zoomToFitPattern, object: nil)
             }
             .keyboardShortcut(".")
 
             Button("Actual size") {
-                NotificationCenter.default.post(name: .zoomToActual, object: nil)
+                NotificationCenter.default.post(
+                    name: model.focusedPanel == .image ? .zoomToActual : .zoomToActualPattern, object: nil)
             }
             .keyboardShortcut("'")
         }
