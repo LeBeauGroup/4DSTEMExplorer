@@ -44,6 +44,13 @@ final class PluginRunner: ObservableObject {
             return
         }
 
+        // Live plugins get one window holding controls and result together,
+        // instead of the sheet-then-window flow.
+        if plugin.supportsLiveUpdate {
+            PluginLiveWindowController.present(plugin: plugin, model: model)
+            return
+        }
+
         let descriptors = PluginParameterDescriptor.parse(plugin.parameters)
         guard !descriptors.isEmpty else {
             execute(plugin, parameters: [:], model: model)

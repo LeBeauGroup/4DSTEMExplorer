@@ -18,6 +18,7 @@ final class LoadedPlugin: Identifiable {
     let summary: String
     let parameters: [[String: Any]]
     let requiresData: Bool
+    let supportsLiveUpdate: Bool
     let bundleURL: URL
     let instance: FDSPlugin
 
@@ -31,6 +32,7 @@ final class LoadedPlugin: Identifiable {
         self.summary = instance.pluginSummary ?? ""
         self.parameters = instance.pluginParameters ?? []
         self.requiresData = instance.pluginRequiresData ?? true
+        self.supportsLiveUpdate = instance.pluginSupportsLiveUpdate ?? false
     }
 }
 

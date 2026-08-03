@@ -954,7 +954,13 @@ final class DataViewModel: NSObject, ObservableObject {
         case FileReadError.notDiffractionSI:
             message = "DM File does not contain a diffraction SI dataset."
         default:
-            message = "Something went wrong loading the file."
+            // HDF5/EMD failures explain exactly what was wrong with the file,
+            // which is far more use than a generic message.
+            if let described = (error as? LocalizedError)?.errorDescription, !described.isEmpty {
+                message = described
+            } else {
+                message = "Something went wrong loading the file."
+            }
         }
 
         status = message
@@ -1543,6 +1549,12 @@ extension DataViewModel: STEMDataControllerDelegate {
             status = "Loaded: \(url.lastPathComponent)"
         } else {
             status = "Loaded"
+        }
+        // Formats that carry their own calibration (EMD) report it here; the
+        // RAW path sets it from the prompt before loading, so only overwrite
+        // when the reader actually found something.
+        if let discovered = self.dataController.calibrations {
+            self.calibrations = discovered
         }
         self.imageWidth = self.dataController.imageSize.width
         self.imageHeight = self.dataController.imageSize.height

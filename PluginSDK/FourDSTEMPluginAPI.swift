@@ -110,6 +110,13 @@ public struct FDSResultKey {
     public static let error = "error"
     /// String. Short note shown beneath the result.
     public static let message = "message"
+
+    /// [String: Any]. Parameter values to write back into the controls, keyed by
+    /// `FDSParameterKey.identifier`. Lets a plugin that *measures* something —
+    /// a focus search, say — leave the control sitting at the value it found so
+    /// the user can explore from there. Ignored for parameters that do not
+    /// exist. Writing back a value does not itself trigger another run.
+    public static let parameters = "parameters"
 }
 
 public struct FDSResultType {
@@ -272,6 +279,17 @@ public protocol FDSPlugin: NSObjectProtocol {
 
     /// Whether the plugin needs a dataset open. Optional; defaults to true.
     @objc optional var pluginRequiresData: Bool { get }
+
+    /// Opt in to a single window holding the controls and the result together,
+    /// re-running as the user adjusts a parameter. Optional; defaults to false,
+    /// which gives the sheet-then-window flow.
+    ///
+    /// Only claim this if repeated runs are quick. The same instance is reused
+    /// and `run` is never called re-entrantly, so cache the expensive part —
+    /// keyed on the parameters it actually depends on — and rebuild it only
+    /// when those change. Poll `isCancelled` often: the host cancels the run in
+    /// flight as soon as the user moves a control again.
+    @objc optional var pluginSupportsLiveUpdate: Bool { get }
 
     /// Performs the work and returns one result described with `FDSResultKey`.
     ///
