@@ -62,6 +62,10 @@ public struct FDSParameterType {
     public static let choice = "choice"
     /// Passed back as String.
     public static let text = "text"
+    /// A push button rather than a value. Passed back as NSNumber (Bool),
+    /// true only on the run that the press started and false on every other,
+    /// so it reads as "do this now" rather than as a setting.
+    public static let button = "button"
 }
 
 // MARK: - Result keys
@@ -188,6 +192,10 @@ public protocol FDSHostContext: NSObjectProtocol {
     @objc var scanStepNanometers: Double { get }
     /// Diffraction step in milliradians per detector pixel, or 0 when uncalibrated.
     @objc var diffractionStepMilliradians: Double { get }
+    /// Accelerating voltage in kilovolts, or 0 when the host does not know it.
+    /// Plugins needing a wavelength should fall back to their own default
+    /// rather than treating 0 as a voltage.
+    @objc var accelerationKilovolts: Double { get }
 
     // MARK: Pattern access
 
@@ -277,6 +285,16 @@ public protocol FDSPlugin: NSObjectProtocol {
     /// immediately with no sheet.
     @objc optional var pluginParameters: [[String: Any]] { get }
 
+    /// Parameters tailored to the open dataset, used in place of
+    /// `pluginParameters` when implemented. Optional.
+    ///
+    /// `pluginParameters` is read once at load time with no dataset in hand, so
+    /// it cannot know what units the file carries. This is called each time the
+    /// controls are built, which lets a plugin ask for a defocus in nanometres
+    /// when the file is calibrated and fall back to pixels when it is not,
+    /// rather than presenting one and reporting the other.
+    @objc optional func parameters(for host: FDSHostContext) -> [[String: Any]]
+
     /// Whether the plugin needs a dataset open. Optional; defaults to true.
     @objc optional var pluginRequiresData: Bool { get }
 
@@ -337,6 +355,13 @@ public struct FDSParameter {
     public static func text(_ id: String, label: String, defaultValue: String = "",
                             help: String? = nil) -> [String: Any] {
         return build(id, label, FDSParameterType.text, defaultValue as NSString,
+                     nil, nil, nil, help)
+    }
+
+    /// A push button. `run` sees true for the run the press started, false
+    /// otherwise — use it for an action, not for a mode the user leaves set.
+    public static func button(_ id: String, label: String, help: String? = nil) -> [String: Any] {
+        return build(id, label, FDSParameterType.button, NSNumber(value: false),
                      nil, nil, nil, help)
     }
 

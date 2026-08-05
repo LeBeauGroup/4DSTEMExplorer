@@ -36,6 +36,7 @@ struct PluginDataSnapshot {
     var filePath: String
     var scanStepNanometers: Double
     var diffractionStepMilliradians: Double
+    var accelerationKilovolts: Double
     var selectedRow: Int
     var selectedColumn: Int
     /// The marquee in scan coordinates, or nil when a single point is selected.
@@ -87,6 +88,7 @@ final class PluginHostContext: NSObject, FDSHostContext {
 
     var scanStepNanometers: Double { return snapshot.scanStepNanometers }
     var diffractionStepMilliradians: Double { return snapshot.diffractionStepMilliradians }
+    var accelerationKilovolts: Double { return snapshot.accelerationKilovolts }
 
     // MARK: - Pattern access
 

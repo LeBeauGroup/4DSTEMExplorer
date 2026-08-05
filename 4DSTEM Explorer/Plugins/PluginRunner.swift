@@ -51,7 +51,7 @@ final class PluginRunner: ObservableObject {
             return
         }
 
-        let descriptors = PluginParameterDescriptor.parse(plugin.parameters)
+        let descriptors = PluginParameterDescriptor.parse(plugin.parameters(for: model))
         guard !descriptors.isEmpty else {
             execute(plugin, parameters: [:], model: model)
             return
@@ -66,6 +66,7 @@ final class PluginRunner: ObservableObject {
                 pluginName: plugin.name,
                 summary: plugin.summary,
                 store: store,
+                citations: plugin.citations,
                 onCancel: { [weak self] in
                     controller.dismiss()
                     self?.sheet = nil
@@ -170,6 +171,16 @@ final class PluginRunner: ObservableObject {
 
 extension DataViewModel {
 
+    /// A context for questions that do not run the plugin — asking it what
+    /// parameters it wants, given what is open.
+    func makePluginQueryContext() -> PluginHostContext {
+        return PluginHostContext(dataController: dataController,
+                                 snapshot: makePluginSnapshot(),
+                                 token: PluginRunToken(),
+                                 progressHandler: { _ in },
+                                 logHandler: { _ in })
+    }
+
     /// Freezes the state a plugin is allowed to see. Called on the main thread
     /// before the run starts so the plugin never reads `@Published` properties
     /// from its background queue.
@@ -190,6 +201,7 @@ extension DataViewModel {
             filePath: selectedURL?.path ?? "",
             scanStepNanometers: Double(calibrations?.scan_step ?? 0),
             diffractionStepMilliradians: Double(calibrations?.diff_step ?? 0),
+            accelerationKilovolts: Double(calibrations?.voltage ?? 0),
             selectedRow: selectedRow,
             selectedColumn: selectedColumn,
             selectionRect: rect,

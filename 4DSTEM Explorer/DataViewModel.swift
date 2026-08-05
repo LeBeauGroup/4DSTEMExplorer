@@ -375,6 +375,7 @@ final class DataViewModel: NSObject, ObservableObject {
     func calibrate() {
         let currentScanStep = calibrations?.scan_step.map { String($0) } ?? ""
         let currentDiffStep = calibrations?.diff_step.map { String($0) } ?? ""
+        let currentVoltage = calibrations?.voltage.map { String($0) } ?? ""
 
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 180),
                             styleMask: [.titled, .closable],
@@ -388,6 +389,7 @@ final class DataViewModel: NSObject, ObservableObject {
         let hosting = NSHostingView(rootView: CalibrationSheet(
             scanStep: currentScanStep,
             diffStep: currentDiffStep,
+            voltage: currentVoltage,
             onCancel: {
                 if let parent = panel.sheetParent {
                     parent.endSheet(panel, returnCode: .cancel)
@@ -396,10 +398,13 @@ final class DataViewModel: NSObject, ObservableObject {
                     panel.close()
                 }
             },
-            onOK: { [weak self] scanStepStr, diffStepStr in
+            onOK: { [weak self] scanStepStr, diffStepStr, voltageStr in
                 let newScanStep = Float(scanStepStr)
                 let newDiffStep = Float(diffStepStr)
-                self?.calibrations = Calibrations(scan_step: newScanStep, diff_step: newDiffStep)
+                let newVoltage = Float(voltageStr)
+                self?.calibrations = Calibrations(scan_step: newScanStep,
+                                                  diff_step: newDiffStep,
+                                                  voltage: newVoltage)
                 if let parent = panel.sheetParent {
                     parent.endSheet(panel, returnCode: .OK)
                 } else {
@@ -805,7 +810,7 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
 // SwiftUI panel to prompt for RAW dimensions
-    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step: Float?, diff_step: Float?, flipRows: Bool, flipCols: Bool, transpose: Bool)?) -> Void) {
+    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step: Float?, diff_step: Float?, voltage: Float?, flipRows: Bool, flipCols: Bool, transpose: Bool)?) -> Void) {
         // Helper to parse strings like "80x80", "256×128", "64 X 32"
         func parseXY(_ text: String) -> (Int, Int)? {
             // Normalize input: trim, lowercase, unify separators, and be tolerant to spaces
@@ -849,7 +854,7 @@ final class DataViewModel: NSObject, ObservableObject {
         }
 
         // State holders for the sheet lifecycle
-        var result: (Int, Int, Float?, Float?, Bool, Bool, Bool)? = nil
+        var result: (Int, Int, Float?, Float?, Float?, Bool, Bool, Bool)? = nil
 
         // SwiftUI content
         
@@ -875,11 +880,12 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { scan_dims, scan_step, diff_step, flipRows, flipCols, transpose in
+        }, onOK: { scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose in
             if let xy = parseXY(scan_dims) {
                 let scan_step = Float(scan_step) ?? nil
                 let diff_step = Float(diff_step) ?? nil
-                result = (xy.0, xy.1, scan_step, diff_step, flipRows, flipCols, transpose)
+                let voltage = Float(voltage) ?? nil
+                result = (xy.0, xy.1, scan_step, diff_step, voltage, flipRows, flipCols, transpose)
                 if let parent = panel.sheetParent {
                     parent.endSheet(panel, returnCode: .OK)
                     DispatchQueue.main.async { completion(result) }
@@ -982,7 +988,9 @@ final class DataViewModel: NSObject, ObservableObject {
                 if let dims = dims {
                     self.dataController.setRawImageSize(width: dims.w, height: dims.h)
                     self.dataController.setRawTransforms(flipRows: dims.flipRows, flipCols: dims.flipCols, transpose: dims.transpose)
-                    self.calibrations = Calibrations(scan_step: dims.scan_step, diff_step: dims.diff_step)
+                    self.calibrations = Calibrations(scan_step: dims.scan_step,
+                                                     diff_step: dims.diff_step,
+                                                     voltage: dims.voltage)
                     self.continueOpen(afterPromptFor: url)
                 } else {
                     self.isLoading = false

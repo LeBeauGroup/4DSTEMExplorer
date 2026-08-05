@@ -16,6 +16,9 @@ which the app opens in its own window with export.
 | `Examples/DetectorVariance` | Sweeps the whole stack, returns a computed image. |
 | `Examples/TiltCorrectedBF` | Tilt-corrected bright field — see below. |
 | `Examples/SingleElectronHistogram` | Single-electron counting histogram — see below. |
+| `Examples/PowerCepstrum` | Exit-wave power cepstrum and strain mapping — see below. |
+| `Examples/AberrationCorrectedBF` | Aberration-corrected bright field, GPU accelerated — see below. |
+| `TestData/` | Generator for an EMD file with known aberrations, to check tcBF against. |
 
 ## Tilt-corrected bright field
 
@@ -34,14 +37,63 @@ disc, in scan pixels, and finds it by maximising gradient energy — meaning it
 works on uncalibrated data. When the file has a scan step and a diffraction
 step, the equivalent defocus is reported in nanometres.
 
-It opens as a live window: the first run builds the virtual images and searches
-for the displacement, then writes the value it found into the slider and
-switches to manual. From there, dragging the slider refocuses against the cached
-virtual images — the same interaction as the detector radius slider in the main
-window. Changing the detector or the binning is what forces a rebuild.
+All of it is quoted in the file's own units. When the dataset carries a scan
+step and a diffraction step, the control asks for **Defocus (nm)**, the focus
+curve is plotted against nanometres, and the fitted aberrations are lengths;
+without a calibration the same things are in scan pixels of displacement at the
+edge of the disc. The two are never mixed in one readout.
 
-Set **Bright-field disc from** to `0` to detect the disc from the mean pattern,
-or to a detector number to use that detector's centre and outer radius.
+It opens as a live window. The displacement slider always drives the
+reconstruction; **Auto Defocus** searches for the sharpest focus and leaves what
+it found in the slider, so you can then explore either side of it. The search
+also runs by itself the first time a given disc and binning are used — otherwise
+the opening view would sit at zero defocus, which is just the uncorrected sum —
+and once for each new binning after that. Dragging the slider refocuses against
+the cached virtual images, the same interaction as the detector radius slider in
+the main window; changing the detector or the binning is what forces a rebuild.
+
+### Aberration correction
+
+**Correct for** goes beyond defocus. The displacement of the image formed at
+tilt `t` is the gradient of the aberration function, so each aberration
+contributes a fixed vector polynomial in `t` with one free coefficient —
+defocus is linear in `t`, twofold astigmatism adds a second linear term, coma
+and threefold are quadratic, spherical is cubic. Because the coefficients enter
+linearly this is a least-squares fit, not a search through many dimensions.
+
+The field is *measured* rather than searched: each virtual image is
+cross-correlated against the defocus-corrected sum, and the aberration
+gradients are fitted to the resulting shifts. Bootstrapping from the defocus
+result keeps the residuals to a few scan pixels, which is why a short direct
+search suffices and no FFT is involved. Fitting rather than applying the raw
+measurements matters — at most eight parameters against hundreds of
+measurements averages away correlation noise, and the model cannot represent a
+displacement field that no aberration could produce.
+
+**Return ▸ Aberration fit** gives the coefficients, the measured field, the
+residual, and what fraction of the field the model explains. That last number
+is the one to check: if the fit explains little, the correlation locked onto
+noise rather than the specimen, and the result says so.
+
+The measurement runs twice: the first pass re-forms the reference from what it
+found and measures again. That matters because the defocus bootstrap is furthest
+off exactly when there is astigmatism to find — with two line foci the sharpness
+search settles on one of them rather than the mean, so the first reference is
+itself astigmatic. The correlation window is sized from the displacement across
+the disc for the same reason; a fixed few pixels clips the cases that most need
+correcting.
+
+`TestData/` generates an EMD file with a defocus of 20.0 nm and 8.0 nm of
+astigmatism at 30°. The plugin recovers 20.0 nm and 7.98 nm at 29.9°, explains
+94 % of the measured field, and sharpens the image 75× over the uncorrected sum
+against 22× for defocus alone.
+
+**Bright-field disc from** lists **Pattern COM** followed by the detectors
+currently configured, each with its name and shape. Pattern COM works the disc
+out from the mean diffraction pattern; picking a detector uses its centre and
+outer radius instead. The list is built from the dataset when the window opens,
+so a detector added afterwards needs the plugin reopening — one removed
+afterwards is reported by name rather than silently ignored.
 **Detector binning** trades accuracy for speed and memory — 2 is a good default;
 4 and above start to reintroduce the blur being removed. If the reported
 displacement lands at the end of the search range, widen it. **Return ▸ Focus
@@ -57,6 +109,134 @@ The per-frame path is vectorised with Accelerate, which is what keeps the slider
 interactive. On a 192×192 scan with a 96×96 detector and a 32 px disc: the first
 run (build plus a 41-step search) takes 0.48 s, a repeat search on the cached
 virtual images 209 ms, and a slider move 22 ms.
+
+## Aberration-corrected bright field
+
+`Examples/AberrationCorrectedBF` corrects the bright-field transfer function
+itself, where `TiltCorrectedBF` corrects only the displacement it produces. It
+follows the method used by
+[fast-acbf](https://github.com/chiahao3/fast-acbf) in the
+[py4D-browser plugin](https://github.com/chiahao3/py4D-browser-fast-acbf) of the
+same name.
+
+The distinction matters. tcBF translates each virtual image and sums, which
+cancels the part of the aberration phase that is linear in the specimen's
+spatial frequency. Everything beyond that survives, including the sign reversals
+of the contrast transfer function. acBF builds the full complex transfer for
+every bright-field pixel `t` over the whole scan-frequency grid,
+
+    T_t(q) = -i [ A(q-t)·e^(-i(χ(t) - χ(t-q)))  -  A(q+t)·e^(+i(χ(t) - χ(q+t))) ]
+
+and then either aligns the phases before summing (`T/(|T|+ε)`, "phase only") or
+inverts the whole system as a regularised matched filter,
+`Σ T_b Î_b / (Σ|T_b|² + λS_ref)` ("complex inversion"). tcBF is also offered, done
+as an exact Fourier phase ramp rather than by interpolation, so the three can be
+compared on the same data.
+
+### Why it is fast
+
+The inverse transform is linear, so
+
+    Σ_b IFFT( Î_b · W_b )  =  IFFT( Σ_b Î_b · W_b )
+
+Every mode has that form and differs only in the weight `W_b`. So each virtual
+image is transformed once when the stack is built, every reconstruction is a
+single accumulation in Fourier space, and exactly one inverse transform runs at
+the end no matter how many virtual detectors there are. That leaves the inner
+loop purely elementwise, which is what makes the Metal path a direct port — and
+what makes refinement, which needs hundreds of reconstructions, affordable.
+
+The shader is compiled at run time from source, because the offline Metal
+compiler ships with Xcode rather than the command line tools. If Metal is
+unavailable the CPU path computes the same quantity in double precision; the two
+agree to within 1e-6 of full scale.
+
+### Aberrations and orientation
+
+Coefficients use the Krivanek `(n, m)` expansion in ångström, with `χ` in
+radians and `α = kλ`. Only `C1` and `A1` get their own controls; higher orders
+are found by refinement and listed in the **Aberration report** output.
+
+Refinement maximises an image-sharpness metric — Sobel, Laplacian variance or
+normalised variance — rather than cross-correlating virtual images the way
+`TiltCorrectedBF` does. That works for aberrations which blur rather than shift,
+at the cost of a full reconstruction per evaluation. Each search is a coarse
+sweep followed by a local method, because the objective is oscillatory and a
+purely local search settles into whichever maximum it started nearest. The
+coefficients are then polished together with a simplex, in units of "one radian
+of phase at the aperture edge" so that a defocus and a `C3` — four orders of
+magnitude apart in ångström — are comparably scaled.
+
+Two things worth knowing before trusting a number it reports:
+
+- A term contributing much less than about a tenth of a radian at the aperture
+  edge cannot be measured from sharpness at all. Read a value reported for one
+  as noise.
+- The scan rotation and the astigmatism azimuth are partly degenerate. Rotating
+  the frame and the aberrations together rotates the result without blurring it,
+  and no isotropic metric can see the difference. Refine orientation *before*
+  aberrations, and fix the rotation from a known specimen direction when the
+  absolute angle matters.
+
+### Requirements
+
+acBF works in physical units throughout, so it needs a scan step, a diffraction
+step and an accelerating voltage. The first two come from the file's
+calibration; the voltage comes from the file when it records one and is
+otherwise typed in. Without them the plugin refuses to run rather than guessing.
+
+Memory scales as virtual detectors × scan pixels. The detector binning control
+is the lever; the plugin refuses up front, with a suggested binning, rather than
+thrashing.
+
+## Power cepstrum (EWPC)
+
+`Examples/PowerCepstrum` maps strain through the exit-wave power cepstrum,
+after Padgett et al., *Ultramicroscopy* **214** (2020) 112994. Its
+**Citations…** button has the full list.
+
+A nanobeam diffraction pattern is, near enough, the lattice factor multiplied by
+everything else — probe, structure factor, dynamical scattering. A logarithm
+turns that product into a sum, and Fourier transforming the log separates the
+periodic part from the smooth part:
+
+    EWPC(r) = | FFT{ log( I(k) + ε ) } |
+
+The result has the units of length and its peaks sit at the **real-space**
+interatomic vectors, so the matrix formed by two peaks *is* the local lattice —
+no reciprocal-space inversion.
+
+**Why not just fit the Bragg disks.** Disk fitting wants disks that are
+separated, round and unsaturated. Overlapping disks, strong dynamical contrast
+and a large convergence angle all change the *amplitude* of the diffraction
+pattern rather than its periodicity, so they leave the cepstral peak positions
+alone. That is what makes this work on thick or strongly scattering specimens.
+
+The workflow is: **Return ▸ Mean cepstrum** to see where the peaks are, then
+**Peak report** for their coordinates, then a strain component. Leaving the four
+peak boxes at 0 picks the two strongest independent peaks automatically, which
+is usually right. Strain is measured against the mean lattice of the scan, so
+the maps are relative and centred on zero.
+
+Points worth knowing:
+
+- **Log floor** is the ε in `log(I + ε)`, as a fraction of the mean pattern's
+  maximum. It stops empty pixels dominating; too large flattens the pattern and
+  weakens the peaks.
+- **Apodise** tapers the detector edge. Without it the sharp cut-off transforms
+  into a cross through the middle of the cepstrum, right where the low-order
+  peaks are.
+- **Zero-pad factor** interpolates the cepstrum for easier peak location. It
+  does not add information, and it costs time as the square.
+- **Accelerating voltage** only converts cepstral pixels to ångström for the
+  report. Strain is a ratio and never depends on it.
+- Switching between strain components is instant; the transform is cached.
+
+Against a synthetic crystal with deliberately overlapping disks (16 px lattice
+spacing, 9 px disk radius) and a planted εxx sweeping −1 % to +1 %, the peaks
+land at radius 15.99 px where the lattice predicts 16.0, the recovered strain
+tracks the planted value with slope 0.999, εyy stays flat at 1×10⁻⁴, and the
+scatter within a column is 1.3×10⁻⁴ strain.
 
 ## Single-electron histogram
 
@@ -187,9 +367,88 @@ before running. Values come back keyed by the identifier you gave.
 | `FDSParameter.toggle(...)` | `NSNumber` (Bool) |
 | `FDSParameter.choice(_:label:choices:defaultValue:help:)` | `String` |
 | `FDSParameter.text(...)` | `String` |
+| `FDSParameter.button(_:label:help:)` | `NSNumber` (Bool) — true only on the run the press started |
+
+A button is an action, not a setting. It reads true for exactly one run and
+false on every other, so a plugin can treat it as "do this now" rather than as a
+mode the user has to remember to turn off again. In a live window a press runs
+immediately rather than waiting for the debounce that smooths out slider drags.
 
 Omit `pluginParameters` (or return an empty array) and the plugin runs
 immediately with no sheet.
+
+`pluginParameters` is read once at load time, with no dataset in hand, so it
+cannot know what units the open file carries. Implement `parameters(for:)` as
+well to be asked again once there is one:
+
+```swift
+public func parameters(for host: FDSHostContext) -> [[String: Any]] {
+    guard host.scanStepNanometers > 0, host.diffractionStepMilliradians > 0 else {
+        return pluginParameters                  // uncalibrated: ask in pixels
+    }
+    return calibratedParameters                  // ask in nanometres
+}
+```
+
+Do this rather than presenting a control in one unit and reporting the result in
+another. A plugin should speak one language: physical units when the file
+supports them, pixels when it does not, and never a mixture.
+
+### Citations
+
+Put a `.bib` file in the plugin's source folder. `build-plugin.sh` validates it,
+copies it into `Contents/Resources`, and the app shows a **Citations…** button
+beside that plugin's controls — in both the parameter sheet and the live window.
+A plugin with no `.bib` gets no button and no Resources folder. There is no API
+to call and nothing to declare in Swift.
+
+```
+Examples/MyPlugin/
+    plugin.conf
+    MyPlugin.swift
+    MyPlugin.bib      <- becomes the plugin's citations
+```
+
+The window lists the entries, links each DOI, and offers **Copy BibTeX** and
+**Export BibTeX…**. What it exports is your file, byte for byte, under a
+provenance comment. The app parses the file to display it but never re-emits it,
+so an exported bibliography cannot differ from the one you wrote and tested.
+
+Ordinary BibTeX, with two conventions:
+
+- **Order matters.** The first entry is the one to cite first, and it is shown
+  emphasised.
+- **`annote` says why.** It is displayed above each entry ("The tcBF method",
+  "Reference implementation this follows") and is a standard field the common
+  styles ignore, so the file stays plain BibTeX.
+
+```bibtex
+@article{yu2025tcbf,
+  author  = {Yu, Yue and Spoth, Katherine A. and Muller, David A.},
+  title   = {{Dose-efficient cryo-electron microscopy for thick samples}},
+  journal = {Nature Methods},
+  volume  = {22},
+  number  = {10},
+  pages   = {2138--2148},
+  year    = {2025},
+  doi     = {10.1038/s41592-025-02834-9},
+  annote  = {The tcBF method}
+}
+```
+
+Prefer `@misc` with `howpublished = {\url{...}}` over `@software` for code.
+biblatex understands `@software`, but classic BibTeX discards entry types it
+does not know — the entry vanishes from the bibliography with no error, which is
+worse than typing it a little less precisely.
+
+The build fails, rather than shipping, if the file has unbalanced braces, no
+entries, an entry without a cite key, or duplicate cite keys. A duplicate key is
+worth catching early: BibTeX keeps the first and silently drops the rest.
+
+The parser handles `@string` macros, `@comment` blocks, quoted and braced
+values, `#` concatenation, and the usual LaTeX accents and escapes, so author
+names such as `M{\"u}ller` display correctly. Include your own entry for
+4DSTEM Explorer if you want users to cite the app alongside the method.
 
 ### Live plugins
 
@@ -223,8 +482,9 @@ Everything comes off `host`:
 
 - **Geometry** — `scanWidth`, `scanHeight`, `patternWidth`, `patternHeight`,
   `patternPixelCount`, `fileName`, `filePath`.
-- **Calibration** — `scanStepNanometers` and `diffractionStepMilliradians`, each
-  `0` when the file is uncalibrated.
+- **Calibration** — `scanStepNanometers`, `diffractionStepMilliradians` and
+  `accelerationKilovolts`, each `0` when the file is uncalibrated. Treat `0` as
+  "unknown" and fall back to your own default rather than using it as a value.
 - **The stack** — `copyPattern(row:column:into:capacity:)` writes one pattern
   into a buffer you own; use it when sweeping the scan. `patternData(row:column:)`
   is the allocating equivalent, fine for a handful of positions.

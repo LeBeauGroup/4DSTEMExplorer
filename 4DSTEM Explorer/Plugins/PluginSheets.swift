@@ -65,6 +65,19 @@ final class PluginParameterStore: ObservableObject {
     @Published var flags: [String: Bool] = [:]
     @Published var strings: [String: String] = [:]
 
+    /// A pressed button, waiting to be reported to the next run. It is an
+    /// event, not a setting: it is true for exactly one run and then gone.
+    @Published private(set) var pendingTrigger: String?
+
+    /// Called when a button is pressed, so a live session can run immediately
+    /// rather than waiting for the change detector.
+    var onTrigger: ((String) -> Void)?
+
+    /// Ids of button parameters, which must be excluded when deciding whether
+    /// the settings changed — otherwise clearing a trigger reads as an edit and
+    /// starts a second run.
+    private(set) var buttonIdentifiers: Set<String> = []
+
     init(descriptors: [PluginParameterDescriptor]) {
         self.descriptors = descriptors
         for descriptor in descriptors {
@@ -77,6 +90,8 @@ final class PluginParameterStore: ObservableObject {
                 strings[descriptor.id] = descriptor.choices.contains(requested) ? requested : fallback
             case FDSParameterType.text:
                 strings[descriptor.id] = descriptor.defaultValue as? String ?? ""
+            case FDSParameterType.button:
+                buttonIdentifiers.insert(descriptor.id)
             default:
                 numbers[descriptor.id] = clamp((descriptor.defaultValue as? NSNumber)?.doubleValue ?? 0, descriptor)
             }
@@ -101,6 +116,8 @@ final class PluginParameterStore: ObservableObject {
                 result[descriptor.id] = NSNumber(value: flags[descriptor.id] ?? false)
             case FDSParameterType.choice, FDSParameterType.text:
                 result[descriptor.id] = strings[descriptor.id] ?? ""
+            case FDSParameterType.button:
+                result[descriptor.id] = NSNumber(value: pendingTrigger == descriptor.id)
             case FDSParameterType.integer:
                 result[descriptor.id] = NSNumber(value: Int((numbers[descriptor.id] ?? 0).rounded()))
             default:
@@ -118,6 +135,9 @@ final class PluginParameterStore: ObservableObject {
         var changed = false
         for descriptor in descriptors {
             guard let raw = values[descriptor.id] else { continue }
+            // A button is an action, not a value: a result cannot press one, and
+            // writing a number under its id would leave a phantom setting.
+            guard descriptor.type != FDSParameterType.button else { continue }
             switch descriptor.type {
             case FDSParameterType.toggle:
                 if let value = (raw as? NSNumber)?.boolValue, flags[descriptor.id] != value {
@@ -144,6 +164,19 @@ final class PluginParameterStore: ObservableObject {
             }
         }
         return changed
+    }
+
+    /// Records a press and lets the owner act on it at once.
+    func press(_ id: String) {
+        pendingTrigger = id
+        onTrigger?(id)
+    }
+
+    /// Clears the pending press. Called once the run that reports it has taken
+    /// its copy of the values.
+    func clearTrigger() {
+        guard pendingTrigger != nil else { return }
+        pendingTrigger = nil
     }
 
     func binding(forNumber id: String) -> Binding<Double> {
@@ -186,6 +219,12 @@ struct PluginParameterControls: View {
     @ViewBuilder
     private func control(for descriptor: PluginParameterDescriptor) -> some View {
         switch descriptor.type {
+        case FDSParameterType.button:
+            HStack {
+                Button(descriptor.label) { store.press(descriptor.id) }
+                Spacer()
+            }
+
         case FDSParameterType.toggle:
             Toggle(descriptor.label, isOn: store.binding(forFlag: descriptor.id))
 
@@ -239,6 +278,7 @@ struct PluginParameterSheet: View {
     let pluginName: String
     let summary: String
     @ObservedObject var store: PluginParameterStore
+    var citations: PluginCitationLibrary?
     let onCancel: () -> Void
     let onRun: () -> Void
 
@@ -260,6 +300,13 @@ struct PluginParameterSheet: View {
             }
 
             HStack {
+                if let citations = citations {
+                    Button("Citations…") {
+                        PluginCitationsWindowController.present(pluginName: pluginName,
+                                                               library: citations)
+                    }
+                    .help("Papers and software behind this plugin's method, with BibTeX export")
+                }
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)

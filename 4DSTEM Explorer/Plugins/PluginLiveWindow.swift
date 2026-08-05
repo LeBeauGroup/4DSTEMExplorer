@@ -52,7 +52,7 @@ final class PluginLiveSession: ObservableObject {
     init(plugin: LoadedPlugin, model: DataViewModel) {
         self.plugin = plugin
         self.model = model
-        self.store = PluginParameterStore(descriptors: PluginParameterDescriptor.parse(plugin.parameters))
+        self.store = PluginParameterStore(descriptors: PluginParameterDescriptor.parse(plugin.parameters(for: model)))
         self.queue = DispatchQueue(label: "lebeaugroup.stemexplorer.plugin.live.\(plugin.identifier)",
                                    qos: .userInitiated)
 
@@ -60,6 +60,10 @@ final class PluginLiveSession: ObservableObject {
         storeObserver = store.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.parametersChanged() }
         }
+
+        // A button press is an action; run at once rather than waiting for the
+        // debounce that smooths out slider drags.
+        store.onTrigger = { [weak self] _ in self?.runNow() }
 
         runNow()
     }
@@ -73,7 +77,8 @@ final class PluginLiveSession: ObservableObject {
 
     private func parametersChanged() {
         guard liveUpdate else { return }
-        guard !PluginLiveSession.parameters(store.objectValues(), match: lastRunParameters) else { return }
+        guard !PluginLiveSession.parameters(store.objectValues(), match: lastRunParameters,
+                                            ignoring: store.buttonIdentifiers) else { return }
         scheduleRun()
     }
 
@@ -112,7 +117,10 @@ final class PluginLiveSession: ObservableObject {
         let snapshot = model.makePluginSnapshot()
         let dataController = model.dataController
         let fileRoot = model.selectedURL?.deletingPathExtension().lastPathComponent ?? ""
+        // Take the values while the press is still pending, so this run — and
+        // only this run — sees the button as true.
         let parameters = store.objectValues()
+        store.clearTrigger()
         let plugin = self.plugin
         lastRunParameters = parameters
 
@@ -174,9 +182,10 @@ final class PluginLiveSession: ObservableObject {
         activeToken?.cancel()
     }
 
-    private static func parameters(_ lhs: [String: Any], match rhs: [String: Any]) -> Bool {
+    private static func parameters(_ lhs: [String: Any], match rhs: [String: Any],
+                                   ignoring skipped: Set<String> = []) -> Bool {
         guard lhs.count == rhs.count else { return false }
-        for (key, value) in lhs {
+        for (key, value) in lhs where !skipped.contains(key) {
             guard let other = rhs[key],
                   let a = value as? NSObject,
                   let b = other as? NSObject,
@@ -222,6 +231,14 @@ struct PluginLiveView: View {
                     .controlSize(.small)
                     .help("Re-run whenever a control changes")
                 Spacer()
+                if let citations = session.plugin.citations {
+                    Button("Citations…") {
+                        PluginCitationsWindowController.present(pluginName: session.plugin.name,
+                                                               library: citations)
+                    }
+                    .controlSize(.small)
+                    .help("Papers and software behind this plugin's method, with BibTeX export")
+                }
                 Button("Run") { session.runNow() }
                     .keyboardShortcut(.defaultAction)
             }

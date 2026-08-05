@@ -8,6 +8,11 @@
 # FourDSTEMPluginAPI.swift is compiled in automatically. With no output
 # directory the bundle is installed straight into the app's plugins folder.
 #
+# Any .bib file in the source directory is bundled into Contents/Resources and
+# becomes the plugin's citation list: the app shows a Citations button for it and
+# exports the file verbatim. It is checked for structure first, so a malformed
+# bibliography fails the build instead of shipping.
+#
 set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,6 +131,56 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
 PLIST
 
 plutil -lint "$BUNDLE/Contents/Info.plist" > /dev/null
+
+# Bibliography. Checked before it is copied: braces must balance, every entry
+# needs a cite key, and keys must be unique — a duplicate key silently loses a
+# reference when BibTeX runs.
+BIB_FILES=()
+while IFS= read -r -d '' bib; do
+    BIB_FILES+=("$bib")
+done < <(find "$SOURCE_DIR" -maxdepth 1 -name '*.bib' -print0 | sort -z)
+
+if [ ${#BIB_FILES[@]} -gt 0 ]; then
+    mkdir -p "$BUNDLE/Contents/Resources"
+    for bib in "${BIB_FILES[@]}"; do
+        REPORT="$(awk '
+            # Strip everything outside entries so comment text cannot unbalance
+            # the brace count.
+            { line = $0 }
+            {
+                n = split(line, chars, "")
+                for (i = 1; i <= n; i++) {
+                    c = chars[i]
+                    if (c == "{") depth++
+                    else if (c == "}") { depth--; if (depth < 0) { bad_nesting = 1; depth = 0 } }
+                }
+            }
+            /^[[:space:]]*@/ {
+                entries++
+                key = $0
+                sub(/^[[:space:]]*@[A-Za-z]+[[:space:]]*[{(][[:space:]]*/, "", key)
+                sub(/[[:space:]]*,.*$/, "", key)
+                if (key == "" || key ~ /[=]/) { keyless++ }
+                else { if (key in seen) { dupes = dupes " " key } ; seen[key] = 1 }
+            }
+            END {
+                if (entries == 0) print "no @entries found"
+                if (depth != 0) print "unbalanced braces (depth " depth " at end of file)"
+                if (bad_nesting) print "a closing brace appears before its opening brace"
+                if (keyless > 0) print keyless " entr(y/ies) without a cite key"
+                if (dupes != "") print "duplicate cite key(s):" dupes
+            }
+        ' "$bib")"
+        if [ -n "$REPORT" ]; then
+            echo "error: $(basename "$bib") is not usable as BibTeX" >&2
+            echo "$REPORT" | sed 's/^/    /' >&2
+            exit 1
+        fi
+        cp "$bib" "$BUNDLE/Contents/Resources/"
+        COUNT="$(grep -c '^[[:space:]]*@' "$bib" || true)"
+        echo "  citations       : $(basename "$bib") ($COUNT entries)"
+    done
+fi
 
 # Apple silicon refuses to load unsigned code, so ad-hoc signing is mandatory,
 # not optional. Set PLUGIN_SIGN_IDENTITY to sign with a real identity instead.
