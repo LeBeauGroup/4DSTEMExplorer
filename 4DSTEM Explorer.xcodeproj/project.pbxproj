@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E3 /* PluginBibTeX.swift */; };
+		AAF1000000000000000000F2 /* PluginCitations.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E2 /* PluginCitations.swift */; };
+		AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E1 /* ScanMetadata.swift */; };
 		AAF300000000000000000000 /* Attribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000000 /* Attribute.swift */; };
 		AAF300000000000000000001 /* Dataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000001 /* Dataset.swift */; };
 		AAF300000000000000000002 /* Dataspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000002 /* Dataspace.swift */; };
@@ -79,6 +82,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AAF1000000000000000000E3 /* PluginBibTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginBibTeX.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E2 /* PluginCitations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCitations.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E1 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
 		AAF200000000000000000000 /* Attribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attribute.swift; sourceTree = "<group>"; };
 		AAF200000000000000000001 /* Dataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataset.swift; sourceTree = "<group>"; };
 		AAF200000000000000000002 /* Dataspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataspace.swift; sourceTree = "<group>"; };
@@ -255,6 +261,7 @@
 				A51FEFB81FEC48FD00A8A5EC /* Info.plist */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				AAF1000000000000000000C2 /* EMDReader.swift */,
+				AAF1000000000000000000E1 /* ScanMetadata.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
 				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
 				A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */,
@@ -333,6 +340,8 @@
 				AAF1000000000000000000A4 /* PluginResult.swift */,
 				AAF1000000000000000000A5 /* PluginResultViews.swift */,
 				AAF1000000000000000000A6 /* PluginRunner.swift */,
+				AAF1000000000000000000E2 /* PluginCitations.swift */,
+				AAF1000000000000000000E3 /* PluginBibTeX.swift */,
 				AAF1000000000000000000A7 /* PluginSheets.swift */,
 				AAF1000000000000000000A8 /* PluginLiveWindow.swift */,
 			);
@@ -538,6 +547,8 @@
 				AAF1000000000000000000B4 /* PluginResult.swift in Sources */,
 				AAF1000000000000000000B5 /* PluginResultViews.swift in Sources */,
 				AAF1000000000000000000B6 /* PluginRunner.swift in Sources */,
+				AAF1000000000000000000F2 /* PluginCitations.swift in Sources */,
+				AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */,
 				AAF1000000000000000000B7 /* PluginSheets.swift in Sources */,
 				AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
@@ -570,6 +581,7 @@
 				AAF300000000000000000010 /* StringAttribute.swift in Sources */,
 				AAF300000000000000000011 /* StringDataset.swift in Sources */,
 				AAF1000000000000000000D2 /* EMDReader.swift in Sources */,
+				AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */,
 				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */,

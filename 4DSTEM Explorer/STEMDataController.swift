@@ -54,8 +54,18 @@ protocol STEMDataControllerProgressDelegate:class {
 }
 
 struct Calibrations{
-    let scan_step:Float?
-    let diff_step:Float?
+    let scan_step:Float?          // nm per probe position
+    let diff_step:Float?          // mrad per detector pixel
+    /// Accelerating voltage in kilovolts. Not used for the scale bar, but it is
+    /// what turns a reciprocal-space calibration into an angle, and plugins ask
+    /// for it rather than making the user type it again.
+    let voltage:Float?
+
+    init(scan_step: Float?, diff_step: Float?, voltage: Float? = nil) {
+        self.scan_step = scan_step
+        self.diff_step = diff_step
+        self.voltage = voltage
+    }
 }
 
 

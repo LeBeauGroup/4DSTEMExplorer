@@ -123,6 +123,18 @@ enum EMDReader {
         if let chunk = dataset.chunkSize {
             summary += ", chunked \(chunk.map(String.init).joined(separator: "×"))"
         }
+        // Say what was and was not calibrated: a missing diffraction step is
+        // usually a reciprocal-space axis with no beam voltage to convert it.
+        switch (calibrations?.scan_step, calibrations?.diff_step) {
+        case let (scan?, diff?):
+            summary += String(format: ", %.4g nm/px scan, %.4g mrad/px", scan, diff)
+        case let (scan?, nil):
+            summary += String(format: ", %.4g nm/px scan, diffraction uncalibrated", scan)
+        case let (nil, diff?):
+            summary += String(format: ", scan uncalibrated, %.4g mrad/px", diff)
+        case (nil, nil):
+            summary += ", uncalibrated"
+        }
         _ = nativeType
 
         let described = EMDDataset(
@@ -286,17 +298,36 @@ enum EMDReader {
             return (delta, stringAttribute("units", on: scale.id) ?? "")
         }
 
+        let volts = accelerationVoltage(file: file)
+        let wavelength = volts.flatMap { electronWavelength(volts: $0) }
+
         var scanStep: Float?
         var diffStep: Float?
         if let scan = step("dim0") ?? step("dim1") {
             scanStep = nanometres(scan.value, units: scan.units)
         }
         if let diff = step("dim2") ?? step("dim3") {
-            diffStep = milliradians(diff.value, units: diff.units)
+            // Reciprocal-space steps only become angles once the electron
+            // wavelength is known, so the accelerating voltage is looked up
+            // rather than assumed.
+            diffStep = milliradians(diff.value, units: diff.units, wavelengthAngstroms: wavelength)
         }
 
-        if scanStep == nil && diffStep == nil { return nil }
-        return Calibrations(scan_step: scanStep, diff_step: diffStep)
+        // py4DSTEM often leaves the dimension scales as bare pixel indices and
+        // keeps the real numbers in its Calibration metadata instead, so a file
+        // whose dims say "pixels" is not uncalibrated — it is calibrated
+        // somewhere else.
+        if scanStep == nil, let size = scalar(file: file, named: "R_pixel_size") {
+            scanStep = nanometres(size, units: text(file: file, named: "R_pixel_units") ?? "")
+        }
+        if diffStep == nil, let size = scalar(file: file, named: "Q_pixel_size") {
+            diffStep = milliradians(size, units: text(file: file, named: "Q_pixel_units") ?? "",
+                                    wavelengthAngstroms: wavelength)
+        }
+
+        let kilovolts = volts.map { Float($0 / 1000.0) }
+        if scanStep == nil && diffStep == nil && kilovolts == nil { return nil }
+        return Calibrations(scan_step: scanStep, diff_step: diffStep, voltage: kilovolts)
     }
 
     /// Reads a string attribute off any object.
@@ -340,6 +371,60 @@ enum EMDReader {
         return String(cString: buffer)
     }
 
+    /// First scalar dataset in the file whose name matches, wherever it sits.
+    /// Names are looked up rather than paths because writers disagree on where
+    /// the calibration group lives.
+    private static func scalar(file: HDF5File, named name: String) -> Double? {
+        for path in datasetPaths(in: file) where (path as NSString).lastPathComponent == name {
+            guard let dataset = file.openDoubleDataset(path),
+                  let values = try? dataset.read(),
+                  let first = values.first, first.isFinite, first != 0 else { continue }
+            return first
+        }
+        return nil
+    }
+
+    /// Same, for a string dataset. Both fixed- and variable-length appear in
+    /// the wild, and HDF5Kit only offers attribute helpers on groups, so this
+    /// goes to the C API.
+    private static func text(file: HDF5File, named name: String) -> String? {
+        for path in datasetPaths(in: file) where (path as NSString).lastPathComponent == name {
+            let dataset = path.withCString { H5Dopen2(file.id, $0, hid_t(H5P_DEFAULT)) }
+            guard dataset >= 0 else { continue }
+            defer { H5Dclose(dataset) }
+            let type = H5Dget_type(dataset)
+            guard type >= 0 else { continue }
+            defer { H5Tclose(type) }
+
+            if H5Tis_variable_str(type) > 0 {
+                var pointer: UnsafeMutablePointer<CChar>?
+                let status = withUnsafeMutablePointer(to: &pointer) {
+                    H5Dread(dataset, type, hid_t(H5S_ALL), hid_t(H5S_ALL), hid_t(H5P_DEFAULT),
+                            UnsafeMutableRawPointer($0))
+                }
+                guard status >= 0, let pointer = pointer else { continue }
+                let value = String(cString: pointer)
+                let space = H5Dget_space(dataset)
+                if space >= 0 {
+                    var copy: UnsafeMutablePointer<CChar>? = pointer
+                    withUnsafeMutablePointer(to: &copy) {
+                        _ = H5Treclaim(type, space, hid_t(H5P_DEFAULT), UnsafeMutableRawPointer($0))
+                    }
+                    H5Sclose(space)
+                }
+                return value
+            }
+
+            let size = H5Tget_size(type)
+            guard size > 0 else { continue }
+            var buffer = [CChar](repeating: 0, count: size + 1)
+            guard H5Dread(dataset, type, hid_t(H5S_ALL), hid_t(H5S_ALL), hid_t(H5P_DEFAULT), &buffer) >= 0
+            else { continue }
+            return String(cString: buffer)
+        }
+        return nil
+    }
+
     /// The app's scale bar works in nanometres per scan pixel.
     private static func nanometres(_ value: Double, units: String) -> Float? {
         switch normalise(units) {
@@ -361,17 +446,70 @@ enum EMDReader {
     }
 
     /// The app's detector angles are milliradians per detector pixel.
-    private static func milliradians(_ value: Double, units: String) -> Float? {
+    ///
+    /// Writers disagree on how to express the diffraction axis. py4DSTEM often
+    /// writes an angle directly; just as often it writes a reciprocal-space
+    /// step, which is only an angle once you know the electron wavelength:
+    /// θ = λ·q. Without a voltage in the file that conversion is impossible, so
+    /// the calibration is left unset rather than being invented.
+    private static func milliradians(_ value: Double, units: String,
+                                     wavelengthAngstroms: Double?) -> Float? {
         switch normalise(units) {
         case "mrad", "milliradian", "milliradians":
             return Float(value)
         case "rad", "radian", "radians":
             return Float(value * 1000.0)
+
+        case "a^-1", "a-1", "1/a", "å^-1", "å-1", "1/å", "angstrom^-1", "invang", "inv_angstrom":
+            guard let lambda = wavelengthAngstroms else { return nil }
+            return Float(lambda * value * 1000.0)
+
+        case "nm^-1", "nm-1", "1/nm", "nanometre^-1", "nanometer^-1", "invnm", "inv_nm":
+            guard let lambda = wavelengthAngstroms else { return nil }
+            return Float((lambda / 10.0) * value * 1000.0)      // λ in nm
+
+        case "pm^-1", "1/pm":
+            guard let lambda = wavelengthAngstroms else { return nil }
+            return Float((lambda * 100.0) * value * 1000.0)     // λ in pm
+
         default:
-            // Reciprocal-space units (A^-1, nm^-1) need the wavelength to become
-            // an angle, which is not recorded here. Better unset than wrong.
-            return nil
+            return nil      // pixels, or something unrecognised
         }
+    }
+
+    /// Relativistic electron wavelength in Angstroms.
+    ///
+    ///     λ = h / sqrt(2·m₀·e·V·(1 + eV / 2m₀c²))
+    ///
+    /// written in the usual practical form. At 300 kV this gives 0.0197 Å.
+    private static func electronWavelength(volts: Double) -> Double? {
+        guard volts > 100, volts.isFinite else { return nil }
+        return 12.2639 / (volts + 0.97845e-6 * volts * volts).squareRoot()
+    }
+
+    /// Accelerating voltage in volts, wherever the writer put it.
+    ///
+    /// emdfile keeps it at `metadatabundle/calibration/voltage`, but the name
+    /// and the units vary between writers, so this searches by name and then
+    /// works out whether the number is volts, kilovolts or electronvolts.
+    private static func accelerationVoltage(file: HDF5File) -> Double? {
+        let wanted = ["voltage", "accelerating_voltage", "acceleration_voltage",
+                      "beam_energy", "energy", "high_tension", "ht"]
+
+        for path in datasetPaths(in: file) {
+            let leaf = (path as NSString).lastPathComponent.lowercased()
+            guard wanted.contains(leaf) else { continue }
+            guard let dataset = file.openDoubleDataset(path),
+                  let values = try? dataset.read(),
+                  let raw = values.first, raw.isFinite, raw > 0 else { continue }
+
+            // 300000 V, 300 kV and 300000 eV all appear in the wild; they are
+            // far enough apart in magnitude to tell apart safely.
+            if raw >= 1000 { return raw }          // volts (or eV, same number)
+            if raw >= 10 { return raw * 1000.0 }   // kilovolts
+            return nil                             // too small to be a beam energy
+        }
+        return nil
     }
 
     private static func normalise(_ units: String) -> String {

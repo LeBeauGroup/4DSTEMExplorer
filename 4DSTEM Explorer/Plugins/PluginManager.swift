@@ -21,8 +21,39 @@ final class LoadedPlugin: Identifiable {
     let supportsLiveUpdate: Bool
     let bundleURL: URL
     let instance: FDSPlugin
+    /// The bibliography the plugin shipped, read from the .bib in its bundle.
+    /// Nil when it ships none, which is what hides the Citations button.
+    let citations: PluginCitationLibrary?
 
     var id: String { identifier }
+
+    /// The controls to show. A plugin that implements `parameters(for:)` gets
+    /// to see the open dataset first, so it can ask in the file's own units.
+    func parameters(for model: DataViewModel) -> [[String: Any]] {
+        guard model.imageWidth > 0,
+              let tailored = instance.parameters?(for: model.makePluginQueryContext()),
+              !tailored.isEmpty else {
+            return parameters
+        }
+        return tailored
+    }
+
+    /// Reads the first .bib in the bundle's Resources.
+    ///
+    /// The file is the plugin's own, bundled by build-plugin.sh, and is what
+    /// gets exported verbatim — the host never rewrites it.
+    private static func readCitations(in bundleURL: URL) -> PluginCitationLibrary? {
+        let resources = bundleURL.appendingPathComponent("Contents/Resources", isDirectory: true)
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: resources.path) else {
+            return nil
+        }
+        for name in names.sorted() where name.hasSuffix(".bib") {
+            if let library = PluginCitationLibrary(contentsOf: resources.appendingPathComponent(name)) {
+                return library
+            }
+        }
+        return nil
+    }
 
     init(instance: FDSPlugin, bundleURL: URL) {
         self.instance = instance
@@ -31,6 +62,7 @@ final class LoadedPlugin: Identifiable {
         self.name = instance.pluginName
         self.summary = instance.pluginSummary ?? ""
         self.parameters = instance.pluginParameters ?? []
+        self.citations = LoadedPlugin.readCitations(in: bundleURL)
         self.requiresData = instance.pluginRequiresData ?? true
         self.supportsLiveUpdate = instance.pluginSupportsLiveUpdate ?? false
     }

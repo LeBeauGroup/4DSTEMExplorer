@@ -63,6 +63,9 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     }
 
     private var cachedKey: StackKey?
+    /// The disc and binning whose focus has already been found, so a new one
+    /// gets an automatic search and an existing one keeps the user's slider.
+    private var focusedKey: StackKey?
     private var cachedStack: [Float] = []
     private var cachedGrouping: Grouping?
 
@@ -70,23 +73,142 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     /// user's lever for staying under it.
     private let memoryBudgetBytes = 1_500_000_000
 
+    /// Controls in the file's own units when it is calibrated.
+    public func parameters(for host: FDSHostContext) -> [[String: Any]] {
+        let units = Units(host: host)
+
+        var tailored = pluginParameters
+        for index in tailored.indices {
+            guard let id = tailored[index][FDSParameterKey.identifier] as? String else { continue }
+            switch id {
+            case "detector":
+                // A list of what is actually there beats a number the user has
+                // to look up, and the entries carry the shape so the right one
+                // is recognisable at a glance.
+                tailored[index] = FDSParameter.choice("detector", label: "Bright-field disc from",
+                                                      choices: discSources(host: host),
+                                                      defaultValue: patternCOMChoice,
+                                                      help: "Where the disc's centre and radius come from. \(patternCOMChoice) finds it from the mean diffraction pattern; pick a detector to use its centre and outer radius instead.")
+
+            case "maxShift" where units.calibrated:
+                tailored[index] = FDSParameter.number("maxShift", label: "Search range (± nm)",
+                                                      defaultValue: 400, minimum: 5, maximum: 20000,
+                                                      help: "Widest defocus to test either side of zero. Widen it if the best value lands at the end of the focus curve.")
+            case "edgeShift" where units.calibrated:
+                tailored[index] = FDSParameter.number("edgeShift", label: "Defocus (nm)",
+                                                      defaultValue: 0, minimum: -2000, maximum: 2000,
+                                                      help: "Drag to refocus. Auto Defocus leaves the value it found here, so you can explore either side of it.")
+            default:
+                break
+            }
+        }
+        return tailored
+    }
+
     public var pluginParameters: [[String: Any]] {
         return [
             FDSParameter.integer("detector", label: "Bright-field disc from", defaultValue: 0, minimum: 0, maximum: 32,
-                                 help: "Detector number whose centre and outer radius mark the disc. 0 detects the disc from the mean pattern instead."),
+                                 help: "Detector number whose centre and outer radius mark the disc. 0 finds it from the mean pattern instead. With a dataset open this becomes a list of the detectors."),
             FDSParameter.integer("binning", label: "Detector binning", defaultValue: 2, minimum: 1, maximum: 16,
                                  help: "Group the disc into blocks this many detector pixels across. Larger is faster and needs less memory; too large reintroduces blur."),
             FDSParameter.number("maxShift", label: "Search range (scan px)", defaultValue: 10, minimum: 1, maximum: 200,
                                 help: "Largest edge displacement to test, in scan pixels. Widen it if the best value lands at the end of the focus curve."),
             FDSParameter.integer("steps", label: "Search steps", defaultValue: 41, minimum: 5, maximum: 201,
                                  help: "Number of trial displacements across the search range."),
-            FDSParameter.toggle("useManual", label: "Set the displacement by hand", defaultValue: false,
-                                help: "Skip the search and use the slider below. A search switches this on automatically so you can adjust from what it found."),
+            FDSParameter.button("autoDefocus", label: "Auto Defocus",
+                                help: "Search for the sharpest focus and put it in the slider below. Runs by itself the first time a disc or binning is used; press it again after changing anything that should move the focus."),
             FDSParameter.number("edgeShift", label: "Edge displacement (scan px)", defaultValue: 0, minimum: -40, maximum: 40,
-                                help: "Drag to refocus. After a search this sits at the value found, so you can explore either side of it."),
-            FDSParameter.choice("output", label: "Return", choices: ["Corrected image", "Focus curve", "Uncorrected sum"],
+                                help: "Drag to refocus. Auto Defocus leaves the value it found here, so you can explore either side of it."),
+            FDSParameter.choice("correction", label: "Correct for",
+                                choices: ["Defocus only", "Defocus + astigmatism", "+ coma & three-fold", "+ spherical"],
+                                help: "Beyond defocus the displacement field is measured by cross-correlating each virtual image against the defocus-corrected sum, then fitted to the aberration gradients. More terms need a specimen with enough contrast to correlate well."),
+            FDSParameter.choice("output", label: "Return", choices: ["Corrected image", "Focus curve", "Uncorrected sum", "Aberration fit"],
                                 help: "Focus curve plots sharpness against displacement; Uncorrected sum is the plain BF image for comparison.")
         ]
+    }
+
+
+    // MARK: - Units
+    //
+    // Internally everything is `k`: scan pixels of image shift per detector
+    // pixel of tilt. That is the quantity the reconstruction actually needs and
+    // it does not depend on the disc radius. Everything the user sees is
+    // converted at the boundary — to nanometres and milliradians when the file
+    // carries a calibration, and to pixels only when it does not.
+
+    private struct Units {
+        let scanStep: Double        // nm per scan pixel, 0 when unknown
+        let diffStep: Double        // mrad per detector pixel, 0 when unknown
+
+        init(host: FDSHostContext) {
+            scanStep = host.scanStepNanometers
+            diffStep = host.diffractionStepMilliradians
+        }
+
+        var calibrated: Bool { return scanStep > 0 && diffStep > 0 }
+        var stepRadians: Double { return diffStep / 1000.0 }
+
+        /// Defocus in nm from the canonical k. C1 = k · scanStep / θ-per-pixel.
+        func defocus(fromK k: Float) -> Double { return Double(k) * scanStep / stepRadians }
+        func k(fromDefocus nm: Double) -> Float { return Float(nm * stepRadians / scanStep) }
+
+        /// Aberration coefficient whose shift goes as tⁿ, as a length in nm.
+        func length(_ coefficient: Float, order: Int) -> Double {
+            return Double(coefficient) * scanStep / pow(stepRadians, Double(order))
+        }
+
+        /// Collection angle of a detector radius, in mrad.
+        func angle(_ detectorPixels: Float) -> Double { return Double(detectorPixels) * diffStep }
+
+        /// The user-facing value of k: nm of defocus when calibrated, edge
+        /// displacement in scan pixels when not.
+        func display(k: Float, radius: Float) -> Double {
+            return calibrated ? defocus(fromK: k) : Double(k * radius)
+        }
+        func k(fromDisplay value: Double, radius: Float) -> Float {
+            return calibrated ? k(fromDefocus: value) : Float(value) / Swift.max(radius, 1)
+        }
+
+        var displayUnit: String { return calibrated ? "nm" : "scan px" }
+
+        /// A length in nm, shown with a sensible prefix.
+        func formatLength(_ nanometres: Double) -> String {
+            let magnitude = abs(nanometres)
+            if magnitude >= 1_000_000 { return String(format: "%.3f mm", nanometres / 1_000_000) }
+            if magnitude >= 1_000 { return String(format: "%.3f µm", nanometres / 1_000) }
+            if magnitude >= 1 { return String(format: "%.1f nm", nanometres) }
+            return String(format: "%.1f pm", nanometres * 1000)
+        }
+    }
+
+    /// First entry of the detector list: work the disc out from the data.
+    private var patternCOMChoice: String { return "Pattern COM" }
+
+    /// The detector list, newest state of the main window included.
+    private func discSources(host: FDSHostContext) -> [String] {
+        var choices = [patternCOMChoice]
+        for index in 0..<host.detectorCount {
+            let info = host.detectorInfo(at: index)
+            let name = (info?[FDSDetectorKey.name] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                ?? "Detector \(index + 1)"
+            let shape = (info?[FDSDetectorKey.shape] as? String)?.uppercased() ?? ""
+            choices.append(shape.isEmpty ? "\(index + 1). \(name)" : "\(index + 1). \(name) (\(shape))")
+        }
+        return choices
+    }
+
+    /// 0 for Pattern COM, otherwise the 1-based detector number.
+    ///
+    /// Accepts the older integer form too, so a saved run or a host that never
+    /// asked for a tailored list still works.
+    private func detectorSelection(_ parameters: [String: Any]) -> Int {
+        if let choice = parameters["detector"] as? String {
+            guard !choice.hasPrefix(patternCOMChoice) else { return 0 }
+            guard let dot = choice.firstIndex(of: "."),
+                  let number = Int(choice[choice.startIndex..<dot]) else { return 0 }
+            return number
+        }
+        return (parameters["detector"] as? NSNumber)?.intValue ?? 0
     }
 
     // MARK: - Run
@@ -103,12 +225,15 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             return FDSResult.failure("No 4D dataset is open, or the scan is only one probe position across.")
         }
 
+        let units = Units(host: host)
         let binning = max(1, (parameters["binning"] as? NSNumber)?.intValue ?? 2)
-        let useManual = (parameters["useManual"] as? NSNumber)?.boolValue ?? false
-        let manualEdgeShift = Float((parameters["edgeShift"] as? NSNumber)?.doubleValue ?? 0)
-        let maxShift = Float(abs((parameters["maxShift"] as? NSNumber)?.doubleValue ?? 10))
+        let autoPressed = (parameters["autoDefocus"] as? NSNumber)?.boolValue ?? false
+        let manualDisplay = (parameters["edgeShift"] as? NSNumber)?.doubleValue ?? 0
+        let maxDisplay = abs((parameters["maxShift"] as? NSNumber)?.doubleValue ?? 10)
         let steps = max(5, (parameters["steps"] as? NSNumber)?.intValue ?? 41)
         let output = parameters["output"] as? String ?? "Corrected image"
+        let correction = parameters["correction"] as? String ?? "Defocus only"
+        let terms = termCount(for: correction)
 
         // 1. Where is the bright-field disc?
         let discResult = locateDisc(host: host, parameters: parameters,
@@ -141,7 +266,7 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             grouping = buildGroups(centerX: centerX, centerY: centerY, radius: radius,
                                    binning: binning, patternWidth: patternWidth, patternHeight: patternHeight)
             guard grouping.groupCount > 0, grouping.discPixelCount > 0 else {
-                return FDSResult.failure("The bright-field disc covers no detector pixels. Check the detector radius, or use 0 to detect the disc automatically.")
+                return FDSResult.failure("The bright-field disc covers no detector pixels. Check the detector's outer radius, or choose \(patternCOMChoice) to find the disc from the data.")
             }
 
             let stackBytes = grouping.groupCount * scanPixels * MemoryLayout<Float>.size
@@ -168,12 +293,21 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             cachedStack = built
         }
 
-        // 4. Find the displacement, unless the user pinned it.
-        var edgeShift = manualEdgeShift
+        // 4. Find the displacement, unless the user pinned it. `edgeShift` is
+        //    kept in scan-pixels-at-the-disc-edge internally; the user's number
+        //    is nanometres of defocus whenever the file is calibrated.
+        let maxShift = abs(units.k(fromDisplay: maxDisplay, radius: radius)) * radius
+        var edgeShift = units.k(fromDisplay: manualDisplay, radius: radius) * radius
         var curveShifts: [Float] = []
         var curveSharpness: [Float] = []
 
-        if !useManual || output == "Focus curve" {
+        // Search when asked, when this disc and binning have never been focused
+        // — otherwise the first view would sit at zero defocus, which is just
+        // the uncorrected sum — or when the focus curve is what was asked for.
+        let neverFocused = focusedKey != key
+        let searching = autoPressed || neverFocused || output == "Focus curve"
+
+        if searching {
             guard let search = searchEdgeShift(host: host, stack: &stack, grouping: grouping,
                                                scanWidth: scanWidth, scanHeight: scanHeight,
                                                maxShift: maxShift, steps: steps, radius: radius) else {
@@ -181,52 +315,191 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             }
             curveShifts = search.shifts
             curveSharpness = search.sharpness
-            if !useManual { edgeShift = search.best }
+            edgeShift = search.best
+            focusedKey = key
         }
+        let foundK = radius > 0 ? edgeShift / radius : 0
 
         if host.isCancelled { return nil }
 
         // 5. Report the equivalent defocus when the file is calibrated.
         //    displacement[nm] = defocus[nm] · θ[rad]  with θ = t · diff_step/1000
-        let scanStep = host.scanStepNanometers            // nm per scan pixel
-        let diffStep = host.diffractionStepMilliradians   // mrad per detector pixel
-        var defocusNote = ""
-        if scanStep > 0, diffStep > 0, radius > 0 {
-            let edgeAngle = Double(radius) * diffStep / 1000.0            // rad
-            let defocus = Double(edgeShift) * scanStep / edgeAngle        // nm
-            defocusNote = String(format: " Defocus %.1f nm (disc edge %.1f mrad).", defocus, Double(radius) * diffStep)
+        // One statement of where the focus is, in whichever unit the file
+        // supports — never both, never mixed.
+        let focusNote: String
+        if units.calibrated {
+            focusNote = String(format: "Defocus %@ (disc edge %.1f mrad)",
+                               units.formatLength(units.defocus(fromK: foundK)), units.angle(radius))
+        } else {
+            focusNote = String(format: "Edge displacement %.2f scan px (disc radius %.0f detector px)",
+                               edgeShift, radius)
         }
 
         // A completed search hands its answer back to the controls and switches
         // to manual, so the slider starts from what was found and the next drag
         // refocuses live instead of searching again.
+        // A search leaves what it found in the slider, so the next drag starts
+        // from there rather than from wherever the control happened to be.
         var writeBack: [String: Any] = [:]
-        if !useManual && !curveSharpness.isEmpty {
-            writeBack["edgeShift"] = NSNumber(value: Double(edgeShift))
-            writeBack["useManual"] = NSNumber(value: true)
+        if searching && !curveSharpness.isEmpty {
+            writeBack["edgeShift"] = NSNumber(value: units.display(k: foundK, radius: radius))
         }
 
         if output == "Focus curve" {
             guard !curveSharpness.isEmpty else {
                 return FDSResult.failure("The focus curve is empty — try more search steps.")
             }
+            // Plot in the same unit as the control, so the curve and the
+            // slider can be read against each other.
+            let curveDisplay = curveShifts.map {
+                Float(units.display(k: radius > 0 ? $0 / radius : 0, radius: radius))
+            }
             var result = FDSResult.plot(
-                x: curveShifts, y: curveSharpness,
+                x: curveDisplay, y: curveSharpness,
                 title: "tcBF Focus Curve — \(host.fileName)",
-                xLabel: "Disc-edge displacement (scan pixels)",
+                xLabel: units.calibrated ? "Defocus (nm)" : "Disc-edge displacement (scan pixels)",
                 yLabel: "Normalised gradient energy",
-                message: String(format: "Sharpest at %.2f scan px.%@ %d virtual detectors, binning %d.",
-                                edgeShift, defocusNote, grouping.groupCount, binning)
+                message: String(format: "Sharpest at %@. %d virtual detectors, binning %d.",
+                                focusNote, grouping.groupCount, binning)
             )
             if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
             return result
         }
 
-        // 6. Final reconstruction at sub-pixel precision.
-        let appliedShift = (output == "Uncorrected sum") ? 0 : edgeShift
+        // 6. Beyond defocus: measure where each virtual image actually sits and
+        //    fit the aberration gradients to that field. Bootstrapped from the
+        //    defocus result above, so the residuals being searched are small.
+        var fit: Aberrations?
+        var fitNote = ""
+        if terms > 1 && output != "Uncorrected sum" {
+            let scanPixels = scanWidth * scanHeight
+            var accumulator = [Float](repeating: 0, count: scanPixels)
+            var coverage = [Float](repeating: 0, count: scanPixels)
+            var safeCoverage = [Float](repeating: 0, count: scanPixels)
+            var reference = [Float](repeating: 0, count: scanPixels)
+
+            var (currentX, currentY) = linearShifts(grouping: grouping, edgeShift: edgeShift, radius: radius)
+
+            // Two passes. The defocus bootstrap can be a long way off precisely
+            // when there is astigmatism to find: with two line foci the
+            // sharpness search settles on one of them rather than the mean, so
+            // the first pass starts from a reference that is itself astigmatic.
+            // Re-forming the reference from the first fit and measuring again
+            // converges on the real field.
+            for pass in 0..<2 {
+                if host.isCancelled { return nil }
+
+                accumulate(stack: &stack, grouping: grouping, scanWidth: scanWidth, scanHeight: scanHeight,
+                           shiftX: currentX, shiftY: currentY, bilinear: false,
+                           accumulator: &accumulator, coverage: &coverage)
+                normalise(accumulator: accumulator, coverage: coverage,
+                          safeCoverage: &safeCoverage, into: &reference)
+
+                // The residual left by a wrong starting focus scales with the
+                // displacement across the disc, so the window has to as well —
+                // a fixed few pixels silently clips exactly the cases that need
+                // correcting most. The second pass starts close, so it narrows.
+                let searchRadius = pass == 0
+                    ? Swift.max(4, Swift.min(16, Int((abs(edgeShift) * 0.75).rounded(.up))))
+                    : 3
+
+                guard let measured = measureShifts(host: host, stack: &stack, grouping: grouping,
+                                                   scanWidth: scanWidth, scanHeight: scanHeight,
+                                                   baseShiftX: currentX, baseShiftY: currentY,
+                                                   reference: reference, searchRadius: searchRadius) else {
+                    return nil   // cancelled
+                }
+                guard let solved = fitAberrations(grouping: grouping, measured: measured, terms: terms) else {
+                    break
+                }
+                fit = solved
+                let refined = modelShifts(grouping: grouping, aberrations: solved)
+                currentX = refined.0
+                currentY = refined.1
+            }
+
+            if let solved = fit {
+                fitNote = " " + describeAberrations(solved, radius: radius, units: units) + "."
+                if solved.rmsResidual > 0.9 * solved.rmsMeasured {
+                    let residual = units.calibrated
+                        ? units.formatLength(Double(solved.rmsResidual) * units.scanStep) + " of " + units.formatLength(Double(solved.rmsMeasured) * units.scanStep)
+                        : String(format: "%.2f of %.2f scan px", solved.rmsResidual, solved.rmsMeasured)
+                    fitNote += " The fit explains little of the measured field (residual \(residual) of image shift) — treat it with suspicion."
+                }
+            } else {
+                fitNote = " Aberration fit failed; fell back to defocus alone."
+            }
+        }
+
+        if output == "Aberration fit" {
+            guard let solved = fit else {
+                return FDSResult.failure(terms > 1
+                    ? "The aberration fit did not converge. Check that the specimen has enough contrast to correlate, or use fewer terms."
+                    : "Choose a correction beyond \"Defocus only\" to fit aberrations.")
+            }
+            var report = "Tilt-corrected bright field — aberration fit\n\n"
+            report += "File            \(host.fileName)\n"
+            if units.calibrated {
+                report += String(format: "Disc            %.1f mrad radius (%.0f detector px)\n",
+                                 units.angle(radius), radius)
+                report += String(format: "Calibration     %.4g nm/scan px, %.4g mrad/detector px\n",
+                                 units.scanStep, units.diffStep)
+            } else {
+                report += String(format: "Disc            radius %.1f detector px\n", radius)
+                report += "Calibration     none in the file\n"
+            }
+            report += "Virtual images  \(grouping.groupCount) (binning \(binning))\n"
+            report += "Correlated      \(solved.groupsUsed) of \(grouping.groupCount)\n\n"
+            report += "Fitted aberrations\n  \(describeAberrations(solved, radius: radius, units: units))\n\n"
+            // These are image shifts, so the scan step converts them.
+            if units.calibrated {
+                report += "Measured field  " + units.formatLength(Double(solved.rmsMeasured) * units.scanStep) + " rms of image shift\n"
+                report += "Fit residual    " + units.formatLength(Double(solved.rmsResidual) * units.scanStep) + " rms\n"
+            } else {
+                report += String(format: "Measured field  %.3f scan px rms of image shift\n", solved.rmsMeasured)
+                report += String(format: "Fit residual    %.3f scan px rms\n", solved.rmsResidual)
+            }
+            report += String(format: "Explained       %.0f%%\n\n",
+                             100 * (1 - Double(solved.rmsResidual / Swift.max(solved.rmsMeasured, .leastNormalMagnitude))))
+
+            let names = ["C1 defocus", "A1 astigmatism a", "A1 astigmatism b",
+                         "cubic tx³", "cubic tx²ty", "cubic txty²", "cubic ty³", "C3 spherical"]
+            let orders = [1, 1, 1, 2, 2, 2, 2, 3]
+            if units.calibrated {
+                report += "Coefficients\n"
+                for (n, c) in solved.coefficients.enumerated() {
+                    let name = names[Swift.min(n, names.count - 1)]
+                    let order = orders[Swift.min(n, orders.count - 1)]
+                    report += String(format: "  %-18@ %@\n", name as NSString,
+                                     units.formatLength(units.length(c, order: order)) as NSString)
+                }
+            } else {
+                report += "Coefficients (scan px per detector px^n)\n"
+                for (n, c) in solved.coefficients.enumerated() {
+                    report += String(format: "  %-18@ % .6g\n",
+                                     names[Swift.min(n, names.count - 1)] as NSString, c)
+                }
+                report += "\nThe file carries no scan or diffraction step, so these are in pixels.\n"
+                report += "Calibrate the dataset to read them in nanometres.\n"
+            }
+            var result = FDSResult.text(report, title: "tcBF Aberrations — \(host.fileName)")
+            if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
+            return result
+        }
+
+        // 7. Final reconstruction at sub-pixel precision.
+        let shifts: ([Float], [Float])
+        if output == "Uncorrected sum" {
+            shifts = ([Float](repeating: 0, count: grouping.groupCount),
+                      [Float](repeating: 0, count: grouping.groupCount))
+        } else if let solved = fit {
+            shifts = modelShifts(grouping: grouping, aberrations: solved)
+        } else {
+            shifts = linearShifts(grouping: grouping, edgeShift: edgeShift, radius: radius)
+        }
         let image = reconstruct(stack: &stack, grouping: grouping,
                                 scanWidth: scanWidth, scanHeight: scanHeight,
-                                edgeShift: appliedShift, radius: radius)
+                                shiftX: shifts.0, shiftY: shifts.1)
         host.reportProgress(1.0)
 
         let title = (output == "Uncorrected sum")
@@ -235,13 +508,13 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
 
         let message: String
         if output == "Uncorrected sum" {
-            message = String(format: "Plain sum of %d disc pixels, no tilt correction. For comparison the search found %.2f scan px.%@",
-                             grouping.discPixelCount, edgeShift, defocusNote)
+            message = String(format: "Plain sum of %d disc pixels, no tilt correction. For comparison the search found %@.",
+                             grouping.discPixelCount, focusNote)
         } else {
-            message = String(format: "Edge displacement %.2f scan px%@%@ %d disc pixels in %d virtual detectors, binning %d.%@",
-                             edgeShift,
-                             useManual ? "" : " (from sharpness search)",
-                             defocusNote,
+            message = String(format: "%@%@.%@ %d disc pixels in %d virtual detectors, binning %d.%@",
+                             focusNote,
+                             searching ? " (from Auto Defocus)" : "",
+                             fitNote,
                              grouping.discPixelCount, grouping.groupCount, binning,
                              rebuilt ? " Virtual images rebuilt from the 4D data." : " Reusing the cached virtual images.")
         }
@@ -262,12 +535,14 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     private func locateDisc(host: FDSHostContext, parameters: [String: Any],
                             patternWidth: Int, patternHeight: Int) -> DiscResult {
 
-        let detectorNumber = (parameters["detector"] as? NSNumber)?.intValue ?? 0
+        let detectorNumber = detectorSelection(parameters)
 
         if detectorNumber > 0 {
             let index = detectorNumber - 1
             guard index < host.detectorCount, let info = host.detectorInfo(at: index) else {
-                return .failed("Detector \(detectorNumber) does not exist; the dataset has \(host.detectorCount).")
+                // The list was built when the window opened; detectors can be
+                // removed after that.
+                return .failed("Detector \(detectorNumber) no longer exists — the dataset now has \(host.detectorCount). Reopen the plugin to refresh the list, or choose \(patternCOMChoice).")
             }
             let cx = Float(info[FDSDetectorKey.centerX] as? Double ?? 0)
             let cy = Float(info[FDSDetectorKey.centerY] as? Double ?? 0)
@@ -304,7 +579,7 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         let bright = sorted[min(patternPixels - 1, Int(Double(patternPixels - 1) * 0.995))]
         let floorLevel = sorted[Int(Double(patternPixels - 1) * 0.05)]
         guard bright > floorLevel else {
-            return .failed("The mean diffraction pattern has no contrast, so the bright-field disc cannot be found. Pick a detector explicitly instead.")
+            return .failed("The mean diffraction pattern has no contrast, so \(patternCOMChoice) cannot find the bright-field disc. Pick a detector from the list instead.")
         }
         let threshold = floorLevel + 0.5 * (bright - floorLevel)
 
@@ -317,14 +592,14 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
             }
         }
         guard count >= 4 else {
-            return .failed("Only \(count) detector pixels are above the bright-field threshold. Pick a detector explicitly instead.")
+            return .failed("Only \(count) detector pixels are above the bright-field threshold, too few for \(patternCOMChoice) to locate the disc. Pick a detector from the list instead.")
         }
 
         let radius = (Double(count) / Double.pi).squareRoot()
         return .found(centerX: Float(sumX / Double(count)),
                       centerY: Float(sumY / Double(count)),
                       radius: Float(radius),
-                      source: "auto-detected from \(sampled) patterns")
+                      source: "\(patternCOMChoice) over \(sampled) patterns")
     }
 
     // MARK: - Grouping
@@ -526,8 +801,9 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
 
             // Whole-pixel sampling is enough to find the peak and is several
             // times faster; the final image is done bilinearly.
+            let (sx, sy) = linearShifts(grouping: grouping, edgeShift: edgeShift, radius: radius)
             accumulate(stack: &stack, grouping: grouping, scanWidth: scanWidth, scanHeight: scanHeight,
-                       edgeShift: edgeShift, radius: radius, bilinear: false,
+                       shiftX: sx, shiftY: sy, bilinear: false,
                        accumulator: &accumulator, coverage: &coverage)
 
             normalise(accumulator: accumulator, coverage: coverage,
@@ -572,11 +848,10 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
     /// `coverage` counts how many groups reached each output pixel.
     private func accumulate(stack: inout [Float], grouping: Grouping,
                             scanWidth: Int, scanHeight: Int,
-                            edgeShift: Float, radius: Float, bilinear: Bool,
+                            shiftX: [Float], shiftY: [Float], bilinear: Bool,
                             accumulator: inout [Float], coverage: inout [Float]) {
 
         let scanPixels = scanWidth * scanHeight
-        let k = radius > 0 ? edgeShift / radius : 0   // scan px per detector px
 
         var zero: Float = 0
         vDSP_vfill(&zero, &accumulator, 1, vDSP_Length(scanPixels))
@@ -591,8 +866,8 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
 
                     for group in 0..<grouping.groupCount {
                         let source = stackBase + group * scanPixels
-                        let shiftX = k * grouping.tiltX[group]
-                        let shiftY = k * grouping.tiltY[group]
+                        let shiftX = shiftX[group]
+                        let shiftY = shiftY[group]
 
                         if bilinear {
                             let baseX = floor(shiftX), baseY = floor(shiftY)
@@ -754,18 +1029,333 @@ public final class TiltCorrectedBFPlugin: NSObject, FDSPlugin {
         }
     }
 
+
+    // MARK: - Aberrations
+
+    /// A fitted displacement field, in the plugin's own parameterisation:
+    /// scan pixels of shift per (detector pixel of tilt)^n.
+    private struct Aberrations {
+        var coefficients: [Float]
+        var terms: Int
+        var rmsResidual: Float      // scan px, after the fit
+        var rmsMeasured: Float      // scan px, of the measured field itself
+        var groupsUsed: Int
+    }
+
+    /// How many basis terms each correction level uses.
+    ///
+    /// The displacement of the image formed at tilt t is the gradient of the
+    /// aberration function, so each aberration contributes a fixed vector
+    /// polynomial in t with one free coefficient. That the coefficients enter
+    /// linearly is what makes this a least-squares fit rather than a search
+    /// through many dimensions.
+    private func termCount(for correction: String) -> Int {
+        if correction.hasPrefix("Defocus + astig") { return 3 }
+        if correction.hasPrefix("+ coma") { return 7 }
+        if correction.hasPrefix("+ spherical") { return 8 }
+        return 1
+    }
+
+    /// Gradient basis at tilt (tx, ty), in detector pixels.
+    ///
+    ///  1      defocus C1            grad of  (tx²+ty²)/2
+    ///  2,3    twofold astigmatism   grad of  (tx²−ty²)/2  and  tx·ty
+    ///  4...7  coma and threefold    gradients of the four cubics
+    ///  8      spherical C3          grad of  (tx²+ty²)²/4
+    private func basis(tx: Float, ty: Float, terms: Int) -> [(Float, Float)] {
+        var rows: [(Float, Float)] = [(tx, ty)]
+        if terms >= 3 {
+            rows.append((tx, -ty))
+            rows.append((ty,  tx))
+        }
+        if terms >= 7 {
+            rows.append((3 * tx * tx, 0))
+            rows.append((2 * tx * ty, tx * tx))
+            rows.append((ty * ty,     2 * tx * ty))
+            rows.append((0,           3 * ty * ty))
+        }
+        if terms >= 8 {
+            let r2 = tx * tx + ty * ty
+            rows.append((r2 * tx, r2 * ty))
+        }
+        return rows
+    }
+
+    /// Pure-defocus shifts, the one-parameter case.
+    private func linearShifts(grouping: Grouping, edgeShift: Float, radius: Float) -> ([Float], [Float]) {
+        let k = radius > 0 ? edgeShift / radius : 0
+        var x = [Float](repeating: 0, count: grouping.groupCount)
+        var y = [Float](repeating: 0, count: grouping.groupCount)
+        for g in 0..<grouping.groupCount {
+            x[g] = k * grouping.tiltX[g]
+            y[g] = k * grouping.tiltY[g]
+        }
+        return (x, y)
+    }
+
+    private func modelShifts(grouping: Grouping, aberrations: Aberrations) -> ([Float], [Float]) {
+        var x = [Float](repeating: 0, count: grouping.groupCount)
+        var y = [Float](repeating: 0, count: grouping.groupCount)
+        for g in 0..<grouping.groupCount {
+            let rows = basis(tx: grouping.tiltX[g], ty: grouping.tiltY[g], terms: aberrations.terms)
+            var sx: Float = 0, sy: Float = 0
+            for (n, row) in rows.enumerated() where n < aberrations.coefficients.count {
+                sx += aberrations.coefficients[n] * row.0
+                sy += aberrations.coefficients[n] * row.1
+            }
+            x[g] = sx
+            y[g] = sy
+        }
+        return (x, y)
+    }
+
+    // MARK: Measuring the displacement field
+
+    private struct MeasuredShift {
+        var dx: Float
+        var dy: Float
+        var weight: Float
+    }
+
+    /// Cross-correlates every virtual image against a reference to measure where
+    /// it actually sits.
+    ///
+    /// The reference is the defocus-corrected sum, so what is left to find is a
+    /// small residual — a few scan pixels at most. That is why a direct search
+    /// over a short range is enough and no FFT is needed, and it is also why
+    /// this is bootstrapped from the defocus search rather than run cold.
+    private func measureShifts(host: FDSHostContext, stack: inout [Float], grouping: Grouping,
+                               scanWidth: Int, scanHeight: Int,
+                               baseShiftX: [Float], baseShiftY: [Float],
+                               reference: [Float], searchRadius: Int) -> [MeasuredShift]? {
+
+        let scanPixels = scanWidth * scanHeight
+        var centred = reference
+        var mean: Float = 0
+        vDSP_meanv(reference, 1, &mean, vDSP_Length(scanPixels))
+        var negativeMean = -mean
+        vDSP_vsadd(reference, 1, &negativeMean, &centred, 1, vDSP_Length(scanPixels))
+
+        var results = [MeasuredShift](repeating: MeasuredShift(dx: 0, dy: 0, weight: 0),
+                                      count: grouping.groupCount)
+        let span = 2 * searchRadius + 1
+        var scores = [Float](repeating: 0, count: span * span)
+        var image = [Float](repeating: 0, count: scanPixels)
+
+        for group in 0..<grouping.groupCount {
+            if host.isCancelled { return nil }
+
+            // Zero-mean copy of this group's virtual image.
+            stack.withUnsafeBufferPointer { buffer in
+                guard let base = buffer.baseAddress else { return }
+                var groupMean: Float = 0
+                vDSP_meanv(base + group * scanPixels, 1, &groupMean, vDSP_Length(scanPixels))
+                var negative = -groupMean
+                vDSP_vsadd(base + group * scanPixels, 1, &negative, &image, 1, vDSP_Length(scanPixels))
+            }
+
+            let baseX = Int(baseShiftX[group].rounded())
+            let baseY = Int(baseShiftY[group].rounded())
+
+            var best = -Float.greatestFiniteMagnitude
+            var bestU = 0, bestV = 0
+
+            image.withUnsafeBufferPointer { src in
+            centred.withUnsafeBufferPointer { ref in
+                guard let source = src.baseAddress, let referenceBase = ref.baseAddress else { return }
+                for v in -searchRadius...searchRadius {
+                    for u in -searchRadius...searchRadius {
+                        let offsetX = baseX + u, offsetY = baseY + v
+                        let firstX = Swift.max(0, -offsetX), lastX = Swift.min(scanWidth, scanWidth - offsetX)
+                        let firstY = Swift.max(0, -offsetY), lastY = Swift.min(scanHeight, scanHeight - offsetY)
+                        guard lastX > firstX, lastY > firstY else { continue }
+
+                        let run = vDSP_Length(lastX - firstX)
+                        var total: Float = 0
+                        for y in firstY..<lastY {
+                            var partial: Float = 0
+                            vDSP_dotpr(source + (y + offsetY) * scanWidth + firstX + offsetX, 1,
+                                       referenceBase + y * scanWidth + firstX, 1,
+                                       &partial, run)
+                            total += partial
+                        }
+                        // Per-sample, so a larger overlap is not rewarded on its own.
+                        let score = total / Float((lastX - firstX) * (lastY - firstY))
+                        scores[(v + searchRadius) * span + (u + searchRadius)] = score
+                        if score > best { best = score; bestU = u; bestV = v }
+                    }
+                }
+            }}
+
+            guard best > 0 else { continue }   // no usable correlation for this group
+
+            // Parabolic refinement, skipped at the edge of the search window
+            // where the peak is probably outside it.
+            var refinedU = Float(bestU), refinedV = Float(bestV)
+            if abs(bestU) < searchRadius {
+                let l = scores[(bestV + searchRadius) * span + (bestU - 1 + searchRadius)]
+                let r = scores[(bestV + searchRadius) * span + (bestU + 1 + searchRadius)]
+                let d = l - 2 * best + r
+                if abs(d) > .ulpOfOne { refinedU += Swift.max(-1, Swift.min(1, 0.5 * (l - r) / d)) }
+            }
+            if abs(bestV) < searchRadius {
+                let l = scores[(bestV - 1 + searchRadius) * span + (bestU + searchRadius)]
+                let r = scores[(bestV + 1 + searchRadius) * span + (bestU + searchRadius)]
+                let d = l - 2 * best + r
+                if abs(d) > .ulpOfOne { refinedV += Swift.max(-1, Swift.min(1, 0.5 * (l - r) / d)) }
+            }
+
+            results[group] = MeasuredShift(dx: Float(baseX) + refinedU,
+                                           dy: Float(baseY) + refinedV,
+                                           weight: best)
+            host.reportProgress(0.7 + 0.15 * Double(group + 1) / Double(grouping.groupCount))
+        }
+        return results
+    }
+
+    /// Weighted least squares of the measured field onto the gradient basis.
+    ///
+    /// Fitting rather than using the measured shifts directly is deliberate:
+    /// the model has at most eight parameters against hundreds of measurements,
+    /// so it averages away per-group correlation noise, and it cannot represent
+    /// a displacement field that no aberration could produce.
+    private func fitAberrations(grouping: Grouping, measured: [MeasuredShift], terms: Int) -> Aberrations? {
+        var normal = [[Double]](repeating: [Double](repeating: 0, count: terms), count: terms)
+        var target = [Double](repeating: 0, count: terms)
+        var used = 0
+        var weightTotal: Double = 0
+        var measuredSquares: Double = 0
+
+        // Weights are correlation peak heights, normalised so no single strong
+        // group dominates.
+        let peak = measured.map { $0.weight }.max() ?? 1
+        guard peak > 0 else { return nil }
+
+        for g in 0..<grouping.groupCount {
+            let m = measured[g]
+            guard m.weight > 0 else { continue }
+            let w = Double(m.weight / peak)
+            let rows = basis(tx: grouping.tiltX[g], ty: grouping.tiltY[g], terms: terms)
+            for a in 0..<terms {
+                target[a] += w * (Double(rows[a].0) * Double(m.dx) + Double(rows[a].1) * Double(m.dy))
+                for b in 0..<terms {
+                    normal[a][b] += w * (Double(rows[a].0) * Double(rows[b].0)
+                                       + Double(rows[a].1) * Double(rows[b].1))
+                }
+            }
+            measuredSquares += w * (Double(m.dx * m.dx) + Double(m.dy * m.dy))
+            weightTotal += w
+            used += 1
+        }
+        guard used >= terms + 2, weightTotal > 0 else { return nil }
+        guard let solution = solve(normal, target) else { return nil }
+
+        let coefficients = solution.map { Float($0) }
+        var residualSquares: Double = 0
+        for g in 0..<grouping.groupCount {
+            let m = measured[g]
+            guard m.weight > 0 else { continue }
+            let w = Double(m.weight / peak)
+            let rows = basis(tx: grouping.tiltX[g], ty: grouping.tiltY[g], terms: terms)
+            var px: Float = 0, py: Float = 0
+            for n in 0..<terms { px += coefficients[n] * rows[n].0; py += coefficients[n] * rows[n].1 }
+            residualSquares += w * (Double((m.dx - px) * (m.dx - px)) + Double((m.dy - py) * (m.dy - py)))
+        }
+
+        return Aberrations(coefficients: coefficients, terms: terms,
+                           rmsResidual: Float((residualSquares / weightTotal).squareRoot()),
+                           rmsMeasured: Float((measuredSquares / weightTotal).squareRoot()),
+                           groupsUsed: used)
+    }
+
+    /// Gaussian elimination with partial pivoting. The system is at most 8×8,
+    /// so nothing fancier is warranted.
+    private func solve(_ matrix: [[Double]], _ rhs: [Double]) -> [Double]? {
+        let n = rhs.count
+        var a = matrix
+        var b = rhs
+        for column in 0..<n {
+            var pivot = column
+            for row in (column + 1)..<n where abs(a[row][column]) > abs(a[pivot][column]) { pivot = row }
+            guard abs(a[pivot][column]) > 1e-12 else { return nil }   // singular: basis not constrained
+            if pivot != column { a.swapAt(pivot, column); b.swapAt(pivot, column) }
+            for row in (column + 1)..<n {
+                let factor = a[row][column] / a[column][column]
+                guard factor != 0 else { continue }
+                for k in column..<n { a[row][k] -= factor * a[column][k] }
+                b[row] -= factor * b[column]
+            }
+        }
+        var x = [Double](repeating: 0, count: n)
+        for row in stride(from: n - 1, through: 0, by: -1) {
+            var sum = b[row]
+            for k in (row + 1)..<n { sum -= a[row][k] * x[k] }
+            x[row] = sum / a[row][row]
+        }
+        return x.allSatisfy { $0.isFinite } ? x : nil
+    }
+
+    /// Fitted coefficients, in the file's units when it has them.
+    private func describeAberrations(_ fit: Aberrations, radius: Float, units: Units) -> String {
+        var parts: [String] = []
+
+        if units.calibrated {
+            parts.append("defocus " + units.formatLength(units.length(fit.coefficients[0], order: 1)))
+        } else {
+            parts.append(String(format: "defocus %.3f scan px/det px", fit.coefficients[0]))
+        }
+
+        if fit.terms >= 3 {
+            let a = fit.coefficients[1], b = fit.coefficients[2]
+            let magnitude = (a * a + b * b).squareRoot()
+            // The astigmatism axis is the angle doubled, hence the half.
+            let angle = 0.5 * atan2(Double(b), Double(a)) * 180.0 / Double.pi
+            if units.calibrated {
+                parts.append(String(format: "astigmatism %@ at %.0f°",
+                                    units.formatLength(units.length(magnitude, order: 1)), angle))
+            } else {
+                parts.append(String(format: "astigmatism %.3f scan px/det px at %.0f°", magnitude, angle))
+            }
+        }
+        if fit.terms >= 7 {
+            var edge: Float = 0
+            for n in 3..<Swift.min(7, fit.coefficients.count) {
+                edge += abs(fit.coefficients[n]) * radius * radius
+            }
+            if units.calibrated {
+                // Second-order terms are a length per rad²; quoting the length
+                // at the edge of the disc keeps it comparable with the others.
+                parts.append("coma/threefold " + units.formatLength(units.length(edge / Swift.max(radius, 1), order: 1)) + " at the disc edge")
+            } else {
+                parts.append(String(format: "coma/threefold %.2f scan px at the disc edge", edge))
+            }
+        }
+        if fit.terms >= 8, fit.coefficients.count >= 8 {
+            if units.calibrated {
+                parts.append("spherical " + units.formatLength(units.length(fit.coefficients[7], order: 3)))
+            } else {
+                parts.append(String(format: "spherical %.4g scan px/det px³", fit.coefficients[7]))
+            }
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    private func calibrated(scanStep: Double, diffStep: Double) -> Bool {
+        return scanStep > 0 && diffStep > 0
+    }
+
     // MARK: - Reconstruction
 
     private func reconstruct(stack: inout [Float], grouping: Grouping,
                              scanWidth: Int, scanHeight: Int,
-                             edgeShift: Float, radius: Float) -> [Float] {
+                             shiftX: [Float], shiftY: [Float]) -> [Float] {
 
         let scanPixels = scanWidth * scanHeight
         var accumulator = [Float](repeating: 0, count: scanPixels)
         var coverage = [Float](repeating: 0, count: scanPixels)
 
         accumulate(stack: &stack, grouping: grouping, scanWidth: scanWidth, scanHeight: scanHeight,
-                   edgeShift: edgeShift, radius: radius, bilinear: true,
+                   shiftX: shiftX, shiftY: shiftY, bilinear: true,
                    accumulator: &accumulator, coverage: &coverage)
 
         // Rescale to the intensity a plain BF sum would have given, so the
