@@ -81,9 +81,14 @@ struct RawDimsSheet: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [UTType.json]
+        // Both formats are read; the content is sniffed rather than trusted to
+        // the extension, so a mislabelled file still works.
+        panel.allowedContentTypes = ScanMetadata.supportedExtensions.compactMap {
+            UTType(filenameExtension: $0)
+        }
+        panel.url = 
         panel.prompt = "Load"
-        panel.message = "Choose the JSON metadata written alongside this RAW file"
+        panel.message = "Choose the JSON or XML metadata written alongside this RAW file"
 
         func adopt(_ response: NSApplication.ModalResponse) {
             guard response == .OK, let url = panel.url else { return }

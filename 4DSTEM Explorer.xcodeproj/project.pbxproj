@@ -7,27 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E3 /* PluginBibTeX.swift */; };
-		AAF1000000000000000000F2 /* PluginCitations.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E2 /* PluginCitations.swift */; };
-		AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E1 /* ScanMetadata.swift */; };
-		AAF300000000000000000000 /* Attribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000000 /* Attribute.swift */; };
-		AAF300000000000000000001 /* Dataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000001 /* Dataset.swift */; };
-		AAF300000000000000000002 /* Dataspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000002 /* Dataspace.swift */; };
-		AAF300000000000000000003 /* Datatype.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000003 /* Datatype.swift */; };
-		AAF300000000000000000004 /* DoubleAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000004 /* DoubleAttribute.swift */; };
-		AAF300000000000000000005 /* DoubleDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000005 /* DoubleDataset.swift */; };
-		AAF300000000000000000006 /* Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000006 /* Error.swift */; };
-		AAF300000000000000000007 /* File.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000007 /* File.swift */; };
-		AAF300000000000000000008 /* FloatAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000008 /* FloatAttribute.swift */; };
-		AAF300000000000000000009 /* FloatDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000009 /* FloatDataset.swift */; };
-		AAF30000000000000000000A /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000A /* Group.swift */; };
-		AAF30000000000000000000B /* HyperslabIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000B /* HyperslabIndex.swift */; };
-		AAF30000000000000000000C /* IntAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000C /* IntAttribute.swift */; };
-		AAF30000000000000000000D /* IntDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000D /* IntDataset.swift */; };
-		AAF30000000000000000000E /* NativeType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000E /* NativeType.swift */; };
-		AAF30000000000000000000F /* Object.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000F /* Object.swift */; };
-		AAF300000000000000000010 /* StringAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000010 /* StringAttribute.swift */; };
-		AAF300000000000000000011 /* StringDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000011 /* StringDataset.swift */; };
+		AAF196000000000000000001 /* PluginCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF195000000000000000001 /* PluginCalibration.swift */; };
 		A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51DAD1E1FF6866B00D36AB0 /* Detector.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
 		A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */; };
@@ -47,6 +27,29 @@
 		AAF1000000000000000000B7 /* PluginSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A7 /* PluginSheets.swift */; };
 		AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A8 /* PluginLiveWindow.swift */; };
 		AAF1000000000000000000D2 /* EMDReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000C2 /* EMDReader.swift */; };
+		AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E1 /* ScanMetadata.swift */; };
+		AAF1000000000000000000F2 /* PluginCitations.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E2 /* PluginCitations.swift */; };
+		AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E3 /* PluginBibTeX.swift */; };
+		AAF192000000000000000001 /* THIRD-PARTY-LICENSES.txt in Resources */ = {isa = PBXBuildFile; fileRef = AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */; };
+		AAF194000000000000000001 /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF193000000000000000001 /* AboutWindow.swift */; };
+		AAF300000000000000000000 /* Attribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000000 /* Attribute.swift */; };
+		AAF300000000000000000001 /* Dataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000001 /* Dataset.swift */; };
+		AAF300000000000000000002 /* Dataspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000002 /* Dataspace.swift */; };
+		AAF300000000000000000003 /* Datatype.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000003 /* Datatype.swift */; };
+		AAF300000000000000000004 /* DoubleAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000004 /* DoubleAttribute.swift */; };
+		AAF300000000000000000005 /* DoubleDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000005 /* DoubleDataset.swift */; };
+		AAF300000000000000000006 /* Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000006 /* Error.swift */; };
+		AAF300000000000000000007 /* File.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000007 /* File.swift */; };
+		AAF300000000000000000008 /* FloatAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000008 /* FloatAttribute.swift */; };
+		AAF300000000000000000009 /* FloatDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000009 /* FloatDataset.swift */; };
+		AAF30000000000000000000A /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000A /* Group.swift */; };
+		AAF30000000000000000000B /* HyperslabIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000B /* HyperslabIndex.swift */; };
+		AAF30000000000000000000C /* IntAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000C /* IntAttribute.swift */; };
+		AAF30000000000000000000D /* IntDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000D /* IntDataset.swift */; };
+		AAF30000000000000000000E /* NativeType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000E /* NativeType.swift */; };
+		AAF30000000000000000000F /* Object.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000F /* Object.swift */; };
+		AAF300000000000000000010 /* StringAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000010 /* StringAttribute.swift */; };
+		AAF300000000000000000011 /* StringDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000011 /* StringDataset.swift */; };
 		BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1BA3812F1025B00055669F /* ZoomableImageView.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
 		BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */; };
@@ -82,29 +85,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		AAF1000000000000000000E3 /* PluginBibTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginBibTeX.swift; sourceTree = "<group>"; };
-		AAF1000000000000000000E2 /* PluginCitations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCitations.swift; sourceTree = "<group>"; };
-		AAF1000000000000000000E1 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
-		AAF200000000000000000000 /* Attribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attribute.swift; sourceTree = "<group>"; };
-		AAF200000000000000000001 /* Dataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataset.swift; sourceTree = "<group>"; };
-		AAF200000000000000000002 /* Dataspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataspace.swift; sourceTree = "<group>"; };
-		AAF200000000000000000003 /* Datatype.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Datatype.swift; sourceTree = "<group>"; };
-		AAF200000000000000000004 /* DoubleAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleAttribute.swift; sourceTree = "<group>"; };
-		AAF200000000000000000005 /* DoubleDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleDataset.swift; sourceTree = "<group>"; };
-		AAF200000000000000000006 /* Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Error.swift; sourceTree = "<group>"; };
-		AAF200000000000000000007 /* File.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = File.swift; sourceTree = "<group>"; };
-		AAF200000000000000000008 /* FloatAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatAttribute.swift; sourceTree = "<group>"; };
-		AAF200000000000000000009 /* FloatDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatDataset.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000A /* Group.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000B /* HyperslabIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyperslabIndex.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000C /* IntAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntAttribute.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000D /* IntDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntDataset.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000E /* NativeType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeType.swift; sourceTree = "<group>"; };
-		AAF20000000000000000000F /* Object.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Object.swift; sourceTree = "<group>"; };
-		AAF200000000000000000010 /* StringAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringAttribute.swift; sourceTree = "<group>"; };
-		AAF200000000000000000011 /* StringDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringDataset.swift; sourceTree = "<group>"; };
-		AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "HDF5Kit-Bridging-Header.h"; sourceTree = "<group>"; };
-		AAF2000000000000000000FD /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		AAF195000000000000000001 /* PluginCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCalibration.swift; sourceTree = "<group>"; };
 		A51DAD1E1FF6866B00D36AB0 /* Detector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Detector.swift; sourceTree = "<group>"; };
 		A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "4DSTEM Explorer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -143,6 +124,31 @@
 		AAF1000000000000000000A7 /* PluginSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSheets.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000A8 /* PluginLiveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginLiveWindow.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000C2 /* EMDReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMDReader.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E1 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E2 /* PluginCitations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCitations.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E3 /* PluginBibTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginBibTeX.swift; sourceTree = "<group>"; };
+		AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD-PARTY-LICENSES.txt"; sourceTree = "<group>"; };
+		AAF193000000000000000001 /* AboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindow.swift; sourceTree = "<group>"; };
+		AAF200000000000000000000 /* Attribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000001 /* Dataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataset.swift; sourceTree = "<group>"; };
+		AAF200000000000000000002 /* Dataspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataspace.swift; sourceTree = "<group>"; };
+		AAF200000000000000000003 /* Datatype.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Datatype.swift; sourceTree = "<group>"; };
+		AAF200000000000000000004 /* DoubleAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000005 /* DoubleDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleDataset.swift; sourceTree = "<group>"; };
+		AAF200000000000000000006 /* Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Error.swift; sourceTree = "<group>"; };
+		AAF200000000000000000007 /* File.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = File.swift; sourceTree = "<group>"; };
+		AAF200000000000000000008 /* FloatAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000009 /* FloatDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatDataset.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000A /* Group.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000B /* HyperslabIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyperslabIndex.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000C /* IntAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntAttribute.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000D /* IntDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntDataset.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000E /* NativeType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeType.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000F /* Object.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Object.swift; sourceTree = "<group>"; };
+		AAF200000000000000000010 /* StringAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000011 /* StringDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringDataset.swift; sourceTree = "<group>"; };
+		AAF2000000000000000000FD /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "HDF5Kit-Bridging-Header.h"; sourceTree = "<group>"; };
 		BD004F262F0EF1BA00B7846D /* Scrollview.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = Scrollview.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		BD1BA3812F1025B00055669F /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
@@ -198,33 +204,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AAF2000000000000000000FF /* HDF5Kit */ = {
-			isa = PBXGroup;
-			children = (
-				AAF200000000000000000000 /* Attribute.swift */,
-				AAF200000000000000000001 /* Dataset.swift */,
-				AAF200000000000000000002 /* Dataspace.swift */,
-				AAF200000000000000000003 /* Datatype.swift */,
-				AAF200000000000000000004 /* DoubleAttribute.swift */,
-				AAF200000000000000000005 /* DoubleDataset.swift */,
-				AAF200000000000000000006 /* Error.swift */,
-				AAF200000000000000000007 /* File.swift */,
-				AAF200000000000000000008 /* FloatAttribute.swift */,
-				AAF200000000000000000009 /* FloatDataset.swift */,
-				AAF20000000000000000000A /* Group.swift */,
-				AAF20000000000000000000B /* HyperslabIndex.swift */,
-				AAF20000000000000000000C /* IntAttribute.swift */,
-				AAF20000000000000000000D /* IntDataset.swift */,
-				AAF20000000000000000000E /* NativeType.swift */,
-				AAF20000000000000000000F /* Object.swift */,
-				AAF200000000000000000010 /* StringAttribute.swift */,
-				AAF200000000000000000011 /* StringDataset.swift */,
-				AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */,
-				AAF2000000000000000000FD /* LICENSE */,
-			);
-			path = HDF5Kit;
-			sourceTree = "<group>";
-		};
 		A51FEFA31FEC48FD00A8A5EC = {
 			isa = PBXGroup;
 			children = (
@@ -251,6 +230,7 @@
 		A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */ = {
 			isa = PBXGroup;
 			children = (
+				A54A917D3024AE5E00CD8FB6 /* UI */,
 				A575C9732F5089D70072571B /* archived */,
 				A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */,
 				A51FF4F51FF5431200BDC87E /* Objects */,
@@ -259,6 +239,7 @@
 				A51FEFB91FEC48FD00A8A5EC /* _DSTEM_Explorer.entitlements */,
 				A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */,
 				A51FEFB81FEC48FD00A8A5EC /* Info.plist */,
+				AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				AAF1000000000000000000C2 /* EMDReader.swift */,
 				AAF1000000000000000000E1 /* ScanMetadata.swift */,
@@ -269,13 +250,8 @@
 				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
 				BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */,
 				BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */,
-				BD1BA3812F1025B00055669F /* ZoomableImageView.swift */,
-				BD5D945F2EF346F600EE1173 /* RootView.swift */,
-				A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */,
 				BD5D94612EF3477A00EE1173 /* DataViewModel.swift */,
-				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
 				BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */,
-				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
 			);
 			path = "4DSTEM Explorer";
 			sourceTree = "<group>";
@@ -317,6 +293,19 @@
 			path = Objects;
 			sourceTree = "<group>";
 		};
+		A54A917D3024AE5E00CD8FB6 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				BD1BA3812F1025B00055669F /* ZoomableImageView.swift */,
+				BD5D945F2EF346F600EE1173 /* RootView.swift */,
+				A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */,
+				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
+				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
+				AAF193000000000000000001 /* AboutWindow.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
 		A575C9732F5089D70072571B /* archived */ = {
 			isa = PBXGroup;
 			children = (
@@ -342,10 +331,38 @@
 				AAF1000000000000000000A6 /* PluginRunner.swift */,
 				AAF1000000000000000000E2 /* PluginCitations.swift */,
 				AAF1000000000000000000E3 /* PluginBibTeX.swift */,
+				AAF195000000000000000001 /* PluginCalibration.swift */,
 				AAF1000000000000000000A7 /* PluginSheets.swift */,
 				AAF1000000000000000000A8 /* PluginLiveWindow.swift */,
 			);
 			path = Plugins;
+			sourceTree = "<group>";
+		};
+		AAF2000000000000000000FF /* HDF5Kit */ = {
+			isa = PBXGroup;
+			children = (
+				AAF200000000000000000000 /* Attribute.swift */,
+				AAF200000000000000000001 /* Dataset.swift */,
+				AAF200000000000000000002 /* Dataspace.swift */,
+				AAF200000000000000000003 /* Datatype.swift */,
+				AAF200000000000000000004 /* DoubleAttribute.swift */,
+				AAF200000000000000000005 /* DoubleDataset.swift */,
+				AAF200000000000000000006 /* Error.swift */,
+				AAF200000000000000000007 /* File.swift */,
+				AAF200000000000000000008 /* FloatAttribute.swift */,
+				AAF200000000000000000009 /* FloatDataset.swift */,
+				AAF20000000000000000000A /* Group.swift */,
+				AAF20000000000000000000B /* HyperslabIndex.swift */,
+				AAF20000000000000000000C /* IntAttribute.swift */,
+				AAF20000000000000000000D /* IntDataset.swift */,
+				AAF20000000000000000000E /* NativeType.swift */,
+				AAF20000000000000000000F /* Object.swift */,
+				AAF200000000000000000010 /* StringAttribute.swift */,
+				AAF200000000000000000011 /* StringDataset.swift */,
+				AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */,
+				AAF2000000000000000000FD /* LICENSE */,
+			);
+			path = HDF5Kit;
 			sourceTree = "<group>";
 		};
 		BD3E30752E285C8A007411A7 /* Frameworks */ = {
@@ -367,6 +384,7 @@
 				A51FEFAA1FEC48FD00A8A5EC /* Resources */,
 				A535866A2001741700AD0A9C /* Increment build */,
 				BD3E30792E285C8A007411A7 /* Embed Frameworks */,
+				AAF190000000000000000001 /* Embed Plugins */,
 			);
 			buildRules = (
 			);
@@ -499,6 +517,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */,
+				AAF192000000000000000001 /* THIRD-PARTY-LICENSES.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -531,7 +550,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "buildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"";
+			shellScript = "buildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"\n";
+		};
+		AAF190000000000000000001 /* Embed Plugins */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 12;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/PluginSDK",
+			);
+			name = "Embed Plugins";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/PlugIns",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Builds every plugin in PluginSDK/Examples into the app's Contents/PlugIns.\n# See PluginSDK/embed-plugins.sh — it matches the app's architectures and\n# signing identity, and skips plugins whose sources have not changed.\n\"${SRCROOT}/PluginSDK/embed-plugins.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -549,11 +585,13 @@
 				AAF1000000000000000000B6 /* PluginRunner.swift in Sources */,
 				AAF1000000000000000000F2 /* PluginCitations.swift in Sources */,
 				AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */,
+				AAF196000000000000000001 /* PluginCalibration.swift in Sources */,
 				AAF1000000000000000000B7 /* PluginSheets.swift in Sources */,
 				AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
 				BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */,
 				BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */,
+				AAF194000000000000000001 /* AboutWindow.swift in Sources */,
 				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
 				A5D5D9692F466E6300A638C3 /* DetectorOverlay.swift in Sources */,
@@ -737,37 +775,42 @@
 		A51FEFBD1FEC48FD00A8A5EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
 				ENABLE_HARDENED_RUNTIME = YES;
-								HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/homebrew/opt/hdf5/include,
-					/usr/local/opt/hdf5/include,
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/homebrew/opt/hdf5/lib,
-					/usr/local/opt/hdf5/lib,
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lhdf5",
-				);
-				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				GCC_OPTIMIZATION_LEVEL = 0;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBAEC_PREFIX = /opt/homebrew/opt/libaec;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib",
+					"$(LIBAEC_PREFIX)/lib",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib/libhdf5.a",
+					"$(LIBAEC_PREFIX)/lib/libsz.a",
+					"$(LIBAEC_PREFIX)/lib/libaec.a",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
@@ -775,37 +818,42 @@
 		A51FEFBE1FEC48FD00A8A5EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
 				ENABLE_HARDENED_RUNTIME = YES;
-								HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/homebrew/opt/hdf5/include,
-					/usr/local/opt/hdf5/include,
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/homebrew/opt/hdf5/lib,
-					/usr/local/opt/hdf5/lib,
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lhdf5",
-				);
-				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				GCC_OPTIMIZATION_LEVEL = s;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBAEC_PREFIX = /opt/homebrew/opt/libaec;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib",
+					"$(LIBAEC_PREFIX)/lib",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib/libhdf5.a",
+					"$(LIBAEC_PREFIX)/lib/libsz.a",
+					"$(LIBAEC_PREFIX)/lib/libaec.a",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Release;
@@ -1031,8 +1079,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-
 	};
 	rootObject = A51FEFA41FEC48FD00A8A5EC /* Project object */;
 }

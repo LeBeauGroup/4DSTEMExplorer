@@ -17,6 +17,14 @@ struct FourDSTEMMenuCommands: Commands {
 //      }
 
     var body: some Commands {
+        // Replaces the standard about panel, whose credits area is too small to
+        // hold the third-party licences at a readable size.
+        CommandGroup(replacing: .appInfo) {
+            Button("About \(AboutInfo.applicationName)") {
+                AboutWindowController.present()
+            }
+        }
+
         // File menu
         CommandGroup(replacing: .newItem) {
             Button("Open…") {

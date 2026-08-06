@@ -29,6 +29,27 @@ class ApertureFactory: NSObject {
         super.init()
     }
     
+    /// A detector one pixel across, at `center`.
+    ///
+    /// The nearest pixel rather than an area: the point detector exists to ask
+    /// what a single detector element sees, so rounding to a neighbourhood would
+    /// defeat it. A centre that lands outside the detector gives an empty mask
+    /// rather than a clamped one, because silently sampling an edge pixel would
+    /// look like data.
+    func point(center:NSPoint) -> Matrix {
+
+        let mask = Matrix(height, width)
+
+        let j = Int(center.x.rounded())
+        let i = Int(center.y.rounded())
+
+        if i >= 0 && i < height && j >= 0 && j < width {
+            mask.set(i, j, 1)
+        }
+
+        return mask
+    }
+
     func bf(radius:Float, center:NSPoint ) -> Matrix {
         
         let bfMask = Matrix(height, width)

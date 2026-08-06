@@ -87,6 +87,15 @@ final class PluginManager: ObservableObject {
     /// reload re-instantiates the principal class rather than reloading images.
     private var loadedBundleURLs: Set<URL> = []
 
+    /// Which bundle already provides each identifier, for the life of the
+    /// process. A bundle cannot be unloaded once opened, so if a reload finds a
+    /// different bundle offering an identifier that is already loaded — the user
+    /// installed their own copy of a bundled plugin and pressed Reload Plugins —
+    /// opening it would register the same @objc class twice. That is the case
+    /// the Objective-C runtime warns leads to spurious casting failures and
+    /// mysterious crashes, so it is refused with an explanation instead.
+    private var providerOfIdentifier: [String: URL] = [:]
+
     private init() {}
 
     // MARK: - Locations
@@ -133,20 +142,46 @@ final class PluginManager: ObservableObject {
 
         PluginManager.createUserPluginsDirectoryIfNeeded()
 
-        var searchPaths: [URL] = []
+        // The user's own plugins are visited first so that one of theirs
+        // shadows a bundled plugin of the same identifier.
+        //
+        // The order matters for more than precedence. A bundle cannot be
+        // unloaded once opened, and two bundles defining the same @objc class
+        // both register it with the Objective-C runtime — which the runtime
+        // warns leads to spurious casting failures and mysterious crashes. So a
+        // shadowed bundle must never be loaded at all, rather than loaded and
+        // then discarded. Claiming the identifier from Info.plist, which reading
+        // does not require loading any code, is what makes that possible.
+        var searchPaths: [URL] = [PluginManager.userPluginsDirectory]
         if let builtIn = PluginManager.builtInPluginsDirectory { searchPaths.append(builtIn) }
-        searchPaths.append(PluginManager.userPluginsDirectory)
 
         for directory in searchPaths {
             for bundleURL in PluginManager.bundleURLs(in: directory) {
+                let bundleIdentifier = Bundle(url: bundleURL)?.bundleIdentifier
+                if let identifier = bundleIdentifier, seenIdentifiers.contains(identifier) {
+                    continue
+                }
+                // Already provided by a different bundle earlier in this run of
+                // the app; taking the new one would need a restart.
+                if let identifier = bundleIdentifier,
+                   let owner = providerOfIdentifier[identifier], owner != bundleURL {
+                    problems.append(PluginLoadIssue(
+                        bundleName: bundleURL.lastPathComponent,
+                        reason: "Another copy of this plugin is already loaded from \(owner.lastPathComponent). Quit and reopen 4DSTEM Explorer to use this one."))
+                    continue
+                }
                 switch load(bundleURL: bundleURL) {
                 case .success(let plugin):
-                    // A user-installed plugin shadows a built-in with the same
-                    // identifier; search paths are visited built-in first.
-                    if seenIdentifiers.contains(plugin.identifier) {
-                        found.removeAll { $0.identifier == plugin.identifier }
-                    }
+                    // A plugin whose bundle identifier disagrees with the one it
+                    // reports is still caught here, just after loading rather
+                    // than before it.
+                    guard !seenIdentifiers.contains(plugin.identifier) else { continue }
                     seenIdentifiers.insert(plugin.identifier)
+                    providerOfIdentifier[plugin.identifier] = bundleURL
+                    if let bundleIdentifier = bundleIdentifier {
+                        seenIdentifiers.insert(bundleIdentifier)
+                        providerOfIdentifier[bundleIdentifier] = bundleURL
+                    }
                     found.append(plugin)
                 case .failure(let reason):
                     problems.append(PluginLoadIssue(bundleName: bundleURL.lastPathComponent, reason: reason))

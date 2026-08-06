@@ -4,6 +4,9 @@
 #
 #   ./build-plugin.sh Examples/RadialProfile [output-dir]
 #
+# PLUGIN_ARCHS overrides the architectures built (default: arm64 x86_64) and
+# PLUGIN_SIGN_IDENTITY the signing identity (default: ad hoc).
+#
 # The source directory must contain a plugin.conf and one or more .swift files.
 # FourDSTEMPluginAPI.swift is compiled in automatically. With no output
 # directory the bundle is installed straight into the app's plugins folder.
@@ -69,8 +72,10 @@ echo "  sources         : ${#SOURCES[@]} file(s)"
 # Build each architecture separately so the result loads on both Apple silicon
 # and Intel, then lipo them together. An architecture whose toolchain is
 # unavailable is skipped rather than failing the build.
+# Universal by default; PLUGIN_ARCHS lets the Xcode build phase narrow this to
+# whatever the app itself is being built for.
 SLICES=()
-for ARCH in arm64 x86_64; do
+for ARCH in ${PLUGIN_ARCHS:-arm64 x86_64}; do
     SLICE="$BUILD_DIR/$NAME-$ARCH"
     if xcrun swiftc \
         -emit-library \
