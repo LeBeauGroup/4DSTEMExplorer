@@ -12,12 +12,14 @@ which the app opens in its own window with export.
 | --- | --- |
 | `FourDSTEMPluginAPI.swift` | The entire contract. Compile this file into your plugin. |
 | `build-plugin.sh` | Compiles a source folder into a signed, universal `.bundle`. |
+| `embed-plugins.sh` | Builds every example into the app, from the Xcode build phase. |
 | `Examples/RadialProfile` | Reads the displayed pattern, returns a plot. |
 | `Examples/DetectorVariance` | Sweeps the whole stack, returns a computed image. |
 | `Examples/TiltCorrectedBF` | Tilt-corrected bright field — see below. |
 | `Examples/SingleElectronHistogram` | Single-electron counting histogram — see below. |
 | `Examples/PowerCepstrum` | Exit-wave power cepstrum and strain mapping — see below. |
 | `Examples/AberrationCorrectedBF` | Aberration-corrected bright field, GPU accelerated — see below. |
+| `Examples/Calibration` | Pixel size and scan affine transform from a known lattice — see below. |
 | `TestData/` | Generator for an EMD file with known aberrations, to check tcBF against. |
 
 ## Tilt-corrected bright field
@@ -188,6 +190,126 @@ otherwise typed in. Without them the plugin refuses to run rather than guessing.
 Memory scales as virtual detectors × scan pixels. The detector binning control
 is the lever; the plugin refuses up front, with a suggested binning, rather than
 thrashing.
+
+## Calibration
+
+`Examples/Calibration` measures the pixel size, and the affine transform of the
+scan, against a lattice whose spacings and angle you already know.
+
+Three things come out of one observation — where the lattice peaks are — and
+differ only in what those peaks mean:
+
+- **Real-space pixel size**, from the periodicity of a computed image. The image
+  is windowed and transformed, and the Fourier peaks are the reciprocal lattice.
+- **Diffraction pixel size**, from the spacing of Bragg reflections in a
+  pattern. A pattern is already reciprocal space, so the peaks are measured
+  directly, relative to the undiffracted beam. With an accelerating voltage on
+  hand this is also reported in mrad per pixel.
+- **The affine transform**, from how the measured lattice geometry differs from
+  the geometry it is known to have.
+
+It runs in a live window: the picture redraws as you adjust, so the exclusion
+zone and the detected lattice can be set by eye rather than guessed. The
+transform is cached across re-runs, so a control drag costs a peak search rather
+than an FFT — about 3 ms.
+
+The **Detected lattice** view draws in colour over the greyscale data: a red
+circle for the exclusion zone, red crosses on the two primitive vectors and
+their negatives, and a red dot on every other lattice point the fit predicts.
+Those dots landing on observed peaks is the confirmation that the fit describes
+the whole pattern and not just the two spots it was built from. Markers are
+drawn in colour rather than by brightening pixels, because a marker made of
+bright pixels is indistinguishable from a peak — which is exactly the judgement
+the picture exists to support.
+
+**Window** controls the taper applied before the transform. Tapering suppresses
+the bright cross the crop edges put through the origin, at the cost of
+broadening every peak — Hann roughly doubles the peak width against no window.
+Measured against synthetic lattices, though, Hann still locates peaks most
+precisely of the three, and it is the only choice that survives a lattice
+aligned with the raster, whose peaks sit on the very axes the untapered cross
+runs along. Turn it off when the lattice is off-axis and you want the sharpest
+peaks to look at.
+
+The lattice parameters are text fields rather than sliders: a spacing is a
+number you know and type. (A number control draws a slider only when it declares
+both a minimum and a maximum, so leaving those off gives the text box alone.)
+The exclusion radius keeps its slider, being the thing you explore.
+
+The third is why the first two are not the whole story. A raster is not
+necessarily square or orthogonal — the scan coils have their own gain and
+cross-talk — so one number cannot describe the mapping from pixels to ångström.
+Measuring two lattice vectors rather than one length gives the full 2×2 matrix,
+and separates the scale from a distortion that would otherwise be folded into it
+invisibly. The report gives the matrix, and its polar decomposition into a
+rotation, a mean pixel size, an anisotropy and a shear. **Corrected image**
+resamples the computed image with the distortion undone.
+
+Two properties of the fit that the report also states, because a number without
+them can be over-read:
+
+- **Rotation is determined only up to the lattice's symmetry.** Nothing in an
+  image fixes an absolute orientation, so the fit places the first known vector
+  along +x; a square net may equally report 0°, 90°, 180° or 270°. Pixel size,
+  anisotropy and shear carry no such ambiguity.
+- **The reported rotation is the rotation of the fitted map, not the scan
+  rotation.** When the raster is sheared the two differ, because a polar
+  decomposition attributes part of an asymmetric shear to rotation.
+
+### Handing a calibration back
+
+A plugin cannot change the application's state, and should not be able to: a
+calibration changes how every subsequent number is read. Instead it *offers*
+one, and the host applies it only when the user accepts.
+
+```swift
+return FDSResult.withCalibration(result,
+                                 scanStepNanometers: 0.0374,
+                                 summary: "Measured from the computed image: …")
+```
+
+Pass only what was measured — a nil leaves that part of the host's calibration
+alone rather than clearing it. A live window whose plugin has offered a
+calibration shows **Accept** and **Cancel** in place of **Run**: at the end of a
+measurement the question is whether to keep the answer, not whether to compute
+it again. Accepting confirms first, showing each value against what it replaces,
+because a calibration is easy to accept by reflex.
+
+### How the lattice is pinned down
+
+Three stages, each fixing a way the previous one can be fooled.
+
+**Peak position** comes from a paraboloid fitted to the neighbourhood of each
+local maximum, in the logarithm. Two one-dimensional fits would be cheaper but
+carry no cross term, so a peak that is elliptical and tilted — exactly what
+sheared or anisotropic sampling produces, the case this plugin exists to
+measure — comes out biased.
+
+**Basis selection** scores every candidate pair by how much of the observed
+intensity sits on the lattice it generates, then takes the coarsest such
+lattice, then the shortest pair among those. All three criteria are needed. A
+finer lattice always explains at least as much as the true one, so explanatory
+power alone can never rule out a spurious half-spacing; and a lattice has
+infinitely many bases of the same determinant, so area cannot separate `(1,0)`
+with `(1,1)` from `(1,0)` with `(0,1)` — picking arbitrarily returns the right
+lattice described by the wrong vectors, 45° out.
+
+**Basis refinement** then re-fits to every peak the lattice explains, by
+weighted least squares on the integer indices. The pair chosen above rests on
+two measurements however carefully each was located; the far peaks constrain the
+basis best, since the same absolute error in position is a smaller relative
+error over a longer vector. Weighting by intensity matters — a bright peak's
+position is far better determined than a faint one's, and weighting them equally
+lets the noisiest high orders pull an already-good fit off. Measured against
+synthetic lattices this improves the spacing about five-fold and the angle by up
+to thirty-fold.
+
+Peaks are selected **shortest first** among those above an intensity threshold,
+not strongest first. The primitive vectors of a lattice are its shortest
+independent ones, so ranking by intensity can discard exactly what is being
+looked for — which in a pattern whose reflections are of comparable brightness
+yields a lattice several times too coarse, and a calibration that looks entirely
+reasonable.
 
 ## Power cepstrum (EWPC)
 
@@ -393,6 +515,47 @@ public func parameters(for host: FDSHostContext) -> [[String: Any]] {
 Do this rather than presenting a control in one unit and reporting the result in
 another. A plugin should speak one language: physical units when the file
 supports them, pixels when it does not, and never a mixture.
+
+### Shipping plugins inside the app
+
+The app target has an **Embed Plugins** build phase that runs
+`PluginSDK/embed-plugins.sh`, which builds every folder under `Examples/` into
+`4DSTEM Explorer.app/Contents/PlugIns`. Those load automatically — the app
+searches its own `PlugIns` folder as well as the user's.
+
+Adding a plugin to the shipped set is just creating the folder; the phase picks
+up anything with a `plugin.conf`. Nothing needs to be registered in the Xcode
+project, because the plugins are not Xcode targets.
+
+The script does three things a plain loop would not:
+
+- **Signs with the app's identity**, taken from `EXPANDED_CODE_SIGN_IDENTITY`.
+  Nested code inside a signed app has to carry a signature from the same
+  identity or the app fails to validate at launch.
+- **Builds only `$ARCHS`**, so a debug build does not pay for a universal
+  plugin it will not run. A release build still produces both slices.
+- **Skips unchanged plugins.** A clean build of all six takes about 20 seconds;
+  an incremental one where nothing changed takes 0.1 s. Editing a `.swift`,
+  `.bib` or `plugin.conf` rebuilds that plugin; editing
+  `FourDSTEMPluginAPI.swift` rebuilds all of them, since it is compiled into
+  each.
+
+A plugin that fails to build fails the app build, rather than quietly shipping
+an app that looks complete and is missing a feature. The same is true of a
+malformed `.bib`.
+
+Run it outside Xcode by giving it a destination:
+
+```bash
+./PluginSDK/embed-plugins.sh /path/to/Some.app/Contents/PlugIns
+```
+
+**A user's own copy still wins.** The app reads its user plugins folder first
+and skips a bundled plugin whose identifier is already claimed — so installing a
+newer build of a shipped plugin overrides it. The shadowed bundle is never
+opened at all, which matters: two bundles defining the same `@objc` class both
+register it with the Objective-C runtime, and the runtime warns that this causes
+"spurious casting failures and mysterious crashes".
 
 ### Citations
 

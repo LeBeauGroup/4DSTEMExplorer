@@ -31,6 +31,9 @@ struct DetectorOverlay: View {
 
     private let handleRadius: CGFloat = 6
     private let handleHitSlop: CGFloat = 6
+    /// How close a click has to be to grab a point detector. It has no circle to
+    /// aim at, so the crosshair itself has to be the target.
+    private let pointGrabRadius: CGFloat = 12
 
     var body: some View {
         GeometryReader { geo in
@@ -86,10 +89,11 @@ struct DetectorOverlay: View {
                 let dist = sqrt(dx * dx + dy * dy)
                 let tolerance: CGFloat = 10
                 switch shape {
-                case .bf:  return dist <= outerR + tolerance
-                case .adf: return dist <= innerR + tolerance
-                case .af:  return dist <= outerR + tolerance
-                default:   return false
+                case .bf:    return dist <= outerR + tolerance
+                case .adf:   return dist <= innerR + tolerance
+                case .af:    return dist <= outerR + tolerance
+                case .point: return dist <= pointGrabRadius
+                default:     return false
                 }
             }
 
@@ -134,22 +138,24 @@ struct DetectorOverlay: View {
                         EmptyView()
                     }
 
-                    // Center crosshair — drawn twice for visibility
-                    let crossSize: CGFloat = 4
-                    Path { path in
+                    // Center crosshair — drawn twice for visibility. For a point
+                    // detector it is not a centre marker but the detector itself,
+                    // so it is drawn larger with a gap at the middle, leaving the
+                    // sampled pixel visible rather than covered by the ink.
+                    let crossSize: CGFloat = shape == .point ? 9 : 4
+                    let crossGap: CGFloat = shape == .point ? 3 : 0
+                    let crosshair = Path { path in
                         path.move(to: CGPoint(x: displayCenter.x - crossSize, y: displayCenter.y))
+                        path.addLine(to: CGPoint(x: displayCenter.x - crossGap, y: displayCenter.y))
+                        path.move(to: CGPoint(x: displayCenter.x + crossGap, y: displayCenter.y))
                         path.addLine(to: CGPoint(x: displayCenter.x + crossSize, y: displayCenter.y))
                         path.move(to: CGPoint(x: displayCenter.x, y: displayCenter.y - crossSize))
+                        path.addLine(to: CGPoint(x: displayCenter.x, y: displayCenter.y - crossGap))
+                        path.move(to: CGPoint(x: displayCenter.x, y: displayCenter.y + crossGap))
                         path.addLine(to: CGPoint(x: displayCenter.x, y: displayCenter.y + crossSize))
                     }
-                    .stroke(Color.black.opacity(0.7), lineWidth: 4)
-                    Path { path in
-                        path.move(to: CGPoint(x: displayCenter.x - crossSize, y: displayCenter.y))
-                        path.addLine(to: CGPoint(x: displayCenter.x + crossSize, y: displayCenter.y))
-                        path.move(to: CGPoint(x: displayCenter.x, y: displayCenter.y - crossSize))
-                        path.addLine(to: CGPoint(x: displayCenter.x, y: displayCenter.y + crossSize))
-                    }
-                    .stroke(tintColor.opacity(0.9), lineWidth: 2)
+                    crosshair.stroke(Color.black.opacity(0.7), lineWidth: 4)
+                    crosshair.stroke(tintColor.opacity(0.9), lineWidth: 2)
 
                     // Outer radius handle (3 o'clock)
                     if showOuterHandle {
@@ -190,6 +196,13 @@ struct DetectorOverlay: View {
                                                    y: displayCenter.y - outerR - tol,
                                                    width: (outerR + tol) * 2,
                                                    height: (outerR + tol) * 2))
+                    case .point:
+                        // Without this the point detector has no hit area at all
+                        // and cannot be selected or dragged.
+                        path.addEllipse(in: CGRect(x: displayCenter.x - pointGrabRadius,
+                                                   y: displayCenter.y - pointGrabRadius,
+                                                   width: pointGrabRadius * 2,
+                                                   height: pointGrabRadius * 2))
                     default: break
                     }
                     if showOuterHandle {

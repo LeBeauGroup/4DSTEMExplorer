@@ -98,6 +98,15 @@ public struct FDSResultKey {
     public static let plotX = "x"
     /// NSData holding Float32 y coordinates, same count as `plotX`.
     public static let plotY = "y"
+    /// Dictionary describing a calibration the plugin has measured, keyed with
+    /// `FDSCalibrationKey`. Optional.
+    ///
+    /// A plugin cannot change the host's state on its own, and should not be
+    /// able to: a calibration alters how every subsequent number in the
+    /// application is interpreted. Offering one in the result instead lets the
+    /// host present it and apply it only when the user says so.
+    public static let calibration = "calibration"
+
     /// String. Horizontal axis label.
     public static let xLabel = "xLabel"
     /// String. Vertical axis label.
@@ -321,6 +330,52 @@ public protocol FDSPlugin: NSObjectProtocol {
 //
 // Sugar over the dictionary contract. Nothing here crosses the bundle
 // boundary — these just build the dictionaries described above.
+
+/// Keys of the calibration dictionary a plugin may return.
+///
+/// Every entry is optional; only those present are applied, so a plugin that
+/// measures the scan step alone does not have to invent a diffraction step.
+public struct FDSCalibrationKey {
+    /// NSNumber, nanometres per probe position.
+    public static let scanStepNanometers = "scanStepNanometers"
+    /// NSNumber, milliradians per detector pixel.
+    public static let diffractionStepMilliradians = "diffractionStepMilliradians"
+    /// NSNumber, accelerating voltage in kilovolts.
+    public static let accelerationKilovolts = "accelerationKilovolts"
+    /// String. One line describing what is being offered, shown to the user
+    /// before they accept it.
+    public static let summary = "summary"
+}
+
+extension FDSResult {
+
+    /// Attaches a calibration the host may offer to apply.
+    ///
+    /// Pass only what was measured; a nil leaves that part of the host's
+    /// calibration alone rather than clearing it.
+    public static func withCalibration(_ result: [String: Any],
+                                       scanStepNanometers: Double? = nil,
+                                       diffractionStepMilliradians: Double? = nil,
+                                       accelerationKilovolts: Double? = nil,
+                                       summary: String? = nil) -> [String: Any] {
+        var calibration: [String: Any] = [:]
+        if let value = scanStepNanometers, value.isFinite, value > 0 {
+            calibration[FDSCalibrationKey.scanStepNanometers] = NSNumber(value: value)
+        }
+        if let value = diffractionStepMilliradians, value.isFinite, value > 0 {
+            calibration[FDSCalibrationKey.diffractionStepMilliradians] = NSNumber(value: value)
+        }
+        if let value = accelerationKilovolts, value.isFinite, value > 0 {
+            calibration[FDSCalibrationKey.accelerationKilovolts] = NSNumber(value: value)
+        }
+        if let summary = summary { calibration[FDSCalibrationKey.summary] = summary }
+        guard calibration.count > (summary == nil ? 0 : 1) else { return result }
+
+        var dict = result
+        dict[FDSResultKey.calibration] = calibration
+        return dict
+    }
+}
 
 public struct FDSParameter {
 

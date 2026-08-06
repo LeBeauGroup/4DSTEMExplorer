@@ -24,6 +24,9 @@ struct PluginResultPayload {
     let message: String?
     let pluginName: String
     let fileRoot: String
+    /// A calibration the plugin is offering, if it returned one. Never applied
+    /// on its own — the user accepts it.
+    let calibration: PluginCalibration?
 
     // Image results
     var rows: Int = 0
@@ -84,6 +87,7 @@ enum PluginResultParser {
 
         let title = (dictionary[FDSResultKey.title] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? pluginName
         let message = (dictionary[FDSResultKey.message] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let calibration = PluginCalibration(dictionary[FDSResultKey.calibration])
 
         switch typeName {
         case FDSResultType.scanImage, FDSResultType.pattern:
@@ -99,7 +103,8 @@ enum PluginResultParser {
             }
 
             var payload = PluginResultPayload(kind: kind, title: title, message: message,
-                                              pluginName: pluginName, fileRoot: fileRoot)
+                                              pluginName: pluginName, fileRoot: fileRoot,
+                                              calibration: calibration)
             payload.rows = rows
             payload.columns = columns
             payload.values = values
@@ -128,7 +133,8 @@ enum PluginResultParser {
             }
 
             var payload = PluginResultPayload(kind: .plot, title: title, message: message,
-                                              pluginName: pluginName, fileRoot: fileRoot)
+                                              pluginName: pluginName, fileRoot: fileRoot,
+                                              calibration: calibration)
             payload.x = x.isEmpty ? (0..<y.count).map { Float($0) } : x
             payload.y = y
             payload.xLabel = dictionary[FDSResultKey.xLabel] as? String ?? ""
@@ -137,7 +143,8 @@ enum PluginResultParser {
 
         case FDSResultType.text:
             var payload = PluginResultPayload(kind: .text, title: title, message: message,
-                                              pluginName: pluginName, fileRoot: fileRoot)
+                                              pluginName: pluginName, fileRoot: fileRoot,
+                                              calibration: calibration)
             payload.text = dictionary[FDSResultKey.text] as? String ?? ""
             return .success(payload)
 

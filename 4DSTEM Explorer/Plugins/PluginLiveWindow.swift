@@ -46,6 +46,60 @@ final class PluginLiveSession: ObservableObject {
     /// differ from these — which is also how a plugin writing values back into
     /// the controls avoids triggering another run.
     private var lastRunParameters: [String: Any] = [:]
+    /// Called when the user accepts or cancels; closes the window.
+    var onDismiss: (() -> Void)?
+
+    /// Abandons the run and closes without touching the document.
+    @MainActor
+    func cancelAndClose() {
+        activeToken?.cancel()
+        onDismiss?()
+    }
+
+    /// The calibration the current result is offering, if any.
+    var offeredCalibration: PluginCalibration? { return payload?.calibration }
+
+    /// Whether this plugin deals in calibrations at all.
+    ///
+    /// Sticky once seen: the buttons must not flip between Run and Accept as
+    /// the user switches an output mode that happens not to carry one.
+    @Published private(set) var offersCalibration = false
+
+    /// Applies the offered calibration to the document and closes.
+    ///
+    /// Confirmed first, showing what each value changes from: a calibration
+    /// reinterprets every measurement made afterwards, and it is easy to accept
+    /// one by reflex without noticing it replaced a good value with a worse one.
+    @MainActor
+    func accept() {
+        guard let calibration = offeredCalibration else { onDismiss?(); return }
+
+        guard let model = model else { onDismiss?(); return }
+        let changes = calibration.changes(from: model.calibrations)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Use this calibration?"
+        var body = calibration.summary.map { $0 + "\n\n" } ?? ""
+        body += changes.joined(separator: "\n")
+        body += "\n\nEverything measured from this dataset will be reported in these units."
+        alert.informativeText = body
+        alert.addButton(withTitle: "Use Calibration")
+        alert.addButton(withTitle: "Cancel")
+
+        let response: NSApplication.ModalResponse
+        if let window = NSApp.keyWindow {
+            // A sheet would return asynchronously; this decision is small enough
+            // to settle before anything else happens.
+            response = alert.runModal()
+            _ = window
+        } else {
+            response = alert.runModal()
+        }
+        guard response == .alertFirstButtonReturn else { return }
+
+        model.calibrations = calibration.applied(to: model.calibrations)
+        onDismiss?()
+    }
 
     private let debounce: TimeInterval = 0.12
 
@@ -150,6 +204,7 @@ final class PluginLiveSession: ObservableObject {
                 self.isRunning = false
                 if token.isCancelled { return }
                 self.lastRunDuration = elapsed
+                if self.payload?.calibration != nil { self.offersCalibration = true }
                 self.consume(returned, fileRoot: fileRoot)
             }
         }
@@ -239,8 +294,21 @@ struct PluginLiveView: View {
                     .controlSize(.small)
                     .help("Papers and software behind this plugin's method, with BibTeX export")
                 }
-                Button("Run") { session.runNow() }
-                    .keyboardShortcut(.defaultAction)
+                if session.offersCalibration {
+                    // A plugin whose whole purpose is to hand something back
+                    // gets Accept and Cancel rather than Run: the question at
+                    // the end is whether to keep the result, not whether to
+                    // compute it again.
+                    Button("Cancel") { session.cancelAndClose() }
+                        .keyboardShortcut(.cancelAction)
+                    Button("Accept") { session.accept() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(session.offeredCalibration == nil || session.isRunning)
+                        .help("Use the measured calibration for this dataset")
+                } else {
+                    Button("Run") { session.runNow() }
+                        .keyboardShortcut(.defaultAction)
+                }
             }
 
             statusLine
@@ -322,6 +390,7 @@ final class PluginLiveWindowController: NSObject, NSWindowDelegate {
     private func show(plugin: LoadedPlugin, model: DataViewModel) {
         let session = PluginLiveSession(plugin: plugin, model: model)
         self.session = session
+        session.onDismiss = { [weak self] in self?.window?.performClose(nil) }
 
         let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
         let size = NSSize(width: min(1020, visible.width - 80), height: min(680, visible.height - 80))

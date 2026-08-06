@@ -69,6 +69,8 @@ class Detector: NSObject {
 //        var detectorArray = [Matrix].init()
         
         switch shape {
+        case DetectorShape.point:
+            mask = apFact.point(center: center)
         case DetectorShape.bf:
           
             mask =   apFact.bf(radius: parameters[.outerRadius] ?? 0.0, center: center)

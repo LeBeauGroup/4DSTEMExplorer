@@ -272,6 +272,9 @@ struct RootView: View {
                                         case .bf:  hit = dist <= det.outerRadius * sc + tol
                                         case .adf: hit = dist <= det.innerRadius * sc + tol
                                         case .af:  hit = dist <= det.outerRadius * sc + tol
+                                        // No circle to aim at, so the crosshair
+                                        // itself is the target.
+                                        case .point: hit = dist <= tol + 2
                                         default:   hit = false
                                         }
                                         if hit { model.selectedDetectorID = det.id; break }
@@ -608,6 +611,29 @@ struct RootView: View {
         }
     }
 
+    /// Occupies exactly the height of the controls a point detector hides.
+    ///
+    /// Built from the same control types rather than a fixed number of points,
+    /// so it keeps up with font size, control size and accessibility settings
+    /// instead of drifting out of step with them.
+    private var reservedControlSpace: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Outer: ")
+                Slider(value: .constant(0.0), in: 0...1)
+                Text("0 (pix)").frame(minWidth: 24, alignment: .trailing)
+            }
+            Picker("", selection: .constant(0)) {
+                Text("Integrate").tag(0)
+                Text("COM").tag(1)
+                Text("DPC").tag(2)
+            }
+            .pickerStyle(.segmented)
+        }
+        .hidden()
+        .accessibilityHidden(true)
+    }
+
     private var detectorSettings: some View {
         GroupBox("Detectors") {
             VStack(alignment: .leading, spacing: 8) {
@@ -681,13 +707,21 @@ struct RootView: View {
                 Divider()
 
                 Picker("Shape", selection: $model.detectorShape) {
+                    Text("Point").tag(DetectorShape.point)
+                        .help("A single detector pixel at the crosshair. Drag it on the pattern, or nudge it with the arrow keys.")
                     Text("BF").tag(DetectorShape.bf)
                     Text("ADF").tag(DetectorShape.adf)
                     Text("AF").tag(DetectorShape.af)
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: model.detectorShape) { old, new in
-                    
+                    // A point detector is one pixel, so the only calculation that
+                    // means anything is integrating it. A centre of mass or a
+                    // difference across a single element is degenerate — it can
+                    // only ever return that element's own position.
+                    if new == .point && model.calculationMode != .integrate {
+                        model.calculationMode = .integrate
+                    }
                    updateVirtual()
                 }
 
@@ -754,16 +788,36 @@ struct RootView: View {
 
                 Divider()
 
-                Picker("Mode", selection: $model.calculationMode) {
-                    Text("Integrate").tag(CalculationMode.integrate)
-                    Text("COM").tag(CalculationMode.com)
-                    Text("DPC").tag(CalculationMode.dpc)
+                // The point detector hides both the size slider and the mode
+                // picker. Removing them outright would shrink this panel, and
+                // since the sidebar stacks the pattern view above it — and the
+                // pattern is flexible, being aspectRatio(.fit) — SwiftUI hands
+                // the freed height to the pattern, which visibly grows. Laying
+                // out hidden copies keeps the panel exactly the height it has
+                // for the other shapes, so nothing above it moves.
+                //
+                // Nothing may be *added* here either. Extra content raises this
+                // panel's minimum height above the other shapes', which raises
+                // the window's minimum — and a wrapped Text with
+                // .fixedSize(vertical:) is worse still, because its minimum
+                // grows as the column narrows and the window then cannot shrink
+                // at all.
+                if model.detectorShape == .point {
+                    reservedControlSpace
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: model.calculationMode) { _, _ in
-                    updateVirtual() }
 
-                if model.calculationMode == .com {
+                if model.detectorShape != .point {
+                    Picker("Mode", selection: $model.calculationMode) {
+                        Text("Integrate").tag(CalculationMode.integrate)
+                        Text("COM").tag(CalculationMode.com)
+                        Text("DPC").tag(CalculationMode.dpc)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: model.calculationMode) { _, _ in
+                        updateVirtual() }
+                }
+
+                if model.calculationMode == .com && model.detectorShape != .point {
                     Picker("Axis", selection: Binding<COMAxis>(
                         get: { model.comAxis },
                         set: { newAxis in
@@ -780,7 +834,7 @@ struct RootView: View {
                     .pickerStyle(.segmented)
                 }
 
-                if model.calculationMode == .dpc {
+                if model.calculationMode == .dpc && model.detectorShape != .point {
                     Picker("DPC Axis", selection: $model.dpcAxis) {
                         Text("L-R").tag(DPCAxis.leftRight)
                         Text("U-D").tag(DPCAxis.upDown)
