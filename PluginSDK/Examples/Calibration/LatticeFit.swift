@@ -179,6 +179,46 @@ struct CalibrationDecomposition {
             ? Matrix2(a: S.a / scale, b: S.b / scale, c: S.c / scale, d: S.d / scale)
             : S
     }
+
+    /// The same split, with the rotation reduced into the lattice's fundamental
+    /// domain.
+    ///
+    /// A lattice cannot tell you which of its symmetry-equivalent vectors is
+    /// "the first one". For a square lattice, the basis the fit happens to
+    /// return may be any of four, and the four differ by 90° — so an entirely
+    /// unrotated raster reports 90°, or 180°, as readily as 0°. Left alone, that
+    /// number is worse than useless in a metadata file: it says the scan was
+    /// turned a quarter turn when it was not, and anything downstream that acts
+    /// on it will rotate a correct dataset.
+    ///
+    /// Reducing means re-labelling the ideal basis by a symmetry operation. If
+    /// `A = R·D`, then labelling it through a rotation `Rs` of the lattice's own
+    /// point group gives `A·Rs = (R·Rs)·(Rsᵀ·D·Rs)` — still a rotation times a
+    /// symmetric positive-definite factor, so it is an equally valid
+    /// decomposition of an equally valid fit. The distortion keeps its
+    /// eigenvalues, so anisotropy and mean pixel size are untouched; only its
+    /// principal axes turn with the frame, which is what they should do.
+    ///
+    /// Among those equivalents the one closest to zero rotation is chosen. That
+    /// is a convention, not a measurement — with a symmetric lattice and no
+    /// independent knowledge of the crystal's orientation, the absolute rotation
+    /// is simply not observable, and the smallest one is the only honest
+    /// representative.
+    init?(transform T: Matrix2, lattice: KnownLattice) {
+        var best: CalibrationDecomposition? = nil
+        for degrees in lattice.rotationalSymmetryDegrees {
+            let radians = degrees * .pi / 180
+            let cosine = cos(radians), sine = sin(radians)
+            // Columns: rotating the ideal frame by +degrees.
+            let Rs = Matrix2(a: cosine, b: sine, c: -sine, d: cosine)
+            guard let candidate = CalibrationDecomposition(transform: T.times(Rs)) else { continue }
+            if best == nil || abs(candidate.rotationDegrees) < abs(best!.rotationDegrees) {
+                best = candidate
+            }
+        }
+        guard let reduced = best else { return nil }
+        self = reduced
+    }
 }
 
 // MARK: - Known lattice
@@ -198,6 +238,31 @@ struct KnownLattice {
     var basis: Matrix2 {
         let radians = angleDegrees * .pi / 180
         return Matrix2(columns: (d1, 0), (d2 * cos(radians), d2 * sin(radians)))
+    }
+
+    /// Rotations that map this lattice onto itself, in degrees.
+    ///
+    /// In two dimensions only orders 1, 2, 3, 4 and 6 are possible, and every
+    /// lattice has the 180° one whatever its shape. The rest depend on the cell:
+    /// equal spacings at 90° give the square lattice's four-fold axis, and equal
+    /// spacings at 60° or 120° give the hexagonal six-fold.
+    ///
+    /// These are the operations under which a measured basis is indistinguishable
+    /// from the ideal one, which is exactly the ambiguity in the fitted rotation.
+    var rotationalSymmetryDegrees: [Double] {
+        // Loose tolerances on purpose: these are numbers a person typed, so
+        // 3.905 and 3.9050001 must both count as equal, and 119.9° as hexagonal.
+        let equalSides = abs(d1 - d2) <= 1e-6 * max(d1, d2)
+        let angle = abs(angleDegrees)
+        func isNear(_ value: Double) -> Bool { return abs(angle - value) < 0.05 }
+
+        if equalSides && isNear(90) {
+            return [0, 90, 180, 270]
+        }
+        if equalSides && (isNear(60) || isNear(120)) {
+            return [0, 60, 120, 180, 240, 300]
+        }
+        return [0, 180]
     }
 }
 

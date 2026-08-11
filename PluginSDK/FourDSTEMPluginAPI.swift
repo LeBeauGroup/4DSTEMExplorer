@@ -123,6 +123,32 @@ public struct FDSResultKey {
     public static let error = "error"
     /// String. Short note shown beneath the result.
     public static let message = "message"
+    /// String. What one value *is* — "counts", "mrad", "Å⁻¹", "e⁻".
+    ///
+    /// Shown beside the number when the pointer is over a pixel. A readout of
+    /// `1.234` says nothing about whether that is an intensity, an angle or a
+    /// tilt; the plugin is the only thing that knows, so it is the plugin that
+    /// says.
+    public static let valueLabel = "valueLabel"
+    /// Array of dictionaries keyed by `FDSDatasetKey`: extra arrays to write
+    /// when the result is exported as data.
+    ///
+    /// A displayed result is one image. A measurement often produces several
+    /// related arrays that belong in the same file — the same quantity on two
+    /// grids, two components of one vector — and forcing the user to export each
+    /// separately and reassemble them is how the relationship between them gets
+    /// lost. A plugin cannot write the file itself: it has no save panel, and in
+    /// a sandboxed application it has no permission. So it declares what belongs
+    /// in the file and the host writes it.
+    public static let datasets = "datasets"
+    /// Dictionary of JSON-encodable values recording how the result was
+    /// produced. Written into the exported file verbatim.
+    public static let provenance = "provenance"
+    /// Filename extension to suggest for a data export, without the dot.
+    public static let exportExtension = "exportExtension"
+    /// Array of dictionaries keyed by `FDSShapeKey`: geometry to draw over the
+    /// image, in image-pixel coordinates.
+    public static let overlayShapes = "overlayShapes"
 
     /// [String: Any]. Parameter values to write back into the controls, keyed by
     /// `FDSParameterKey.identifier`. Lets a plugin that *measures* something —
@@ -205,6 +231,14 @@ public protocol FDSHostContext: NSObjectProtocol {
     /// Plugins needing a wavelength should fall back to their own default
     /// rather than treating 0 as a voltage.
     @objc var accelerationKilovolts: Double { get }
+
+    /// How the patterns this host is serving were oriented when the file was
+    /// read: `[flip_y, flip_x, transpose]`, EMPAD metadata's `det_flips`.
+    ///
+    /// Patterns come through `patternData` and `copyPattern` with these already
+    /// applied, so this is not something to apply again — it is what a plugin
+    /// composes its own finding with before offering an absolute answer back.
+    @objc var detectorFlips: [NSNumber] { get }
 
     // MARK: Pattern access
 
@@ -342,6 +376,20 @@ public struct FDSCalibrationKey {
     public static let diffractionStepMilliradians = "diffractionStepMilliradians"
     /// NSNumber, accelerating voltage in kilovolts.
     public static let accelerationKilovolts = "accelerationKilovolts"
+    /// NSNumber, scan rotation in degrees.
+    public static let scanRotationDegrees = "scanRotationDegrees"
+    /// Array of four NSNumbers, row-major, in the sense `[x', y'] = M · [x, y]`:
+    /// `[m00, m01, m10, m11]`. Unit determinant — the scale belongs in the scan
+    /// step, and a matrix carrying both would double-count it.
+    public static let scanCorrection = "scanCorrection"
+    /// Array of three NSNumbers (Bool), `[flip_y, flip_x, transpose]`: how the
+    /// raw diffraction patterns must be oriented when the file is read. This is
+    /// EMPAD metadata's `det_flips`, in its order and meaning.
+    ///
+    /// Absolute, not a delta. A plugin that finds the detector mirrored composes
+    /// its finding with `FDSHostContext.detectorFlips` and offers the result, so
+    /// the host never has to know what a given plugin meant by "flip".
+    public static let detectorFlips = "detectorFlips"
     /// String. One line describing what is being offered, shown to the user
     /// before they accept it.
     public static let summary = "summary"
@@ -357,6 +405,9 @@ extension FDSResult {
                                        scanStepNanometers: Double? = nil,
                                        diffractionStepMilliradians: Double? = nil,
                                        accelerationKilovolts: Double? = nil,
+                                       scanRotationDegrees: Double? = nil,
+                                       scanCorrectionRowMajor: [Double]? = nil,
+                                       detectorFlips: [Bool]? = nil,
                                        summary: String? = nil) -> [String: Any] {
         var calibration: [String: Any] = [:]
         if let value = scanStepNanometers, value.isFinite, value > 0 {
@@ -367,6 +418,16 @@ extension FDSResult {
         }
         if let value = accelerationKilovolts, value.isFinite, value > 0 {
             calibration[FDSCalibrationKey.accelerationKilovolts] = NSNumber(value: value)
+        }
+        if let value = scanRotationDegrees, value.isFinite {
+            calibration[FDSCalibrationKey.scanRotationDegrees] = NSNumber(value: value)
+        }
+        if let matrix = scanCorrectionRowMajor, matrix.count == 4,
+           matrix.allSatisfy({ $0.isFinite }) {
+            calibration[FDSCalibrationKey.scanCorrection] = matrix.map { NSNumber(value: $0) }
+        }
+        if let flips = detectorFlips, flips.count == 3 {
+            calibration[FDSCalibrationKey.detectorFlips] = flips.map { NSNumber(value: $0) }
         }
         if let summary = summary { calibration[FDSCalibrationKey.summary] = summary }
         guard calibration.count > (summary == nil ? 0 : 1) else { return result }
@@ -442,14 +503,16 @@ public struct FDSResult {
 
     /// One value per probe position. `values.count` must be `rows * columns`.
     public static func scanImage(_ values: [Float], rows: Int, columns: Int,
-                                 title: String? = nil, message: String? = nil) -> [String: Any] {
-        return image(FDSResultType.scanImage, values, rows, columns, title, message)
+                                 title: String? = nil, message: String? = nil,
+                                 valueLabel: String? = nil) -> [String: Any] {
+        return image(FDSResultType.scanImage, values, rows, columns, title, message, valueLabel)
     }
 
     /// A diffraction pattern. `values.count` must be `rows * columns`.
     public static func pattern(_ values: [Float], rows: Int, columns: Int,
-                               title: String? = nil, message: String? = nil) -> [String: Any] {
-        return image(FDSResultType.pattern, values, rows, columns, title, message)
+                               title: String? = nil, message: String? = nil,
+                               valueLabel: String? = nil) -> [String: Any] {
+        return image(FDSResultType.pattern, values, rows, columns, title, message, valueLabel)
     }
 
     public static func plot(x: [Float], y: [Float],
@@ -490,7 +553,8 @@ public struct FDSResult {
     }
 
     private static func image(_ type: String, _ values: [Float], _ rows: Int, _ columns: Int,
-                              _ title: String?, _ message: String?) -> [String: Any] {
+                              _ title: String?, _ message: String?,
+                              _ valueLabel: String? = nil) -> [String: Any] {
         var dict: [String: Any] = [
             FDSResultKey.type: type,
             FDSResultKey.rows: rows,
@@ -499,6 +563,7 @@ public struct FDSResult {
         ]
         if let title = title { dict[FDSResultKey.title] = title }
         if let message = message { dict[FDSResultKey.message] = message }
+        if let valueLabel = valueLabel { dict[FDSResultKey.valueLabel] = valueLabel }
         return dict
     }
 
@@ -506,6 +571,64 @@ public struct FDSResult {
         return values.withUnsafeBufferPointer {
             Data(buffer: $0)
         }
+    }
+}
+
+/// Keys describing one array attached to a result.
+public struct FDSDatasetKey {
+    /// String. Path inside the file. Slashes make groups: `binned/tilt_x`.
+    public static let name = "name"
+    /// Data. Float32 values, row-major, `rows * columns` of them.
+    public static let values = "values"
+    /// NSNumber (Int).
+    public static let rows = "rows"
+    /// NSNumber (Int).
+    public static let columns = "columns"
+    /// String. What one value is — "mrad", "counts".
+    public static let units = "units"
+    /// String. A sentence about what this array is, written alongside it.
+    public static let note = "note"
+}
+
+public struct FDSDataset {
+
+    /// One 2-D array to write on export.
+    ///
+    /// - Parameter name: a path. Slashes become groups in the file, so
+    ///   `binned/tilt_x` and `scan/tilt_x` sit in two groups under the same
+    ///   name rather than needing two spellings of the same quantity.
+    public static func float(_ name: String, _ values: [Float], rows: Int, columns: Int,
+                             units: String? = nil, note: String? = nil) -> [String: Any] {
+        var dict: [String: Any] = [
+            FDSDatasetKey.name: name,
+            FDSDatasetKey.rows: rows,
+            FDSDatasetKey.columns: columns,
+            FDSDatasetKey.values: values.withUnsafeBufferPointer { Data(buffer: $0) }
+        ]
+        if let units = units { dict[FDSDatasetKey.units] = units }
+        if let note = note { dict[FDSDatasetKey.note] = note }
+        return dict
+    }
+}
+
+extension FDSResult {
+
+    /// Attaches arrays and provenance to a result, so the host can offer to
+    /// write them as one file.
+    public static func withDatasets(_ result: [String: Any],
+                                    _ datasets: [[String: Any]],
+                                    provenance: [String: Any]? = nil,
+                                    exportExtension: String? = nil) -> [String: Any] {
+        guard !datasets.isEmpty else { return result }
+        var dict = result
+        dict[FDSResultKey.datasets] = datasets
+        if let provenance = provenance, !provenance.isEmpty {
+            dict[FDSResultKey.provenance] = provenance
+        }
+        if let exportExtension = exportExtension, !exportExtension.isEmpty {
+            dict[FDSResultKey.exportExtension] = exportExtension
+        }
+        return dict
     }
 }
 
@@ -518,4 +641,112 @@ public func FDSFloatArray(_ data: Data?) -> [Float] {
         data.copyBytes(to: dest.bindMemory(to: UInt8.self), count: count * MemoryLayout<Float>.size)
     }
     return out
+}
+
+// MARK: - Overlays
+
+/// Keys describing one piece of overlay geometry.
+///
+/// Coordinates are in **image pixels** — the same space as the data — so a shape
+/// means the same thing whatever the view is doing. The host draws them with
+/// CoreGraphics at whatever scale it is displaying or exporting at, which is why
+/// they are geometry rather than pixels: a marker poked into the image is one
+/// pixel wide for ever, invisible at a zoomed-out view and a single hard dot at
+/// a zoomed-in one, and it is burned into the data on export.
+public struct FDSShapeKey {
+    /// String: `circle`, `line`, `cross`, `polyline`, `label`.
+    public static let kind = "kind"
+    /// Array of NSNumber, flat `[x0, y0, x1, y1, …]` in image pixels.
+    public static let points = "points"
+    /// NSNumber, image pixels.
+    public static let radius = "radius"
+    /// Array of four NSNumbers, red green blue alpha, each 0…1.
+    public static let colour = "colour"
+    /// NSNumber. Width in *points on screen*, not image pixels, so a line stays
+    /// legible at every zoom instead of growing into a slab.
+    public static let lineWidth = "lineWidth"
+    /// NSNumber (Bool). Fill rather than stroke.
+    public static let filled = "filled"
+    /// String, for a label.
+    public static let text = "text"
+    /// NSNumber. Type size in points on screen.
+    public static let fontSize = "fontSize"
+}
+
+public struct FDSShape {
+
+    public typealias Colour = (r: Double, g: Double, b: Double, a: Double)
+
+    public static let red: Colour = (1.0, 0.19, 0.19, 1.0)
+    public static let amber: Colour = (1.0, 0.75, 0.16, 1.0)
+    public static let cyan: Colour = (0.35, 0.85, 1.0, 1.0)
+
+    private static func base(_ kind: String, _ colour: Colour,
+                            _ lineWidth: Double) -> [String: Any] {
+        return [
+            FDSShapeKey.kind: kind,
+            FDSShapeKey.colour: [colour.r, colour.g, colour.b, colour.a].map { NSNumber(value: $0) },
+            FDSShapeKey.lineWidth: NSNumber(value: lineWidth)
+        ]
+    }
+
+    public static func circle(x: Double, y: Double, radius: Double,
+                              colour: Colour = red, lineWidth: Double = 1.5,
+                              filled: Bool = false) -> [String: Any] {
+        var shape = base("circle", colour, lineWidth)
+        shape[FDSShapeKey.points] = [x, y].map { NSNumber(value: $0) }
+        shape[FDSShapeKey.radius] = NSNumber(value: radius)
+        shape[FDSShapeKey.filled] = NSNumber(value: filled)
+        return shape
+    }
+
+    public static func line(x0: Double, y0: Double, x1: Double, y1: Double,
+                            colour: Colour = red, lineWidth: Double = 1.5) -> [String: Any] {
+        var shape = base("line", colour, lineWidth)
+        shape[FDSShapeKey.points] = [x0, y0, x1, y1].map { NSNumber(value: $0) }
+        return shape
+    }
+
+    /// A cross centred on a point, `radius` image pixels along each arm.
+    public static func cross(x: Double, y: Double, radius: Double,
+                             colour: Colour = red, lineWidth: Double = 1.5) -> [String: Any] {
+        var shape = base("cross", colour, lineWidth)
+        shape[FDSShapeKey.points] = [x, y].map { NSNumber(value: $0) }
+        shape[FDSShapeKey.radius] = NSNumber(value: radius)
+        return shape
+    }
+
+    /// A run of connected points, `[x0, y0, x1, y1, …]`.
+    public static func polyline(_ points: [Double], colour: Colour = red,
+                                lineWidth: Double = 1.5, closed: Bool = false) -> [String: Any] {
+        var shape = base(closed ? "polygon" : "polyline", colour, lineWidth)
+        shape[FDSShapeKey.points] = points.map { NSNumber(value: $0) }
+        return shape
+    }
+
+    /// Real text, drawn by the system at the size asked for.
+    public static func label(_ text: String, x: Double, y: Double,
+                             colour: Colour = red, fontSize: Double = 11) -> [String: Any] {
+        var shape = base("label", colour, 0)
+        shape[FDSShapeKey.points] = [x, y].map { NSNumber(value: $0) }
+        shape[FDSShapeKey.text] = text
+        shape[FDSShapeKey.fontSize] = NSNumber(value: fontSize)
+        return shape
+    }
+}
+
+extension FDSResult {
+
+    /// Attaches overlay geometry to an image result.
+    ///
+    /// Preferred over `withColor` for anything that is a *marking* rather than a
+    /// rendering: markings drawn this way scale with the view, print cleanly,
+    /// and never enter the exported data.
+    public static func withOverlay(_ result: [String: Any],
+                                   _ shapes: [[String: Any]]) -> [String: Any] {
+        guard !shapes.isEmpty else { return result }
+        var dict = result
+        dict[FDSResultKey.overlayShapes] = shapes
+        return dict
+    }
 }

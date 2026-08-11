@@ -71,6 +71,10 @@ struct RawDimsSheet: View {
     @State private var hostWindow: NSWindow?
 
     let fileHint: String
+    /// The RAW file being opened. Only used to start the metadata panel in the
+    /// right folder — the sidecar is written next to the data far more often
+    /// than not, so anywhere else is a wasted navigation.
+    var fileURL: URL? = nil
     let onCancel: () -> Void
     let onOK: (String, String, String, String, Bool, Bool, Bool) -> Void
 
@@ -86,7 +90,7 @@ struct RawDimsSheet: View {
         panel.allowedContentTypes = ScanMetadata.supportedExtensions.compactMap {
             UTType(filenameExtension: $0)
         }
-        panel.url = 
+        panel.directoryURL = fileURL?.deletingLastPathComponent()
         panel.prompt = "Load"
         panel.message = "Choose the JSON or XML metadata written alongside this RAW file"
 

@@ -7,6 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A0000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000002 /* Sparkle */; };
+		AAF19B000000000000000050 /* PluginOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000050 /* PluginOverlay.swift */; };
+		AAF19B000000000000000042 /* CalibrationBatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000042 /* CalibrationBatchSheet.swift */; };
+		AAF19B000000000000000041 /* CalibrationBatchRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000041 /* CalibrationBatchRunner.swift */; };
+		AAF19B000000000000000040 /* BatchDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000040 /* BatchDiscovery.swift */; };
+		AAF19B000000000000000032 /* PluginBatchNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000032 /* PluginBatchNaming.swift */; };
+		AAF19B000000000000000031 /* PluginBatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000031 /* PluginBatchSheet.swift */; };
+		AAF19B000000000000000030 /* PluginBatchRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000030 /* PluginBatchRunner.swift */; };
+		AAF19B000000000000000020 /* FileMaterializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000020 /* FileMaterializer.swift */; };
+		AAF19B000000000000000011 /* CentralDiskFit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000011 /* CentralDiskFit.swift */; };
+		AAF19B000000000000000010 /* CalibrationLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000010 /* CalibrationLibrary.swift */; };
+		AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000060 /* SoftwareUpdater.swift */; };
+		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
+		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
+		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
+		AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000004 /* ScanRotationMeasurement.swift */; };
+		AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000003 /* CurlMinimisation.swift */; };
+		AAF19B000000000000000002 /* CalibrationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000002 /* CalibrationMeasurement.swift */; };
+		AAF19B000000000000000001 /* LatticeFit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000001 /* LatticeFit.swift */; };
+		AAF198000000000000000001 /* EMPADMetadataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF197000000000000000001 /* EMPADMetadataWriter.swift */; };
 		AAF196000000000000000001 /* PluginCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF195000000000000000001 /* PluginCalibration.swift */; };
 		A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51DAD1E1FF6866B00D36AB0 /* Detector.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
@@ -85,6 +105,25 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AAF19A000000000000000050 /* PluginOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginOverlay.swift; path = "4DSTEM Explorer/Plugins/PluginOverlay.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000042 /* CalibrationBatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchSheet.swift; path = "4DSTEM Explorer/UI/CalibrationBatchSheet.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000041 /* CalibrationBatchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchRunner.swift; path = "4DSTEM Explorer/Plugins/CalibrationBatchRunner.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000040 /* BatchDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BatchDiscovery.swift; path = "4DSTEM Explorer/Plugins/BatchDiscovery.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000032 /* PluginBatchNaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchNaming.swift; path = "4DSTEM Explorer/Plugins/PluginBatchNaming.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000031 /* PluginBatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchSheet.swift; path = "4DSTEM Explorer/Plugins/PluginBatchSheet.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000030 /* PluginBatchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchRunner.swift; path = "4DSTEM Explorer/Plugins/PluginBatchRunner.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000020 /* FileMaterializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FileMaterializer.swift; path = "4DSTEM Explorer/FileMaterializer.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000011 /* CentralDiskFit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CentralDiskFit.swift; path = PluginSDK/Examples/Calibration/CentralDiskFit.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000010 /* CalibrationLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationLibrary.swift; path = "4DSTEM Explorer/CalibrationLibrary.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000060 /* SoftwareUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SoftwareUpdater.swift; path = "4DSTEM Explorer/SoftwareUpdater.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000004 /* ScanRotationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRotationMeasurement.swift; path = PluginSDK/Examples/ScanRotation/ScanRotationMeasurement.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000003 /* CurlMinimisation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurlMinimisation.swift; path = PluginSDK/Examples/ScanRotation/CurlMinimisation.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000002 /* CalibrationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationMeasurement.swift; path = PluginSDK/Examples/Calibration/CalibrationMeasurement.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000001 /* LatticeFit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LatticeFit.swift; path = PluginSDK/Examples/Calibration/LatticeFit.swift; sourceTree = SOURCE_ROOT; };
+		AAF197000000000000000001 /* EMPADMetadataWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMPADMetadataWriter.swift; sourceTree = "<group>"; };
 		AAF195000000000000000001 /* PluginCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCalibration.swift; sourceTree = "<group>"; };
 		A51DAD1E1FF6866B00D36AB0 /* Detector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Detector.swift; sourceTree = "<group>"; };
 		A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "4DSTEM Explorer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -177,6 +216,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -243,6 +283,7 @@
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				AAF1000000000000000000C2 /* EMDReader.swift */,
 				AAF1000000000000000000E1 /* ScanMetadata.swift */,
+				AAF197000000000000000001 /* EMPADMetadataWriter.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
 				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
 				A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */,
@@ -324,6 +365,24 @@
 			isa = PBXGroup;
 			children = (
 				AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */,
+				AAF19A000000000000000050 /* PluginOverlay.swift */,
+				AAF19A000000000000000042 /* CalibrationBatchSheet.swift */,
+				AAF19A000000000000000041 /* CalibrationBatchRunner.swift */,
+				AAF19A000000000000000040 /* BatchDiscovery.swift */,
+				AAF19A000000000000000032 /* PluginBatchNaming.swift */,
+				AAF19A000000000000000031 /* PluginBatchSheet.swift */,
+				AAF19A000000000000000030 /* PluginBatchRunner.swift */,
+				AAF19A000000000000000020 /* FileMaterializer.swift */,
+				AAF19A000000000000000011 /* CentralDiskFit.swift */,
+				AAF19A000000000000000010 /* CalibrationLibrary.swift */,
+				AAF19A000000000000000060 /* SoftwareUpdater.swift */,
+				AAF19A000000000000000061 /* SettingsView.swift */,
+				AAF19A000000000000000062 /* DetectorRadii.swift */,
+				AAF19A000000000000000005 /* CalibrationWindow.swift */,
+				AAF19A000000000000000004 /* ScanRotationMeasurement.swift */,
+				AAF19A000000000000000003 /* CurlMinimisation.swift */,
+				AAF19A000000000000000002 /* CalibrationMeasurement.swift */,
+				AAF19A000000000000000001 /* LatticeFit.swift */,
 				AAF1000000000000000000A2 /* PluginManager.swift */,
 				AAF1000000000000000000A3 /* PluginHostContext.swift */,
 				AAF1000000000000000000A4 /* PluginResult.swift */,
@@ -391,6 +450,9 @@
 			dependencies = (
 			);
 			name = "4DSTEM Explorer";
+			packageProductDependencies = (
+				5A0000000000000000000002 /* Sparkle */,
+			);
 			productName = "4DSTEM Explorer";
 			productReference = A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */;
 			productType = "com.apple.product-type.application";
@@ -471,11 +533,6 @@
 					A51FEFAB1FEC48FD00A8A5EC = {
 						CreatedOnToolsVersion = 9.2;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = {
-							com.apple.Sandbox = {
-								enabled = 1;
-							};
-						};
 					};
 					BDC9507E2E2FCB7400F061E4 = {
 						CreatedOnToolsVersion = 16.4;
@@ -499,6 +556,9 @@
 				Base,
 			);
 			mainGroup = A51FEFA31FEC48FD00A8A5EC;
+			packageReferences = (
+				5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = A51FEFAD1FEC48FD00A8A5EC /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -578,6 +638,24 @@
 			files = (
 				A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */,
 				AAF1000000000000000000B1 /* FourDSTEMPluginAPI.swift in Sources */,
+				AAF19B000000000000000050 /* PluginOverlay.swift in Sources */,
+				AAF19B000000000000000042 /* CalibrationBatchSheet.swift in Sources */,
+				AAF19B000000000000000041 /* CalibrationBatchRunner.swift in Sources */,
+				AAF19B000000000000000040 /* BatchDiscovery.swift in Sources */,
+				AAF19B000000000000000032 /* PluginBatchNaming.swift in Sources */,
+				AAF19B000000000000000031 /* PluginBatchSheet.swift in Sources */,
+				AAF19B000000000000000030 /* PluginBatchRunner.swift in Sources */,
+				AAF19B000000000000000020 /* FileMaterializer.swift in Sources */,
+				AAF19B000000000000000011 /* CentralDiskFit.swift in Sources */,
+				AAF19B000000000000000010 /* CalibrationLibrary.swift in Sources */,
+				AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */,
+				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
+				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
+				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
+				AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */,
+				AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */,
+				AAF19B000000000000000002 /* CalibrationMeasurement.swift in Sources */,
+				AAF19B000000000000000001 /* LatticeFit.swift in Sources */,
 				AAF1000000000000000000B2 /* PluginManager.swift in Sources */,
 				AAF1000000000000000000B3 /* PluginHostContext.swift in Sources */,
 				AAF1000000000000000000B4 /* PluginResult.swift in Sources */,
@@ -620,6 +698,7 @@
 				AAF300000000000000000011 /* StringDataset.swift in Sources */,
 				AAF1000000000000000000D2 /* EMDReader.swift in Sources */,
 				AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */,
+				AAF198000000000000000001 /* EMPADMetadataWriter.swift in Sources */,
 				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */,
@@ -800,7 +879,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -843,7 +922,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -1079,6 +1158,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A51FEFA41FEC48FD00A8A5EC /* Project object */;
 }

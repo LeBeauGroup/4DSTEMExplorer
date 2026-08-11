@@ -22,6 +22,17 @@ struct PluginResultPayload {
     let kind: Kind
     let title: String
     let message: String?
+    /// What one value is — "counts", "mrad" — when the plugin said.
+    var valueLabel: String? = nil
+
+    /// Extra arrays the plugin wants written alongside this result.
+    var datasets: [PluginDataset] = []
+    /// How the result was produced, written into the exported file as JSON.
+    var provenance: [String: Any] = [:]
+    /// Extension to suggest for a data export, without the dot.
+    var exportExtension: String? = nil
+    /// Markings to draw over the image, as geometry rather than pixels.
+    var overlayShapes: [PluginOverlayShape] = []
     let pluginName: String
     let fileRoot: String
     /// A calibration the plugin is offering, if it returned one. Never applied
@@ -87,6 +98,8 @@ enum PluginResultParser {
 
         let title = (dictionary[FDSResultKey.title] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? pluginName
         let message = (dictionary[FDSResultKey.message] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let valueLabel = (dictionary[FDSResultKey.valueLabel] as? String)
+            .flatMap { $0.isEmpty ? nil : $0 }
         let calibration = PluginCalibration(dictionary[FDSResultKey.calibration])
 
         switch typeName {
@@ -108,6 +121,12 @@ enum PluginResultParser {
             payload.rows = rows
             payload.columns = columns
             payload.values = values
+            payload.valueLabel = valueLabel
+            payload.datasets = PluginDataset.list(dictionary[FDSResultKey.datasets])
+            payload.provenance = (dictionary[FDSResultKey.provenance] as? [String: Any]) ?? [:]
+            payload.exportExtension = (dictionary[FDSResultKey.exportExtension] as? String)
+                .flatMap { $0.isEmpty ? nil : $0 }
+            payload.overlayShapes = PluginOverlayShape.list(dictionary[FDSResultKey.overlayShapes])
 
             if let colorData = dictionary[FDSResultKey.colorValues] as? Data {
                 let expected = rows * columns * 4
@@ -170,13 +189,48 @@ enum PluginResultParser {
     }
 }
 
+/// One array a plugin asked to have written alongside its result.
+struct PluginDataset {
+    /// Path inside the file; slashes become groups.
+    let name: String
+    let values: [Float]
+    let rows: Int
+    let columns: Int
+    let units: String?
+    let note: String?
+
+    /// Parses the array of dictionaries a plugin supplied, dropping any entry
+    /// whose declared size does not match the values it carries.
+    ///
+    /// Dropped rather than trusted: the size is what the file is written from,
+    /// and a mismatch would either truncate the data or read past it.
+    static func list(_ value: Any?) -> [PluginDataset] {
+        guard let raw = value as? [[String: Any]] else { return [] }
+        return raw.compactMap { entry in
+            guard let name = (entry[FDSDatasetKey.name] as? String), !name.isEmpty,
+                  let rows = (entry[FDSDatasetKey.rows] as? NSNumber)?.intValue,
+                  let columns = (entry[FDSDatasetKey.columns] as? NSNumber)?.intValue,
+                  rows > 0, columns > 0,
+                  let data = entry[FDSDatasetKey.values] as? Data else { return nil }
+            let values = FDSFloatArray(data)
+            guard values.count == rows * columns else { return nil }
+            return PluginDataset(name: name, values: values, rows: rows, columns: columns,
+                                 units: entry[FDSDatasetKey.units] as? String,
+                                 note: entry[FDSDatasetKey.note] as? String)
+        }
+    }
+}
+
 // MARK: - Rendering and export
 
 extension PluginResultPayload {
 
     /// Matrix view of an image result, used for statistics and float TIFF export.
     var matrix: Matrix? {
-        guard kind == .scanImage || kind == .pattern, rows > 0, columns > 0 else { return nil }
+        // The length is the plugin's word, and a plugin that disagrees with
+        // itself must not take the application down with it.
+        guard kind == .scanImage || kind == .pattern, rows > 0, columns > 0,
+              values.count >= rows * columns else { return nil }
         return Matrix(array: values, rows, columns)
     }
 

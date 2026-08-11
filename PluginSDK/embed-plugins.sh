@@ -86,6 +86,15 @@ FAILED=()
 for SOURCE_DIR in "$EXAMPLES_DIR"/*/; do
     [ -f "$SOURCE_DIR/plugin.conf" ] || continue
 
+    # EMBED=no keeps a plugin buildable as an example without shipping it. Used
+    # for the ones whose functionality is core to the application: embedding
+    # those would put the same measurement in the menu twice, from the same
+    # engine, and leave the user to guess which one counts.
+    EMBED="$(sed -n 's/^EMBED=//p' "$SOURCE_DIR/plugin.conf" | head -1)"
+    if [ "$EMBED" = "no" ]; then
+        continue
+    fi
+
     NAME="$(sed -n 's/^NAME=//p' "$SOURCE_DIR/plugin.conf" | head -1)"
     if [ -z "$NAME" ]; then
         echo "warning: $(basename "$SOURCE_DIR")/plugin.conf sets no NAME, skipping" >&2

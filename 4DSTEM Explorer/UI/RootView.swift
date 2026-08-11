@@ -293,11 +293,20 @@ struct RootView: View {
                                 onRadiusChange: { innerR, outerR, interactive in
                                     isDetectorDragging = interactive
                                     if let idx = model.detectors.firstIndex(where: { $0.id == detector.id }) {
-                                        model.detectors[idx].innerRadius = innerR
-                                        model.detectors[idx].outerRadius = outerR
+                                        // A drag moves both at once and writes
+                                        // straight to the stored detector, so
+                                        // the rule is applied here too — the
+                                        // published properties below would
+                                        // otherwise be corrected while the
+                                        // array kept the collapsed pair.
+                                        let settled = DetectorRadii.settled(
+                                            inner: innerR, outer: outerR,
+                                            ceiling: model.maximumDetectorRadius)
+                                        model.detectors[idx].innerRadius = settled.inner
+                                        model.detectors[idx].outerRadius = settled.outer
                                         if detector.id == model.selectedDetectorID {
-                                            model.detectorInnerRadius = innerR
-                                            model.detectorOuterRadius = outerR
+                                            model.detectorInnerRadius = settled.inner
+                                            model.detectorOuterRadius = settled.outer
                                         }
                                     }
                                     updateVirtual(interactive)
@@ -732,12 +741,14 @@ struct RootView: View {
                             value: Binding<Double>(
                                 get: { Double(model.detectorOuterRadius) },
                                 set: { newValue in
+                                    // The model pushes the inner radius out of
+                                    // the way; doing it here as well would
+                                    // clamp rather than push.
                                     model.detectorOuterRadius = CGFloat(newValue)
-                                    model.detectorInnerRadius = min(model.detectorInnerRadius, model.detectorOuterRadius)
                                     updateVirtual(true)
                                 }
                             ),
-                            in: 1...min(Double(model.patternSize.width)/2.0, Double(model.patternSize.height)/2.0),
+                            in: model.outerRadiusRange,
                             onEditingChanged: { isEditing in
                                 if !isEditing {
                                     updateVirtual(false)
@@ -762,11 +773,15 @@ struct RootView: View {
                             value: Binding<Double>(
                                 get: { Double(model.detectorInnerRadius) },
                                 set: { newValue in
-                                    model.detectorInnerRadius = min(CGFloat(newValue), model.detectorOuterRadius)
+                                    model.detectorInnerRadius = CGFloat(newValue)
                                     updateVirtual(true)
                                 }
                             ),
-                            in: 1...Double(model.detectorOuterRadius),
+                            // Not bounded by the outer radius. That bound was
+                            // the reason this control could never widen the
+                            // annulus from the inside — it ran out of travel at
+                            // exactly the point where it should start pushing.
+                            in: model.innerRadiusRange,
                             onEditingChanged: { isEditing in
                                 if !isEditing {
                                     updateVirtual(false)

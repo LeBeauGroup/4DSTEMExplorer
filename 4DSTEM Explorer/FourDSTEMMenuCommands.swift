@@ -23,6 +23,8 @@ struct FourDSTEMMenuCommands: Commands {
             Button("About \(AboutInfo.applicationName)") {
                 AboutWindowController.present()
             }
+            // Directly under About, where every other Mac application puts it.
+            CheckForUpdatesView()
         }
 
         // File menu
@@ -74,10 +76,22 @@ struct FourDSTEMMenuCommands: Commands {
 
             Divider()
 
-            Button("Calibrate…") {
+            Button("Calibration…") {
                 model.calibrate()
             }
+            .keyboardShortcut("k")
             .disabled(model.selectedURL == nil)
+
+            Button("Batch Calibrations…") {
+                model.showCalibrationBatch()
+            }
+            .help("Calibrate every dataset under a folder, seeded from the metadata beside each one")
+
+            Button("Export Metadata…") {
+                model.exportMetadata()
+            }
+            .disabled(model.selectedURL == nil)
+            .help("Write the current calibration as EMPAD metadata JSON")
         }
 
         // Export menu

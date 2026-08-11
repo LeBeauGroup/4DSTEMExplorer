@@ -67,3 +67,9 @@ fastlane/screenshots
 fastlane/test_output
 .DS_Store
 .DS_Store
+
+# Release artifacts. Kept out of the repository because they are large
+# binaries, but keep the local folder: generate_appcast rebuilds the feed from
+# the zips it finds there, so deleting them drops older versions from the
+# appcast.
+dist/

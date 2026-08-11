@@ -37,6 +37,14 @@ final class PluginLiveSession: ObservableObject {
     }
 
     private weak var model: DataViewModel?
+
+    /// The parameters exactly as the window has them, for a batch to reuse.
+    var currentParameters: [String: Any] { return store.objectValues() }
+    /// The detectors the batch should hand each file.
+    var currentDetectors: [DetectorConfiguration] { return model?.detectors ?? [] }
+    var currentDetectorSelection: Set<DetectorConfiguration.ID> {
+        return model?.selectedDetectorIDs ?? []
+    }
     private let queue: DispatchQueue
     private var activeToken: PluginRunToken?
     private var pendingRun: DispatchWorkItem?
@@ -254,6 +262,7 @@ final class PluginLiveSession: ObservableObject {
 
 struct PluginLiveView: View {
     @ObservedObject var session: PluginLiveSession
+    @State private var showingBatch = false
 
     var body: some View {
         HSplitView {
@@ -294,6 +303,15 @@ struct PluginLiveView: View {
                     .controlSize(.small)
                     .help("Papers and software behind this plugin's method, with BibTeX export")
                 }
+                // Deliberately before the run/accept buttons and always
+                // present: a batch is something you reach for *after* the
+                // settings look right, and hiding it behind a menu would mean
+                // finding it again in the state where it is least discoverable.
+                Button("Run on Files…") { showingBatch = true }
+                    .controlSize(.small)
+                    .disabled(session.isRunning)
+                    .help("Run this plugin with these parameters over a set of files")
+
                 if session.offersCalibration {
                     // A plugin whose whole purpose is to hand something back
                     // gets Accept and Cancel rather than Run: the question at
@@ -312,6 +330,13 @@ struct PluginLiveView: View {
             }
 
             statusLine
+        }
+        .sheet(isPresented: $showingBatch) {
+            PluginBatchSheet(plugin: session.plugin,
+                             parameters: session.currentParameters,
+                             detectors: session.currentDetectors,
+                             selectedDetectorIDs: session.currentDetectorSelection,
+                             onClose: { showingBatch = false })
         }
         .padding(12)
         .frame(maxHeight: .infinity, alignment: .top)

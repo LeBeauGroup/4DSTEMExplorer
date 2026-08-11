@@ -141,34 +141,46 @@ class Matrix: CustomStringConvertible, NSCopying{
         
     }
     
+    /// - Note: the copy is bounded by what `array` actually holds.
+    ///
+    ///   This used to read `array[i]` for every `i` in `0..<rows*columns` and
+    ///   trust the caller for the length. When a caller got it wrong the result
+    ///   was a fatal "Index out of range" inside the standard library, which
+    ///   names neither this initialiser nor the caller — the least useful place
+    ///   for the failure to surface and a hard one to act on from a crash
+    ///   report. A short array now fills what it can, leaves the rest at zero,
+    ///   and says so in the log with both sizes, which identifies the caller.
+    ///
+    ///   This is a safety net, not a licence: a matrix that does not match its
+    ///   declared size is a bug wherever it was built.
     init(array:[Float], _ rows:Int, _ columns:Int, type:MatrixType? = .real) {
-        
+
+        let needed = Swift.max(0, rows * columns)
+        let available = Swift.min(needed, array.count)
+        if available < needed {
+            NSLog("[Matrix] built %dx%d = %d from only %d values; the remainder is zero. This is a bug in the caller.",
+                  rows, columns, needed, array.count)
+        }
+
+        self.rows = rows
+        self.columns = columns
+
         if type == .complex{
             self.type = .complex
-            self.rows = rows
-            self.columns = columns
-            
-            self.real = Array.init(repeating: 0.0, count: rows*columns)
-            self.imag = Array.init(repeating: 0.0, count: rows*columns)
-            
-            for i in 0..<rows*columns{
+            self.real = Array.init(repeating: 0.0, count: needed)
+            self.imag = Array.init(repeating: 0.0, count: needed)
+
+            for i in 0..<available{
                 self.imag![i] = array[i]
             }
-            
-
-            
         }else{
-            self.real = Array.init(repeating: 0.0, count: rows*columns)
-            
-            for i in 0..<rows*columns{
+            self.type = .real
+            self.real = Array.init(repeating: 0.0, count: needed)
+
+            for i in 0..<available{
                 self.real[i] = array[i]
             }
-            
-            self.rows = rows
-            self.columns = columns
-            self.type = .real
         }
-        
     }
     
     

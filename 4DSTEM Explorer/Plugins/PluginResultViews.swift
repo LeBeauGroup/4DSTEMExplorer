@@ -122,6 +122,7 @@ struct PluginResultView: View {
     /// the window, so zoom state survives re-renders.
     let image: NSImage?
 
+    @State private var hovered: PixelReadout? = nil
     @State private var magnification: CGFloat = 1
     // Counters rather than notifications: a result window's zoom buttons must
     // drive that window only, not every other open result.
@@ -154,6 +155,37 @@ struct PluginResultView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// The value under the pointer, ready to show.
+    ///
+    /// Nil when the pointer is off the image, or when the coordinates fall
+    /// outside the data — which can happen for a moment after a result is
+    /// replaced by a smaller one, before the tracking area catches up.
+    private var hoverDescription: String? {
+        guard let readout = hovered,
+              readout.x >= 0, readout.x < payload.columns,
+              readout.y >= 0, readout.y < payload.rows else { return nil }
+        let index = readout.y * payload.columns + readout.x
+        guard index < payload.values.count else { return nil }
+
+        let value = payload.values[index]
+        let shown: String
+        if !value.isFinite {
+            // Worth naming rather than printing as "nan": a non-finite pixel is
+            // usually a division by an empty region, and knowing which pixels
+            // they are is the point of looking.
+            shown = value.isNaN ? "not a number" : (value < 0 ? "−∞" : "+∞")
+        } else {
+            // Zero is exactly the value the range test excludes, and it is the
+            // most common one in any map that has been masked or thresholded —
+            // rendering it as 0.0000e+00 makes the commonest reading the least
+            // readable.
+            let plain = value == 0 || (abs(value) >= 1e-4 && abs(value) < 1e6)
+            shown = String(format: plain ? "%.5g" : "%.4e", value)
+        }
+        let unit = payload.valueLabel.map { " \($0)" } ?? ""
+        return String(format: "(%d, %d)  %@%@", readout.x, readout.y, shown as NSString, unit as NSString)
+    }
+
     // MARK: Image
 
     @ViewBuilder
@@ -163,6 +195,7 @@ struct PluginResultView: View {
             // handling the computed-image panel gives the scan image.
             PluginZoomableImage(image: image,
                                 magnification: $magnification,
+                                hovered: $hovered,
                                 fitRequest: $fitRequest,
                                 actualSizeRequest: $actualSizeRequest)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -174,7 +207,17 @@ struct PluginResultView: View {
 
         HStack(alignment: .bottom, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(payload.columns) × \(payload.rows) \(payload.kind == .scanImage ? "probe positions" : "detector pixels")")
+                // The pointer's own reading replaces the size line while it is
+                // over the image: the size does not change and can be read at
+                // leisure, whereas the value under the pointer is the thing
+                // being looked for and wants the steadiest place on the row.
+                if let readout = hoverDescription {
+                    Text(readout)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.primary)
+                } else {
+                    Text("\(payload.columns) × \(payload.rows) \(payload.kind == .scanImage ? "probe positions" : "detector pixels")")
+                }
                 if let stats = payload.statistics {
                     Text(String(format: "min %.4g   max %.4g   mean %.4g", stats.min, stats.max, stats.mean))
                     if stats.finite < payload.values.count {
@@ -191,10 +234,24 @@ struct PluginResultView: View {
 
             zoomControls
 
-            if payload.rgba != nil {
+            // A menu when there is a choice, a button when there is not.
+            //
+            // This used to key on `rgba` alone — the assumption being that a
+            // result without a colour rendering had exactly one thing worth
+            // exporting. Attached arrays broke that: a plain greyscale map with
+            // four arrays behind it fell into the single-button branch, so the
+            // HDF5 item existed and could not be reached from any result that
+            // did not also happen to be coloured.
+            if payload.rgba != nil || !payload.datasets.isEmpty {
                 Menu("Export…") {
                     Button("Data (32-bit TIFF)") { PluginResultExporter.exportFloatTIFF(payload) }
-                    Button("Rendered (RGB TIFF)") { PluginResultExporter.exportRenderedTIFF(payload) }
+                    if payload.rgba != nil {
+                        Button("Rendered (RGB TIFF)") { PluginResultExporter.exportRenderedTIFF(payload) }
+                    }
+                    if !payload.datasets.isEmpty {
+                        Divider()
+                        Button("All Arrays (HDF5)…") { PluginResultExporter.exportHDF5(payload) }
+                    }
                 }
                 .fixedSize()
             } else {
@@ -296,10 +353,24 @@ struct PluginResultView: View {
 /// menu posts, which would zoom every open result window at once, and it holds
 /// its observers for the lifetime of the process. Zoom here is driven by
 /// bindings, so each window is independent and nothing outlives it.
+/// Which pixel the pointer is over, in image coordinates.
+struct PixelReadout: Equatable {
+    var x: Int
+    var y: Int
+}
+
 struct PluginZoomableImage: NSViewRepresentable {
 
     let image: NSImage
+    /// Markings drawn over the image as geometry, so they stay crisp at every
+    /// magnification instead of being one data pixel wide for ever.
+    var overlay: [PluginOverlayShape] = []
     @Binding var magnification: CGFloat
+    /// The pixel under the pointer, or nil when it is not over the image.
+    ///
+    /// Optional so the two callers that do not want a readout — and any future
+    /// one — pay nothing for it.
+    var hovered: Binding<PixelReadout?>? = nil
     /// Bumped to request zoom-to-fit; the value itself carries no meaning.
     @Binding var fitRequest: Int
     /// Bumped to request 1:1.
@@ -321,7 +392,18 @@ struct PluginZoomableImage: NSViewRepresentable {
         scrollView.minMagnification = 0.05
         scrollView.maxMagnification = 500
 
-        scrollView.documentView = PluginImageCanvas(image: image)
+        let canvas = PluginImageCanvas(image: image)
+        canvas.overlay = overlay
+        // The canvas is flipped and its frame is the image's pixel size, so a
+        // point converted into it *is* a pixel coordinate — no scaling by the
+        // magnification, no flipping of y, nothing to get wrong when the view is
+        // zoomed or scrolled.
+        canvas.onHover = { point in
+            guard let hovered = hovered else { return }
+            let readout = point.map { PixelReadout(x: Int(floor($0.x)), y: Int(floor($0.y))) }
+            if hovered.wrappedValue != readout { hovered.wrappedValue = readout }
+        }
+        scrollView.documentView = canvas
 
         context.coordinator.observation = scrollView.observe(\.magnification, options: [.new]) { _, change in
             guard let value = change.newValue else { return }
@@ -336,6 +418,18 @@ struct PluginZoomableImage: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         let coordinator = context.coordinator
 
+        if let canvas = nsView.documentView as? PluginImageCanvas {
+            // Rebound every update: the closure captures the binding, and a
+            // stale one would report into a view that has been replaced.
+            canvas.onHover = { point in
+                guard let hovered = hovered else { return }
+                let readout = point.map { PixelReadout(x: Int(floor($0.x)), y: Int(floor($0.y))) }
+                if hovered.wrappedValue != readout { hovered.wrappedValue = readout }
+            }
+        }
+        if let canvas = nsView.documentView as? PluginImageCanvas {
+            canvas.overlay = overlay
+        }
         if let canvas = nsView.documentView as? PluginImageCanvas, canvas.sourceImage !== image {
             canvas.update(image: image)
             coordinator.fit(nsView)
@@ -391,6 +485,32 @@ struct PluginZoomableImage: NSViewRepresentable {
 
 /// Draws the result at exact pixel boundaries — no smoothing, so a single
 /// probe position stays a single square when zoomed in.
+/// A transparent view that draws a plugin's markings above the image.
+///
+/// Separate from the canvas because the canvas shows its image through
+/// `layer.contents`, which AppKit replaces with the results of `draw(_:)` on a
+/// layer-backed view. It also refuses hit-testing, so the canvas underneath
+/// keeps receiving the mouse movements the pixel readout depends on.
+private final class PluginOverlayView: NSView {
+
+    var shapes: [PluginOverlayShape] = []
+
+    override var isFlipped: Bool { return true }
+    override func hitTest(_ point: NSPoint) -> NSView? { return nil }
+    override var isOpaque: Bool { return false }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard !shapes.isEmpty,
+              let context = NSGraphicsContext.current?.cgContext else { return }
+        // The view is flipped and its bounds are the image's pixel size, so the
+        // context is already in image-pixel coordinates. What has to be
+        // recovered is how many points on screen one image pixel is worth, which
+        // is what keeps line widths and type constant at every magnification.
+        let scale = convert(NSSize(width: 1, height: 1), to: nil).width
+        PluginOverlayRenderer.draw(shapes, in: context, scale: max(scale, 0.0001))
+    }
+}
+
 private final class PluginImageCanvas: NSView {
 
     private(set) var sourceImage: NSImage
@@ -407,15 +527,68 @@ private final class PluginImageCanvas: NSView {
         layer?.magnificationFilter = "nearest"
         layer?.minificationFilter = "nearest"
         layer?.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+
+        overlayView.frame = bounds
+        overlayView.autoresizingMask = [.width, .height]
+        overlayView.isHidden = true
+        addSubview(overlayView)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Called with the pixel under the pointer, or nil when it leaves.
+    var onHover: ((CGPoint?) -> Void)?
+
+    /// Geometry drawn above the image, in image-pixel coordinates.
+    ///
+    /// Drawn by a subview rather than by this one. The image arrives as
+    /// `layer.contents`, and a layer-backed view that implements `draw(_:)` has
+    /// its drawing rendered *into* those contents — so adding a draw method here
+    /// to paint the overlay silently erased the image it was meant to annotate.
+    /// A transparent sibling on top composites instead of replacing.
+    var overlay: [PluginOverlayShape] = [] {
+        didSet {
+            overlayView.shapes = overlay
+            overlayView.isHidden = overlay.isEmpty
+            overlayView.needsDisplay = true
+        }
+    }
+
+    private let overlayView = PluginOverlayView()
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        // `.inVisibleRect` keeps the area correct as the view is zoomed and
+        // scrolled without rebuilding it on every change.
+        addTrackingArea(NSTrackingArea(rect: .zero,
+                                       options: [.mouseMoved, .mouseEnteredAndExited,
+                                                 .activeInKeyWindow, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    private func report(_ event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        guard point.x >= 0, point.y >= 0,
+              point.x < bounds.width, point.y < bounds.height else {
+            onHover?(nil)
+            return
+        }
+        onHover?(point)
+    }
+
+    override func mouseMoved(with event: NSEvent) { report(event) }
+    override func mouseDragged(with event: NSEvent) { report(event) }
+    override func mouseEntered(with event: NSEvent) { report(event) }
+    override func mouseExited(with event: NSEvent) { onHover?(nil) }
+
     func update(image: NSImage) {
         sourceImage = image
         setFrameSize(image.size)
+        overlayView.frame = bounds
+        overlayView.needsDisplay = true
         layer?.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
         needsDisplay = true
     }
@@ -804,12 +977,177 @@ enum PluginResultExporter {
         }
     }
 
+    /// The displayed image with its markings drawn on, enlarged enough that the
+    /// markings survive.
+    ///
+    /// The data is enlarged nearest-neighbour — every output pixel is exactly
+    /// one measured pixel — and the geometry is drawn over it at the output
+    /// resolution. A 128-pixel pattern exported at its own size would render
+    /// every annotation as a single pixel, which is what made the old
+    /// pixel-poked overlays useless in a figure.
+    static func renderedImage(_ payload: PluginResultPayload) -> CGImage? {
+        guard let base = payload.makeImage()?
+                .cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        guard !payload.overlayShapes.isEmpty else { return base }
+        let scale = PluginOverlayRenderer.exportScale(for: base)
+        return PluginOverlayRenderer.rendered(image: base, shapes: payload.overlayShapes,
+                                              scale: scale) ?? base
+    }
+
     static func exportRenderedTIFF(_ payload: PluginResultPayload) {
         guard let image = payload.makeImage(),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
         save(name: payload.suggestedFileName + "_rgb.tif", extensions: ["tif", "tiff"]) { url in
             writeTIFF(cgImage, to: url)
         }
+    }
+
+    /// Writes the plugin's attached arrays as one HDF5 file.
+    ///
+    /// The plugin supplies the arrays and the provenance; the file layout, the
+    /// save panel and the writing are the host's, because a plugin has neither a
+    /// panel nor — in a sandboxed application — permission to write anywhere the
+    /// user has not just chosen.
+    ///
+    /// Provenance goes in as a JSON string, in an attribute *and* a dataset. The
+    /// attribute is what `h5py` reads as `f.attrs["provenance"]` and what
+    /// `h5dump -A` shows without being asked; the dataset is what survives tools
+    /// that copy data and drop attributes. It is the same text both times.
+    static func exportHDF5(_ payload: PluginResultPayload) {
+        guard !payload.datasets.isEmpty else { return }
+
+        let panel = NSSavePanel()
+        let ext = payload.exportExtension ?? "h5"
+        let stem = payload.pluginName
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+        panel.nameFieldStringValue = "\(payload.fileRoot)_\(stem).\(ext)"
+        panel.canCreateDirectories = true
+        panel.message = "Save the measured arrays and how they were produced"
+        // A custom extension has no registered content type, and demanding one
+        // would stop the panel accepting the name it just suggested.
+        panel.allowedContentTypes = []
+        panel.allowsOtherFileTypes = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try writeHDF5(payload, to: url)
+        } catch {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Could not write \(url.lastPathComponent)"
+            alert.informativeText = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    enum HDF5ExportError: LocalizedError {
+        case couldNotCreate(String)
+        case couldNotWrite(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .couldNotCreate(let name):
+                return "\(name) could not be created. Check that the folder is writable."
+            case .couldNotWrite(let name):
+                return "\(name) could not be written."
+            }
+        }
+    }
+
+    static func writeHDF5(_ payload: PluginResultPayload, to url: URL) throws {
+        // Truncating: the panel has already asked about replacing.
+        guard let file = HDF5File.create(url.path, mode: .truncate) else {
+            throw HDF5ExportError.couldNotCreate(url.lastPathComponent)
+        }
+
+        var groups: [String: HDF5Group] = [:]
+        /// Resolves `a/b/name` to the group `a/b`, creating each level once.
+        ///
+        /// `createGroup` lives on the concrete types rather than on
+        /// `HDF5GroupType`, which carries only the identifier, so the walk has
+        /// to know which of the two it is holding.
+        func container(for path: String) -> HDF5GroupType {
+            let parts = path.split(separator: "/").map(String.init)
+            guard parts.count > 1 else { return file }
+            var walked: [String] = []
+            var current: HDF5GroupType = file
+            for part in parts.dropLast() {
+                walked.append(part)
+                let key = walked.joined(separator: "/")
+                if let existing = groups[key] {
+                    current = existing
+                    continue
+                }
+                let made: HDF5Group
+                if let asFile = current as? HDF5File {
+                    made = asFile.createGroup(part)
+                } else if let asGroup = current as? HDF5Group {
+                    made = asGroup.createGroup(part)
+                } else {
+                    return file
+                }
+                groups[key] = made
+                current = made
+            }
+            return current
+        }
+
+        for dataset in payload.datasets {
+            let leaf = dataset.name.split(separator: "/").map(String.init).last ?? dataset.name
+            let parent = container(for: dataset.name)
+            // Rows then columns, which is the order numpy will read the shape
+            // in — `(rows, columns)` indexes as `[y, x]`, matching the values.
+            guard (try? parent.createAndWriteDataset(
+                leaf, dims: [dataset.rows, dataset.columns], data: dataset.values)) != nil else {
+                throw HDF5ExportError.couldNotWrite(dataset.name)
+            }
+        }
+
+        // Units and per-array notes go into the provenance rather than onto the
+        // datasets. Attributes attach to identifiers, and `createStringAttribute`
+        // is offered on groups and the file but not on datasets — and the units
+        // are processing information, which is what the JSON is for. One place
+        // to look beats two.
+        var provenance = payload.provenance
+        if !payload.datasets.isEmpty {
+            provenance["datasets"] = payload.datasets.map { dataset -> [String: Any] in
+                var entry: [String: Any] = ["name": dataset.name,
+                                            "shape": [dataset.rows, dataset.columns]]
+                if let units = dataset.units { entry["units"] = units }
+                if let note = dataset.note { entry["description"] = note }
+                return entry
+            }
+        }
+        provenance["written_by"] = "4DSTEM Explorer"
+        provenance["written_at"] = ISO8601DateFormatter().string(from: Date())
+
+        if JSONSerialization.isValidJSONObject(provenance),
+           // Without the slash escaping: a dataset path is the commonest thing
+           // in here, and `binned\/tilt_x` is valid JSON that reads as a typo to
+           // anyone opening the file with h5dump.
+           let data = try? JSONSerialization.data(withJSONObject: provenance,
+                                                  options: [.prettyPrinted, .sortedKeys,
+                                                            .withoutEscapingSlashes]),
+           let text = String(data: data, encoding: .utf8) {
+            // Both an attribute and a dataset, deliberately. The attribute is
+            // what `h5py` reads as `f.attrs["provenance"]` and what `h5dump -A`
+            // shows unasked; the dataset is what survives tools that copy data
+            // and drop attributes. Same text either way.
+            if let attribute = file.createStringAttribute("provenance") {
+                try? attribute.write(text)
+            }
+            let dataspace = HDF5Dataspace(dims: [1])
+            if let dataset = file.createStringDataset("provenance", dataspace: dataspace) {
+                try? dataset.write([text])
+            }
+        }
+
+        file.flush()
     }
 
     static func exportCSV(_ payload: PluginResultPayload) {
@@ -829,6 +1167,11 @@ enum PluginResultExporter {
         save(name: payload.suggestedFileName + ".txt", extensions: ["txt"]) { url in
             try? payload.text.write(to: url, atomically: true, encoding: .utf8)
         }
+    }
+
+    /// The batch runner writes to paths it chose itself, with no panel.
+    static func writeTIFFPublic(_ cgImage: CGImage, to url: URL) {
+        writeTIFF(cgImage, to: url)
     }
 
     private static func writeTIFF(_ cgImage: CGImage, to url: URL) {

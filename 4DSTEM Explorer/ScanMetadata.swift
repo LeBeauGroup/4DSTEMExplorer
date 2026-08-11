@@ -39,6 +39,13 @@ struct ScanMetadata {
     var voltageKilovolts: Float?
     /// Convergence semi-angle in milliradians, when recorded.
     var convergenceMilliradians: Float?
+    /// Scan rotation in degrees, when recorded.
+    var scanRotationDegrees: Float?
+    /// The 2×2 scan correction, row-major, when recorded: the matrix such that
+    /// `[x', y'] = M · [x, y]`.
+    var scanCorrectionRowMajor: [Float]?
+    /// Detector orientation when recorded: `[flip_y, flip_x, transpose]`.
+    var detectorFlips: [Bool]?
     /// The RAW file this metadata was written for, if it says.
     var rawFilename: String?
     /// "JSON" or "XML", for the note shown in the panel.
@@ -61,6 +68,13 @@ struct ScanMetadata {
         if let step = diffractionStepMilliradians { parts.append(String(format: "%.4g mrad/px", step)) }
         if let volts = voltageKilovolts { parts.append(String(format: "%.0f kV", volts)) }
         if let angle = convergenceMilliradians { parts.append(String(format: "%.1f mrad conv.", angle)) }
+        if let rotation = scanRotationDegrees { parts.append(String(format: "%+.2f° scan rot.", rotation)) }
+        if scanCorrectionRowMajor != nil { parts.append("scan correction") }
+        if let flips = detectorFlips {
+            let names = ["flip y", "flip x", "transpose"]
+            let set = zip(flips, names).filter { $0.0 }.map { $0.1 }
+            parts.append("det flips: " + (set.isEmpty ? "none" : set.joined(separator: "+")))
+        }
         guard !parts.isEmpty else { return "No usable fields found." }
         var found = parts.joined(separator: ", ")
         if !sourceFormat.isEmpty { found = "\(sourceFormat): \(found)" }
@@ -451,7 +465,62 @@ struct ScanMetadata {
             metadata.convergenceMilliradians = milliradians(angle)
         }
 
+        if let rotation = lookup(fields, ["scanrotation", "rotation", "scanrotationangle"],
+                                 preferring: acquisitionQualifiers,
+                                 rejecting: previewQualifiers)?.number {
+            metadata.scanRotationDegrees = Float(rotation)
+        }
+
+        metadata.scanCorrectionRowMajor = scanCorrection(fields)
+        metadata.detectorFlips = detectorFlips(fields)
+
         return metadata
+    }
+
+    /// Detector orientation, `[flip_y, flip_x, transpose]`.
+    ///
+    /// JSON writes these as booleans, which the flattener renders as "1"/"0" —
+    /// so they arrive as three numbers, not three words, and are read as such.
+    private static func detectorFlips(_ fields: [Field]) -> [Bool]? {
+        guard let field = lookup(fields, ["detflips", "detectorflips", "patternflips"]) else {
+            return nil
+        }
+        let numbers = field.numbers
+        if numbers.count == 3 { return numbers.map { $0 != 0 } }
+        // Tolerate "true false false" as well, since a hand-written file may.
+        let words = field.text.lowercased().split { !$0.isLetter }
+        if words.count == 3, words.allSatisfy({ $0 == "true" || $0 == "false" }) {
+            return words.map { $0 == "true" }
+        }
+        return nil
+    }
+
+    /// The 2×2 scan correction, row-major.
+    ///
+    /// Written as nested arrays, `[[a, b], [c, d]]` flattens to one field per
+    /// row rather than one field for the matrix — the array walker only treats
+    /// an array as a single value when its elements are scalars. So both shapes
+    /// are accepted: two two-number rows, or one field holding all four.
+    private static func scanCorrection(_ fields: [Field]) -> [Float]? {
+        let names = ["scancorrection", "scancorrectionmatrix", "scanaffine", "scanshear"]
+
+        let rows = fields.filter { field in
+            names.contains { field.path.hasPrefix($0) } && field.numbers.count == 2
+        }
+        if rows.count == 2 {
+            // Sorted by path so row 1 cannot arrive before row 0; dictionary
+            // iteration gives no order and the transpose is a plausible matrix,
+            // so this would fail silently rather than loudly.
+            let ordered = rows.sorted { $0.path < $1.path }
+            let values = ordered.flatMap { $0.numbers }.map { Float($0) }
+            return values.allSatisfy { $0.isFinite } ? values : nil
+        }
+
+        if let flat = lookup(fields, names), flat.numbers.count == 4 {
+            let values = flat.numbers.map { Float($0) }
+            return values.allSatisfy { $0.isFinite } ? values : nil
+        }
+        return nil
     }
 
     /// Scan dimensions encoded in a RAW filename, as EMPAD writes them:
