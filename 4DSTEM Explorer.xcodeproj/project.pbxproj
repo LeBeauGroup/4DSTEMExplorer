@@ -7,27 +7,77 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A0000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000002 /* Sparkle */; };
+		AAF19B000000000000000050 /* PluginOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000050 /* PluginOverlay.swift */; };
+		AAF19B000000000000000042 /* CalibrationBatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000042 /* CalibrationBatchSheet.swift */; };
+		AAF19B000000000000000041 /* CalibrationBatchRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000041 /* CalibrationBatchRunner.swift */; };
+		AAF19B000000000000000040 /* BatchDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000040 /* BatchDiscovery.swift */; };
+		AAF19B000000000000000032 /* PluginBatchNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000032 /* PluginBatchNaming.swift */; };
+		AAF19B000000000000000031 /* PluginBatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000031 /* PluginBatchSheet.swift */; };
+		AAF19B000000000000000030 /* PluginBatchRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000030 /* PluginBatchRunner.swift */; };
+		AAF19B000000000000000020 /* FileMaterializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000020 /* FileMaterializer.swift */; };
+		AAF19B000000000000000011 /* CentralDiskFit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000011 /* CentralDiskFit.swift */; };
+		AAF19B000000000000000010 /* CalibrationLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000010 /* CalibrationLibrary.swift */; };
+		AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000060 /* SoftwareUpdater.swift */; };
+		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
+		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
+		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
+		AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000004 /* ScanRotationMeasurement.swift */; };
+		AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000003 /* CurlMinimisation.swift */; };
+		AAF19B000000000000000002 /* CalibrationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000002 /* CalibrationMeasurement.swift */; };
+		AAF19B000000000000000001 /* LatticeFit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000001 /* LatticeFit.swift */; };
+		AAF198000000000000000001 /* EMPADMetadataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF197000000000000000001 /* EMPADMetadataWriter.swift */; };
+		AAF196000000000000000001 /* PluginCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF195000000000000000001 /* PluginCalibration.swift */; };
 		A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51DAD1E1FF6866B00D36AB0 /* Detector.swift */; };
-		A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */; };
-		A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */; };
 		A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */; };
-		A51FEFB71FEC48FD00A8A5EC /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */; };
 		A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */; };
-		A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FF4EF1FF5413D00BDC87E /* WindowController.swift */; };
 		A5219B111FF3E618006D4044 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B101FF3E618006D4044 /* Constants.swift */; };
-		A5219B131FF41936006D4044 /* PatternViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B121FF41936006D4044 /* PatternViewer.swift */; };
-		A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B141FF4250E006D4044 /* DetectorView.swift */; };
-		A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B161FF4958A006D4044 /* ImageViewer.swift */; };
-		A551530F2006892100C89F5D /* Functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A551530E2006892100C89F5D /* Functions.swift */; };
 		A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A560204E2E38106B00BD8CB8 /* BinaryReader.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
-		A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */; };
 		A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */; };
-		A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */; };
-		A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */; };
+		A5D5D9692F466E6300A638C3 /* DetectorOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */; };
+		AAF1000000000000000000B1 /* FourDSTEMPluginAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */; };
+		AAF1000000000000000000B2 /* PluginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A2 /* PluginManager.swift */; };
+		AAF1000000000000000000B3 /* PluginHostContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A3 /* PluginHostContext.swift */; };
+		AAF1000000000000000000B4 /* PluginResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A4 /* PluginResult.swift */; };
+		AAF1000000000000000000B5 /* PluginResultViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A5 /* PluginResultViews.swift */; };
+		AAF1000000000000000000B6 /* PluginRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A6 /* PluginRunner.swift */; };
+		AAF1000000000000000000B7 /* PluginSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A7 /* PluginSheets.swift */; };
+		AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A8 /* PluginLiveWindow.swift */; };
+		AAF1000000000000000000D2 /* EMDReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000C2 /* EMDReader.swift */; };
+		AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E1 /* ScanMetadata.swift */; };
+		AAF1000000000000000000F2 /* PluginCitations.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E2 /* PluginCitations.swift */; };
+		AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E3 /* PluginBibTeX.swift */; };
+		AAF192000000000000000001 /* THIRD-PARTY-LICENSES.txt in Resources */ = {isa = PBXBuildFile; fileRef = AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */; };
+		AAF194000000000000000001 /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF193000000000000000001 /* AboutWindow.swift */; };
+		AAF300000000000000000000 /* Attribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000000 /* Attribute.swift */; };
+		AAF300000000000000000001 /* Dataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000001 /* Dataset.swift */; };
+		AAF300000000000000000002 /* Dataspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000002 /* Dataspace.swift */; };
+		AAF300000000000000000003 /* Datatype.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000003 /* Datatype.swift */; };
+		AAF300000000000000000004 /* DoubleAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000004 /* DoubleAttribute.swift */; };
+		AAF300000000000000000005 /* DoubleDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000005 /* DoubleDataset.swift */; };
+		AAF300000000000000000006 /* Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000006 /* Error.swift */; };
+		AAF300000000000000000007 /* File.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000007 /* File.swift */; };
+		AAF300000000000000000008 /* FloatAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000008 /* FloatAttribute.swift */; };
+		AAF300000000000000000009 /* FloatDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000009 /* FloatDataset.swift */; };
+		AAF30000000000000000000A /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000A /* Group.swift */; };
+		AAF30000000000000000000B /* HyperslabIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000B /* HyperslabIndex.swift */; };
+		AAF30000000000000000000C /* IntAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000C /* IntAttribute.swift */; };
+		AAF30000000000000000000D /* IntDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000D /* IntDataset.swift */; };
+		AAF30000000000000000000E /* NativeType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000E /* NativeType.swift */; };
+		AAF30000000000000000000F /* Object.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF20000000000000000000F /* Object.swift */; };
+		AAF300000000000000000010 /* StringAttribute.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000010 /* StringAttribute.swift */; };
+		AAF300000000000000000011 /* StringDataset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF200000000000000000011 /* StringDataset.swift */; };
+		BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1BA3812F1025B00055669F /* ZoomableImageView.swift */; };
 		BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4B44E72D9301EE00B226DD /* MRCReader.swift */; };
+		BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */; };
+		BD5D94602EF346F600EE1173 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945F2EF346F600EE1173 /* RootView.swift */; };
+		BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94612EF3477A00EE1173 /* DataViewModel.swift */; };
+		BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94632EF3480500EE1173 /* PixelBufferView.swift */; };
+		BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */; };
+		BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */; };
 		BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 		BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */; };
 /* End PBXBuildFile section */
@@ -55,6 +105,26 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AAF19A000000000000000050 /* PluginOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginOverlay.swift; path = "4DSTEM Explorer/Plugins/PluginOverlay.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000042 /* CalibrationBatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchSheet.swift; path = "4DSTEM Explorer/UI/CalibrationBatchSheet.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000041 /* CalibrationBatchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchRunner.swift; path = "4DSTEM Explorer/Plugins/CalibrationBatchRunner.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000040 /* BatchDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BatchDiscovery.swift; path = "4DSTEM Explorer/Plugins/BatchDiscovery.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000032 /* PluginBatchNaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchNaming.swift; path = "4DSTEM Explorer/Plugins/PluginBatchNaming.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000031 /* PluginBatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchSheet.swift; path = "4DSTEM Explorer/Plugins/PluginBatchSheet.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000030 /* PluginBatchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginBatchRunner.swift; path = "4DSTEM Explorer/Plugins/PluginBatchRunner.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000020 /* FileMaterializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FileMaterializer.swift; path = "4DSTEM Explorer/FileMaterializer.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000011 /* CentralDiskFit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CentralDiskFit.swift; path = PluginSDK/Examples/Calibration/CentralDiskFit.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000010 /* CalibrationLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationLibrary.swift; path = "4DSTEM Explorer/CalibrationLibrary.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000060 /* SoftwareUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SoftwareUpdater.swift; path = "4DSTEM Explorer/SoftwareUpdater.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000004 /* ScanRotationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRotationMeasurement.swift; path = PluginSDK/Examples/ScanRotation/ScanRotationMeasurement.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000003 /* CurlMinimisation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurlMinimisation.swift; path = PluginSDK/Examples/ScanRotation/CurlMinimisation.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000002 /* CalibrationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationMeasurement.swift; path = PluginSDK/Examples/Calibration/CalibrationMeasurement.swift; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000001 /* LatticeFit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LatticeFit.swift; path = PluginSDK/Examples/Calibration/LatticeFit.swift; sourceTree = SOURCE_ROOT; };
+		AAF197000000000000000001 /* EMPADMetadataWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMPADMetadataWriter.swift; sourceTree = "<group>"; };
+		AAF195000000000000000001 /* PluginCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCalibration.swift; sourceTree = "<group>"; };
 		A51DAD1E1FF6866B00D36AB0 /* Detector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Detector.swift; sourceTree = "<group>"; };
 		A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "4DSTEM Explorer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -69,26 +139,76 @@
 		A5219B121FF41936006D4044 /* PatternViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternViewer.swift; sourceTree = "<group>"; };
 		A5219B141FF4250E006D4044 /* DetectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorView.swift; sourceTree = "<group>"; };
 		A5219B161FF4958A006D4044 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
+		A52ACA902F18BE08000F804B /* MatrixExporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatrixExporting.swift; sourceTree = "<group>"; };
+		A52ACA912F18BE0E000F804B /* ExportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportViewModel.swift; sourceTree = "<group>"; };
+		A52ACA922F18BE0E000F804B /* ExportCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCommands.swift; sourceTree = "<group>"; };
 		A551530E2006892100C89F5D /* Functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Functions.swift; sourceTree = "<group>"; };
 		A560204E2E38106B00BD8CB8 /* BinaryReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryReader.swift; sourceTree = "<group>"; };
 		A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "4DSTEM Explorer.entitlements"; sourceTree = "<group>"; };
 		A56918EA1FEDB2B000C0EF70 /* Matrix.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Matrix.swift; sourceTree = "<group>"; };
 		A56918EC1FEDB32E00C0EF70 /* Complex.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Complex.swift; sourceTree = "<group>"; };
+		A56A484C2EF590EF00052EE6 /* ImageViewerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerRepresentable.swift; sourceTree = "<group>"; };
 		A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApertureFactory.swift; sourceTree = "<group>"; };
 		A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProbeSelectViewController.swift; sourceTree = "<group>"; };
 		A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMImageEntryStructs.swift; sourceTree = "<group>"; };
+		A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorOverlay.swift; sourceTree = "<group>"; };
 		A5EA27A61FFE612A000E9B64 /* CenteringClipView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerController.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FourDSTEMPluginAPI.swift; path = PluginSDK/FourDSTEMPluginAPI.swift; sourceTree = SOURCE_ROOT; };
+		AAF1000000000000000000A2 /* PluginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManager.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A3 /* PluginHostContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginHostContext.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A4 /* PluginResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginResult.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A5 /* PluginResultViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginResultViews.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A6 /* PluginRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginRunner.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A7 /* PluginSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSheets.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000A8 /* PluginLiveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginLiveWindow.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000C2 /* EMDReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMDReader.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E1 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E2 /* PluginCitations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCitations.swift; sourceTree = "<group>"; };
+		AAF1000000000000000000E3 /* PluginBibTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginBibTeX.swift; sourceTree = "<group>"; };
+		AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD-PARTY-LICENSES.txt"; sourceTree = "<group>"; };
+		AAF193000000000000000001 /* AboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindow.swift; sourceTree = "<group>"; };
+		AAF200000000000000000000 /* Attribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000001 /* Dataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataset.swift; sourceTree = "<group>"; };
+		AAF200000000000000000002 /* Dataspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dataspace.swift; sourceTree = "<group>"; };
+		AAF200000000000000000003 /* Datatype.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Datatype.swift; sourceTree = "<group>"; };
+		AAF200000000000000000004 /* DoubleAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000005 /* DoubleDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleDataset.swift; sourceTree = "<group>"; };
+		AAF200000000000000000006 /* Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Error.swift; sourceTree = "<group>"; };
+		AAF200000000000000000007 /* File.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = File.swift; sourceTree = "<group>"; };
+		AAF200000000000000000008 /* FloatAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000009 /* FloatDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatDataset.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000A /* Group.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000B /* HyperslabIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyperslabIndex.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000C /* IntAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntAttribute.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000D /* IntDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntDataset.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000E /* NativeType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeType.swift; sourceTree = "<group>"; };
+		AAF20000000000000000000F /* Object.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Object.swift; sourceTree = "<group>"; };
+		AAF200000000000000000010 /* StringAttribute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringAttribute.swift; sourceTree = "<group>"; };
+		AAF200000000000000000011 /* StringDataset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringDataset.swift; sourceTree = "<group>"; };
+		AAF2000000000000000000FD /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "HDF5Kit-Bridging-Header.h"; sourceTree = "<group>"; };
+		BD004F262F0EF1BA00B7846D /* Scrollview.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = Scrollview.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
+		BD1BA3812F1025B00055669F /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf"; sourceTree = "<group>"; };
 		BD3797412D97211600381FB2 /* MRCFileParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCFileParser.swift; sourceTree = "<group>"; };
 		BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Digital Micrograph file format.html"; sourceTree = "<group>"; };
 		BD4B44E72D9301EE00B226DD /* MRCReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MRCReader.swift; sourceTree = "<group>"; };
+		BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMExplorerApp.swift; sourceTree = "<group>"; };
+		BD5D945F2EF346F600EE1173 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		BD5D94612EF3477A00EE1173 /* DataViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViewModel.swift; sourceTree = "<group>"; };
+		BD5D94632EF3480500EE1173 /* PixelBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBufferView.swift; sourceTree = "<group>"; };
+		BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMMenuCommands.swift; sourceTree = "<group>"; };
+		BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelController.swift; sourceTree = "<group>"; };
 		BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigitalMicrographReader.swift; sourceTree = "<group>"; };
 		BDC9507F2E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DM4; sourceTree = BUILT_PRODUCTS_DIR; };
+		BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "4DSTEM ExploreTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BDEB439C2ECE430D0000F7B1 /* 4DSTEM ExploreUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "4DSTEM ExploreUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		BDC950802E2FCB7400F061E4 /* DM4 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DM4; sourceTree = "<group>"; };
+		BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "4DSTEM ExploreTests"; sourceTree = "<group>"; };
+		BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "4DSTEM ExploreUITests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,10 +216,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BDC9507C2E2FCB7400F061E4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB438F2ECE430D0000F7B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB43992ECE430D0000F7B1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -112,8 +247,10 @@
 		A51FEFA31FEC48FD00A8A5EC = {
 			isa = PBXGroup;
 			children = (
+				BD004F262F0EF1BA00B7846D /* Scrollview.playground */,
 				A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */,
-				BDC950802E2FCB7400F061E4 /* DM4 */,
+				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
+				BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
 				BD3E30752E285C8A007411A7 /* Frameworks */,
 				A51FEFAD1FEC48FD00A8A5EC /* Products */,
 			);
@@ -124,6 +261,8 @@
 			children = (
 				A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */,
 				BDC9507F2E2FCB7400F061E4 /* DM4 */,
+				BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */,
+				BDEB439C2ECE430D0000F7B1 /* 4DSTEM ExploreUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -131,25 +270,29 @@
 		A51FEFAE1FEC48FD00A8A5EC /* 4DSTEM Explorer */ = {
 			isa = PBXGroup;
 			children = (
+				A54A917D3024AE5E00CD8FB6 /* UI */,
+				A575C9732F5089D70072571B /* archived */,
 				A5656B77200196360094EEAA /* 4DSTEM Explorer.entitlements */,
-				A51FF4F21FF541F600BDC87E /* Views */,
 				A51FF4F51FF5431200BDC87E /* Objects */,
-				A51FF4F11FF541DD00BDC87E /* View Controllers */,
+				AAF1000000000000000000A0 /* Plugins */,
+				AAF2000000000000000000FF /* HDF5Kit */,
 				A51FEFB91FEC48FD00A8A5EC /* _DSTEM_Explorer.entitlements */,
-				A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */,
 				A51FEFB31FEC48FD00A8A5EC /* Assets.xcassets */,
 				A51FEFB81FEC48FD00A8A5EC /* Info.plist */,
-				A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */,
-				A551530E2006892100C89F5D /* Functions.swift */,
-				A51FF4EF1FF5413D00BDC87E /* WindowController.swift */,
+				AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */,
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
+				AAF1000000000000000000C2 /* EMDReader.swift */,
+				AAF1000000000000000000E1 /* ScanMetadata.swift */,
+				AAF197000000000000000001 /* EMPADMetadataWriter.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
 				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
 				A5CF1B9F2E395BD8006A1AFA /* DMImageEntryStructs.swift */,
 				BD4B44E72D9301EE00B226DD /* MRCReader.swift */,
-				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
 				BD32B8532D98C38C00BDB43E /* EPU_MRC2014_File_Image_Format_Specification_-_306687.pdf */,
 				BD3EEE6F2E3D321700C5256D /* Digital Micrograph file format.html */,
+				BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */,
+				BD5D94612EF3477A00EE1173 /* DataViewModel.swift */,
+				BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */,
 			);
 			path = "4DSTEM Explorer";
 			sourceTree = "<group>";
@@ -160,6 +303,9 @@
 				A5A10E1D1FF1839300B5CA40 /* ProbeSelectViewController.swift */,
 				A51FEFB11FEC48FD00A8A5EC /* ViewController.swift */,
 				A5EA819D1FF5891F00BBADB3 /* ImageViewerController.swift */,
+				A52ACA902F18BE08000F804B /* MatrixExporting.swift */,
+				A52ACA912F18BE0E000F804B /* ExportViewModel.swift */,
+				A52ACA922F18BE0E000F804B /* ExportCommands.swift */,
 			);
 			path = "View Controllers";
 			sourceTree = "<group>";
@@ -171,6 +317,7 @@
 				A5219B141FF4250E006D4044 /* DetectorView.swift */,
 				A5219B121FF41936006D4044 /* PatternViewer.swift */,
 				A5219B161FF4958A006D4044 /* ImageViewer.swift */,
+				A56A484C2EF590EF00052EE6 /* ImageViewerRepresentable.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -185,6 +332,96 @@
 				A56918EA1FEDB2B000C0EF70 /* Matrix.swift */,
 			);
 			path = Objects;
+			sourceTree = "<group>";
+		};
+		A54A917D3024AE5E00CD8FB6 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				BD1BA3812F1025B00055669F /* ZoomableImageView.swift */,
+				BD5D945F2EF346F600EE1173 /* RootView.swift */,
+				A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */,
+				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
+				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
+				AAF193000000000000000001 /* AboutWindow.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		A575C9732F5089D70072571B /* archived */ = {
+			isa = PBXGroup;
+			children = (
+				A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */,
+				A51FF4F11FF541DD00BDC87E /* View Controllers */,
+				A51FF4F21FF541F600BDC87E /* Views */,
+				A51FEFAF1FEC48FD00A8A5EC /* AppDelegate.swift */,
+				A551530E2006892100C89F5D /* Functions.swift */,
+				A51FF4EF1FF5413D00BDC87E /* WindowController.swift */,
+				BD3797412D97211600381FB2 /* MRCFileParser.swift */,
+			);
+			path = archived;
+			sourceTree = "<group>";
+		};
+		AAF1000000000000000000A0 /* Plugins */ = {
+			isa = PBXGroup;
+			children = (
+				AAF1000000000000000000A1 /* FourDSTEMPluginAPI.swift */,
+				AAF19A000000000000000050 /* PluginOverlay.swift */,
+				AAF19A000000000000000042 /* CalibrationBatchSheet.swift */,
+				AAF19A000000000000000041 /* CalibrationBatchRunner.swift */,
+				AAF19A000000000000000040 /* BatchDiscovery.swift */,
+				AAF19A000000000000000032 /* PluginBatchNaming.swift */,
+				AAF19A000000000000000031 /* PluginBatchSheet.swift */,
+				AAF19A000000000000000030 /* PluginBatchRunner.swift */,
+				AAF19A000000000000000020 /* FileMaterializer.swift */,
+				AAF19A000000000000000011 /* CentralDiskFit.swift */,
+				AAF19A000000000000000010 /* CalibrationLibrary.swift */,
+				AAF19A000000000000000060 /* SoftwareUpdater.swift */,
+				AAF19A000000000000000061 /* SettingsView.swift */,
+				AAF19A000000000000000062 /* DetectorRadii.swift */,
+				AAF19A000000000000000005 /* CalibrationWindow.swift */,
+				AAF19A000000000000000004 /* ScanRotationMeasurement.swift */,
+				AAF19A000000000000000003 /* CurlMinimisation.swift */,
+				AAF19A000000000000000002 /* CalibrationMeasurement.swift */,
+				AAF19A000000000000000001 /* LatticeFit.swift */,
+				AAF1000000000000000000A2 /* PluginManager.swift */,
+				AAF1000000000000000000A3 /* PluginHostContext.swift */,
+				AAF1000000000000000000A4 /* PluginResult.swift */,
+				AAF1000000000000000000A5 /* PluginResultViews.swift */,
+				AAF1000000000000000000A6 /* PluginRunner.swift */,
+				AAF1000000000000000000E2 /* PluginCitations.swift */,
+				AAF1000000000000000000E3 /* PluginBibTeX.swift */,
+				AAF195000000000000000001 /* PluginCalibration.swift */,
+				AAF1000000000000000000A7 /* PluginSheets.swift */,
+				AAF1000000000000000000A8 /* PluginLiveWindow.swift */,
+			);
+			path = Plugins;
+			sourceTree = "<group>";
+		};
+		AAF2000000000000000000FF /* HDF5Kit */ = {
+			isa = PBXGroup;
+			children = (
+				AAF200000000000000000000 /* Attribute.swift */,
+				AAF200000000000000000001 /* Dataset.swift */,
+				AAF200000000000000000002 /* Dataspace.swift */,
+				AAF200000000000000000003 /* Datatype.swift */,
+				AAF200000000000000000004 /* DoubleAttribute.swift */,
+				AAF200000000000000000005 /* DoubleDataset.swift */,
+				AAF200000000000000000006 /* Error.swift */,
+				AAF200000000000000000007 /* File.swift */,
+				AAF200000000000000000008 /* FloatAttribute.swift */,
+				AAF200000000000000000009 /* FloatDataset.swift */,
+				AAF20000000000000000000A /* Group.swift */,
+				AAF20000000000000000000B /* HyperslabIndex.swift */,
+				AAF20000000000000000000C /* IntAttribute.swift */,
+				AAF20000000000000000000D /* IntDataset.swift */,
+				AAF20000000000000000000E /* NativeType.swift */,
+				AAF20000000000000000000F /* Object.swift */,
+				AAF200000000000000000010 /* StringAttribute.swift */,
+				AAF200000000000000000011 /* StringDataset.swift */,
+				AAF2000000000000000000FE /* HDF5Kit-Bridging-Header.h */,
+				AAF2000000000000000000FD /* LICENSE */,
+			);
+			path = HDF5Kit;
 			sourceTree = "<group>";
 		};
 		BD3E30752E285C8A007411A7 /* Frameworks */ = {
@@ -206,12 +443,16 @@
 				A51FEFAA1FEC48FD00A8A5EC /* Resources */,
 				A535866A2001741700AD0A9C /* Increment build */,
 				BD3E30792E285C8A007411A7 /* Embed Frameworks */,
+				AAF190000000000000000001 /* Embed Plugins */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = "4DSTEM Explorer";
+			packageProductDependencies = (
+				5A0000000000000000000002 /* Sparkle */,
+			);
 			productName = "4DSTEM Explorer";
 			productReference = A51FEFAC1FEC48FD00A8A5EC /* 4DSTEM Explorer.app */;
 			productType = "com.apple.product-type.application";
@@ -228,9 +469,6 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				BDC950802E2FCB7400F061E4 /* DM4 */,
-			);
 			name = DM4;
 			packageProductDependencies = (
 			);
@@ -238,27 +476,74 @@
 			productReference = BDC9507F2E2FCB7400F061E4 /* DM4 */;
 			productType = "com.apple.product-type.tool";
 		};
+		BDEB43912ECE430D0000F7B1 /* 4DSTEM ExploreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BDEB43A72ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM ExploreTests" */;
+			buildPhases = (
+				BDEB438E2ECE430D0000F7B1 /* Sources */,
+				BDEB438F2ECE430D0000F7B1 /* Frameworks */,
+				BDEB43902ECE430D0000F7B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
+			);
+			name = "4DSTEM ExploreTests";
+			packageProductDependencies = (
+			);
+			productName = "4DSTEM ExploreTests";
+			productReference = BDEB43922ECE430D0000F7B1 /* 4DSTEM ExploreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BDEB439B2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BDEB43AA2ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM ExploreUITests" */;
+			buildPhases = (
+				BDEB43982ECE430D0000F7B1 /* Sources */,
+				BDEB43992ECE430D0000F7B1 /* Frameworks */,
+				BDEB439A2ECE430D0000F7B1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BDEB439F2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
+			);
+			name = "4DSTEM ExploreUITests";
+			packageProductDependencies = (
+			);
+			productName = "4DSTEM ExploreUITests";
+			productReference = BDEB439C2ECE430D0000F7B1 /* 4DSTEM ExploreUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		A51FEFA41FEC48FD00A8A5EC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 1640;
+				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 0920;
 				ORGANIZATIONNAME = "The LeBeau Group";
 				TargetAttributes = {
 					A51FEFAB1FEC48FD00A8A5EC = {
 						CreatedOnToolsVersion = 9.2;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = {
-							com.apple.Sandbox = {
-								enabled = 1;
-							};
-						};
 					};
 					BDC9507E2E2FCB7400F061E4 = {
 						CreatedOnToolsVersion = 16.4;
+					};
+					BDEB43912ECE430D0000F7B1 = {
+						CreatedOnToolsVersion = 26.1.1;
+						TestTargetID = BDEB43852ECE430C0000F7B1;
+					};
+					BDEB439B2ECE430D0000F7B1 = {
+						CreatedOnToolsVersion = 26.1.1;
+						TestTargetID = BDEB43852ECE430C0000F7B1;
 					};
 				};
 			};
@@ -272,6 +557,7 @@
 			);
 			mainGroup = A51FEFA31FEC48FD00A8A5EC;
 			packageReferences = (
+				5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			productRefGroup = A51FEFAD1FEC48FD00A8A5EC /* Products */;
 			projectDirPath = "";
@@ -279,6 +565,8 @@
 			targets = (
 				A51FEFAB1FEC48FD00A8A5EC /* 4DSTEM Explorer */,
 				BDC9507E2E2FCB7400F061E4 /* DM4 */,
+				BDEB43912ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
+				BDEB439B2ECE430D0000F7B1 /* 4DSTEM ExploreUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -289,7 +577,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				A51FEFB41FEC48FD00A8A5EC /* Assets.xcassets in Resources */,
-				A51FEFB71FEC48FD00A8A5EC /* Main.storyboard in Resources */,
+				AAF192000000000000000001 /* THIRD-PARTY-LICENSES.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB43902ECE430D0000F7B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB439A2ECE430D0000F7B1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,7 +610,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "buildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"";
+			shellScript = "buildNumber=$(/usr/libexec/PlistBuddy -c \"Print CFBundleVersion\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\")\nbuildNumber=$(($buildNumber + 1))\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $buildNumber\" \"${PROJECT_DIR}/${INFOPLIST_FILE}\"\n";
+		};
+		AAF190000000000000000001 /* Embed Plugins */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 12;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/PluginSDK",
+			);
+			name = "Embed Plugins";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/PlugIns",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Builds every plugin in PluginSDK/Examples into the app's Contents/PlugIns.\n# See PluginSDK/embed-plugins.sh — it matches the app's architectures and\n# signing identity, and skips plugins whose sources have not changed.\n\"${SRCROOT}/PluginSDK/embed-plugins.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -317,26 +636,75 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A5A10E1E1FF1839300B5CA40 /* ProbeSelectViewController.swift in Sources */,
 				A51DAD1F1FF6866B00D36AB0 /* Detector.swift in Sources */,
+				AAF1000000000000000000B1 /* FourDSTEMPluginAPI.swift in Sources */,
+				AAF19B000000000000000050 /* PluginOverlay.swift in Sources */,
+				AAF19B000000000000000042 /* CalibrationBatchSheet.swift in Sources */,
+				AAF19B000000000000000041 /* CalibrationBatchRunner.swift in Sources */,
+				AAF19B000000000000000040 /* BatchDiscovery.swift in Sources */,
+				AAF19B000000000000000032 /* PluginBatchNaming.swift in Sources */,
+				AAF19B000000000000000031 /* PluginBatchSheet.swift in Sources */,
+				AAF19B000000000000000030 /* PluginBatchRunner.swift in Sources */,
+				AAF19B000000000000000020 /* FileMaterializer.swift in Sources */,
+				AAF19B000000000000000011 /* CentralDiskFit.swift in Sources */,
+				AAF19B000000000000000010 /* CalibrationLibrary.swift in Sources */,
+				AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */,
+				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
+				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
+				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
+				AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */,
+				AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */,
+				AAF19B000000000000000002 /* CalibrationMeasurement.swift in Sources */,
+				AAF19B000000000000000001 /* LatticeFit.swift in Sources */,
+				AAF1000000000000000000B2 /* PluginManager.swift in Sources */,
+				AAF1000000000000000000B3 /* PluginHostContext.swift in Sources */,
+				AAF1000000000000000000B4 /* PluginResult.swift in Sources */,
+				AAF1000000000000000000B5 /* PluginResultViews.swift in Sources */,
+				AAF1000000000000000000B6 /* PluginRunner.swift in Sources */,
+				AAF1000000000000000000F2 /* PluginCitations.swift in Sources */,
+				AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */,
+				AAF196000000000000000001 /* PluginCalibration.swift in Sources */,
+				AAF1000000000000000000B7 /* PluginSheets.swift in Sources */,
+				AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */,
 				A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */,
-				A551530F2006892100C89F5D /* Functions.swift in Sources */,
-				A51FEFB21FEC48FD00A8A5EC /* ViewController.swift in Sources */,
-				A5EA27A71FFE612A000E9B64 /* CenteringClipView.swift in Sources */,
+				BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */,
+				BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */,
+				AAF194000000000000000001 /* AboutWindow.swift in Sources */,
 				A5CF1BA02E395BD9006A1AFA /* DMImageEntryStructs.swift in Sources */,
 				A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */,
-				A51FEFB01FEC48FD00A8A5EC /* AppDelegate.swift in Sources */,
+				A5D5D9692F466E6300A638C3 /* DetectorOverlay.swift in Sources */,
 				BD9FD2BF2E31684500AF63D1 /* DigitalMicrographReader.swift in Sources */,
+				BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */,
+				BD5D94602EF346F600EE1173 /* RootView.swift in Sources */,
 				A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */,
 				A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */,
-				A51FF4F01FF5413D00BDC87E /* WindowController.swift in Sources */,
+				AAF300000000000000000000 /* Attribute.swift in Sources */,
+				AAF300000000000000000001 /* Dataset.swift in Sources */,
+				AAF300000000000000000002 /* Dataspace.swift in Sources */,
+				AAF300000000000000000003 /* Datatype.swift in Sources */,
+				AAF300000000000000000004 /* DoubleAttribute.swift in Sources */,
+				AAF300000000000000000005 /* DoubleDataset.swift in Sources */,
+				AAF300000000000000000006 /* Error.swift in Sources */,
+				AAF300000000000000000007 /* File.swift in Sources */,
+				AAF300000000000000000008 /* FloatAttribute.swift in Sources */,
+				AAF300000000000000000009 /* FloatDataset.swift in Sources */,
+				AAF30000000000000000000A /* Group.swift in Sources */,
+				AAF30000000000000000000B /* HyperslabIndex.swift in Sources */,
+				AAF30000000000000000000C /* IntAttribute.swift in Sources */,
+				AAF30000000000000000000D /* IntDataset.swift in Sources */,
+				AAF30000000000000000000E /* NativeType.swift in Sources */,
+				AAF30000000000000000000F /* Object.swift in Sources */,
+				AAF300000000000000000010 /* StringAttribute.swift in Sources */,
+				AAF300000000000000000011 /* StringDataset.swift in Sources */,
+				AAF1000000000000000000D2 /* EMDReader.swift in Sources */,
+				AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */,
+				AAF198000000000000000001 /* EMPADMetadataWriter.swift in Sources */,
 				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
-				A5219B151FF4250E006D4044 /* DetectorView.swift in Sources */,
-				A5219B171FF4958A006D4044 /* ImageViewer.swift in Sources */,
-				A5EA819E1FF5891F00BBADB3 /* ImageViewerController.swift in Sources */,
+				BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */,
+				BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
-				A5219B131FF41936006D4044 /* PatternViewer.swift in Sources */,
+				BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,6 +713,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB438E2ECE430D0000F7B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDEB43982ECE430D0000F7B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -472,6 +854,7 @@
 		A51FEFBD1FEC48FD00A8A5EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
@@ -479,14 +862,34 @@
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.94;
+				LIBAEC_PREFIX = /opt/homebrew/opt/libaec;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib",
+					"$(LIBAEC_PREFIX)/lib",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib/libhdf5.a",
+					"$(LIBAEC_PREFIX)/lib/libsz.a",
+					"$(LIBAEC_PREFIX)/lib/libaec.a",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
@@ -494,6 +897,7 @@
 		A51FEFBE1FEC48FD00A8A5EC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "4DSTEM Explorer/4DSTEM Explorer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
@@ -501,14 +905,34 @@
 				DEVELOPMENT_TEAM = 67JZ53W5NK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_OPTIMIZATION_LEVEL = s;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				INFOPLIST_FILE = "4DSTEM Explorer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.94;
+				LIBAEC_PREFIX = /opt/homebrew/opt/libaec;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib",
+					"$(LIBAEC_PREFIX)/lib",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/lib/libhdf5.a",
+					"$(LIBAEC_PREFIX)/lib/libsz.a",
+					"$(LIBAEC_PREFIX)/lib/libaec.a",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
 				SWIFT_VERSION = 4.0;
 			};
 			name = Release;
@@ -559,6 +983,132 @@
 			};
 			name = Release;
 		};
+		BDEB43A82ECE430D0000F7B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67JZ53W5NK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-ExploreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explore";
+			};
+			name = Debug;
+		};
+		BDEB43A92ECE430D0000F7B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67JZ53W5NK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-ExploreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explore";
+			};
+			name = Release;
+		};
+		BDEB43AB2ECE430D0000F7B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67JZ53W5NK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-ExploreUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "4DSTEM Explore";
+			};
+			name = Debug;
+		};
+		BDEB43AC2ECE430D0000F7B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 67JZ53W5NK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.lebeaugroup.-DSTEM-ExploreUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "4DSTEM Explore";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -589,7 +1139,44 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		BDEB43A72ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM ExploreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BDEB43A82ECE430D0000F7B1 /* Debug */,
+				BDEB43A92ECE430D0000F7B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BDEB43AA2ECE430D0000F7B1 /* Build configuration list for PBXNativeTarget "4DSTEM ExploreUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BDEB43AB2ECE430D0000F7B1 /* Debug */,
+				BDEB43AC2ECE430D0000F7B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A51FEFA41FEC48FD00A8A5EC /* Project object */;
 }

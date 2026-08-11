@@ -1,0 +1,311 @@
+//
+//  PluginManager.swift
+//  4DSTEM Explorer
+//
+//  Discovery and loading of `.bundle` plugins.
+//
+//  Copyright © 2017 The LeBeau Group. All rights reserved.
+//
+
+import Foundation
+import AppKit
+
+/// A plugin bundle that loaded successfully, with its metadata already read so
+/// the menu can be built without touching the plugin again.
+final class LoadedPlugin: Identifiable {
+    let identifier: String
+    let name: String
+    let summary: String
+    let parameters: [[String: Any]]
+    let requiresData: Bool
+    let supportsLiveUpdate: Bool
+    let bundleURL: URL
+    let instance: FDSPlugin
+    /// The bibliography the plugin shipped, read from the .bib in its bundle.
+    /// Nil when it ships none, which is what hides the Citations button.
+    let citations: PluginCitationLibrary?
+
+    var id: String { identifier }
+
+    /// The controls to show. A plugin that implements `parameters(for:)` gets
+    /// to see the open dataset first, so it can ask in the file's own units.
+    func parameters(for model: DataViewModel) -> [[String: Any]] {
+        guard model.imageWidth > 0,
+              let tailored = instance.parameters?(for: model.makePluginQueryContext()),
+              !tailored.isEmpty else {
+            return parameters
+        }
+        return tailored
+    }
+
+    /// Reads the first .bib in the bundle's Resources.
+    ///
+    /// The file is the plugin's own, bundled by build-plugin.sh, and is what
+    /// gets exported verbatim — the host never rewrites it.
+    private static func readCitations(in bundleURL: URL) -> PluginCitationLibrary? {
+        let resources = bundleURL.appendingPathComponent("Contents/Resources", isDirectory: true)
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: resources.path) else {
+            return nil
+        }
+        for name in names.sorted() where name.hasSuffix(".bib") {
+            if let library = PluginCitationLibrary(contentsOf: resources.appendingPathComponent(name)) {
+                return library
+            }
+        }
+        return nil
+    }
+
+    init(instance: FDSPlugin, bundleURL: URL) {
+        self.instance = instance
+        self.bundleURL = bundleURL
+        self.identifier = instance.pluginIdentifier
+        self.name = instance.pluginName
+        self.summary = instance.pluginSummary ?? ""
+        self.parameters = instance.pluginParameters ?? []
+        self.citations = LoadedPlugin.readCitations(in: bundleURL)
+        self.requiresData = instance.pluginRequiresData ?? true
+        self.supportsLiveUpdate = instance.pluginSupportsLiveUpdate ?? false
+    }
+}
+
+/// Why a bundle in a plugins folder did not become a usable plugin. Surfaced in
+/// the Plugins menu so a failed install is visible rather than silent.
+struct PluginLoadIssue: Identifiable {
+    let id = UUID()
+    let bundleName: String
+    let reason: String
+}
+
+final class PluginManager: ObservableObject {
+
+    static let shared = PluginManager()
+
+    @Published private(set) var plugins: [LoadedPlugin] = []
+    @Published private(set) var issues: [PluginLoadIssue] = []
+
+    /// Bundles already handed to `Bundle.load()`. Code cannot be unloaded, so a
+    /// reload re-instantiates the principal class rather than reloading images.
+    private var loadedBundleURLs: Set<URL> = []
+
+    /// Which bundle already provides each identifier, for the life of the
+    /// process. A bundle cannot be unloaded once opened, so if a reload finds a
+    /// different bundle offering an identifier that is already loaded — the user
+    /// installed their own copy of a bundled plugin and pressed Reload Plugins —
+    /// opening it would register the same @objc class twice. That is the case
+    /// the Objective-C runtime warns leads to spurious casting failures and
+    /// mysterious crashes, so it is refused with an explanation instead.
+    private var providerOfIdentifier: [String: URL] = [:]
+
+    private init() {}
+
+    // MARK: - Locations
+
+    /// Where users drop plugins. Under the App Sandbox this resolves inside the
+    /// app's container, which the app can read without a security scope.
+    static var userPluginsDirectory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+        return base
+            .appendingPathComponent("4DSTEM Explorer", isDirectory: true)
+            .appendingPathComponent("PlugIns", isDirectory: true)
+    }
+
+    /// Plugins shipped inside the app itself.
+    static var builtInPluginsDirectory: URL? {
+        return Bundle.main.builtInPlugInsURL
+    }
+
+    @discardableResult
+    static func createUserPluginsDirectoryIfNeeded() -> Bool {
+        let url = userPluginsDirectory
+        if FileManager.default.fileExists(atPath: url.path) { return true }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
+            return true
+        } catch {
+            NSLog("[Plugins] Could not create %@: %@", url.path, error.localizedDescription)
+            return false
+        }
+    }
+
+    func revealUserPluginsDirectory() {
+        PluginManager.createUserPluginsDirectoryIfNeeded()
+        NSWorkspace.shared.activateFileViewerSelecting([PluginManager.userPluginsDirectory])
+    }
+
+    // MARK: - Loading
+
+    func reload() {
+        var found: [LoadedPlugin] = []
+        var problems: [PluginLoadIssue] = []
+        var seenIdentifiers: Set<String> = []
+
+        PluginManager.createUserPluginsDirectoryIfNeeded()
+
+        // The user's own plugins are visited first so that one of theirs
+        // shadows a bundled plugin of the same identifier.
+        //
+        // The order matters for more than precedence. A bundle cannot be
+        // unloaded once opened, and two bundles defining the same @objc class
+        // both register it with the Objective-C runtime — which the runtime
+        // warns leads to spurious casting failures and mysterious crashes. So a
+        // shadowed bundle must never be loaded at all, rather than loaded and
+        // then discarded. Claiming the identifier from Info.plist, which reading
+        // does not require loading any code, is what makes that possible.
+        var searchPaths: [URL] = [PluginManager.userPluginsDirectory]
+        if let builtIn = PluginManager.builtInPluginsDirectory { searchPaths.append(builtIn) }
+
+        for directory in searchPaths {
+            for bundleURL in PluginManager.bundleURLs(in: directory) {
+                let bundleIdentifier = Bundle(url: bundleURL)?.bundleIdentifier
+                if let identifier = bundleIdentifier, seenIdentifiers.contains(identifier) {
+                    continue
+                }
+                // Already provided by a different bundle earlier in this run of
+                // the app; taking the new one would need a restart.
+                if let identifier = bundleIdentifier,
+                   let owner = providerOfIdentifier[identifier], owner != bundleURL {
+                    problems.append(PluginLoadIssue(
+                        bundleName: bundleURL.lastPathComponent,
+                        reason: "Another copy of this plugin is already loaded from \(owner.lastPathComponent). Quit and reopen 4DSTEM Explorer to use this one."))
+                    continue
+                }
+                switch load(bundleURL: bundleURL) {
+                case .success(let plugin):
+                    // A plugin whose bundle identifier disagrees with the one it
+                    // reports is still caught here, just after loading rather
+                    // than before it.
+                    guard !seenIdentifiers.contains(plugin.identifier) else { continue }
+                    seenIdentifiers.insert(plugin.identifier)
+                    providerOfIdentifier[plugin.identifier] = bundleURL
+                    if let bundleIdentifier = bundleIdentifier {
+                        seenIdentifiers.insert(bundleIdentifier)
+                        providerOfIdentifier[bundleIdentifier] = bundleURL
+                    }
+                    found.append(plugin)
+                case .failure(let reason):
+                    problems.append(PluginLoadIssue(bundleName: bundleURL.lastPathComponent, reason: reason))
+                }
+            }
+        }
+
+        found.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        let result = found
+        let resultIssues = problems
+        if Thread.isMainThread {
+            plugins = result
+            issues = resultIssues
+        } else {
+            DispatchQueue.main.async {
+                self.plugins = result
+                self.issues = resultIssues
+            }
+        }
+    }
+
+    private static func bundleURLs(in directory: URL) -> [URL] {
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        return contents
+            .filter { $0.pathExtension.lowercased() == "bundle" || $0.pathExtension.lowercased() == "plugin" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private enum LoadOutcome {
+        case success(LoadedPlugin)
+        case failure(String)
+    }
+
+    private func load(bundleURL: URL) -> LoadOutcome {
+        guard let bundle = Bundle(url: bundleURL) else {
+            return .failure("Not a readable bundle.")
+        }
+
+        if !bundle.isLoaded {
+            do {
+                // `loadAndReturnError` reports code-signing rejections, which
+                // `load()` reduces to a bare false.
+                try bundle.loadAndReturnError()
+            } catch {
+                return .failure(PluginManager.describe(loadError: error))
+            }
+        }
+        loadedBundleURLs.insert(bundleURL)
+
+        guard let principalClass = bundle.principalClass else {
+            return .failure("No NSPrincipalClass in Info.plist, or the class is missing from the binary.")
+        }
+        guard let objectClass = principalClass as? NSObject.Type else {
+            return .failure("Principal class \(NSStringFromClass(principalClass)) is not an NSObject subclass.")
+        }
+
+        let instance = objectClass.init()
+        guard let plugin = instance as? FDSPlugin else {
+            return .failure("Principal class \(NSStringFromClass(principalClass)) does not conform to FDSPlugin.")
+        }
+
+        let declaredVersion = plugin.pluginAPIVersion ?? 1
+        guard declaredVersion <= FDSPluginAPIVersion else {
+            return .failure("Built against plugin API \(declaredVersion); this app supports up to \(FDSPluginAPIVersion).")
+        }
+
+        guard !plugin.pluginIdentifier.isEmpty, !plugin.pluginName.isEmpty else {
+            return .failure("Plugin must provide a non-empty identifier and name.")
+        }
+
+        return .success(LoadedPlugin(instance: plugin, bundleURL: bundleURL))
+    }
+
+    private static func describe(loadError error: Error) -> String {
+        let nsError = error as NSError
+        // Hardened runtime rejects differently-signed code unless the app
+        // carries com.apple.security.cs.disable-library-validation.
+        if nsError.domain == NSCocoaErrorDomain && nsError.code == NSExecutableLoadError {
+            return "The system refused to load the plugin's code. It may be built for another architecture, or signed by a team this app is not allowed to load. (\(nsError.localizedDescription))"
+        }
+        return nsError.localizedDescription
+    }
+
+    // MARK: - Installing
+
+    /// Copies a plugin the user picked into the plugins folder and reloads.
+    /// Returns an error message on failure.
+    func install(from sourceURL: URL) -> String? {
+        guard sourceURL.pathExtension.lowercased() == "bundle" || sourceURL.pathExtension.lowercased() == "plugin" else {
+            return "\(sourceURL.lastPathComponent) is not a plugin bundle."
+        }
+        guard PluginManager.createUserPluginsDirectoryIfNeeded() else {
+            return "Could not create the plugins folder."
+        }
+
+        let destination = PluginManager.userPluginsDirectory.appendingPathComponent(sourceURL.lastPathComponent)
+        let needsScope = sourceURL.startAccessingSecurityScopedResource()
+        defer { if needsScope { sourceURL.stopAccessingSecurityScopedResource() } }
+
+        do {
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destination)
+        } catch {
+            return error.localizedDescription
+        }
+
+        reload()
+
+        if plugins.contains(where: { $0.bundleURL.lastPathComponent == destination.lastPathComponent }) {
+            return nil
+        }
+        if let issue = issues.first(where: { $0.bundleName == destination.lastPathComponent }) {
+            return issue.reason
+        }
+        // A bundle whose code was already loaded this session keeps the old
+        // binary; replacing it needs a fresh launch.
+        return "Installed, but the previous version of this plugin is still loaded. Quit and reopen 4DSTEM Explorer to use the new one."
+    }
+}

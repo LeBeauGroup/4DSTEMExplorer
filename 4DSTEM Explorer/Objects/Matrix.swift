@@ -1,4 +1,3 @@
-
 //
 //  Matrix.swift
 //  Ronchigram
@@ -24,6 +23,11 @@ struct MatrixOutput {
     static let float = 32
 }
 
+enum MatrixType{
+    case real
+    case complex
+}
+
 infix operator .*
 
 
@@ -36,7 +40,7 @@ class ValueError: Error, CustomStringConvertible {
 }
 
 
-class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
+class Matrix: CustomStringConvertible, NSCopying{
     
     
     func copy(with zone: NSZone? = nil) -> Any {
@@ -54,8 +58,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
     //MARK: - Properties
     let rows:Int
     let columns:Int
-    let type:String
-    var provider:CGDataProvider?
+    let type:MatrixType
     
     var size:NSSize{
         get{
@@ -86,7 +89,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
 
         vDSP_maxv(clipped.real, 1, &maxValue.a, length)
-        if type != "real" {
+        if type != .real{
             vDSP_maxv(clipped.imag!, 1, &maxValue.b, length)
         }
 
@@ -101,25 +104,19 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         let clipped = self.clip(min: -Float32.greatestFiniteMagnitude, max: Float32.greatestFiniteMagnitude)
 
         vDSP_minv(clipped.real, 1, &minValue.a, length)
-        if type != "real" {
+        if type != .real {
             vDSP_minv(clipped.imag!, 1, &minValue.b, length)
         }
 
         return minValue
     }
     
+    
     // this currently doesn't really make sense
+
+    
     
 //MARK: - Initializers
-
-    init(pointer:UnsafePointer<Float32>, _ rows:Int, _ columns:Int){
-        
-        self.rows = rows
-        self.columns = columns
-        self.type = "real"
-        
-        real = Array(UnsafeBufferPointer(start: pointer, count: rows*columns))
-    }
 
     init(meshIndicesAlong:Int, _ rows:Int, _ columns:Int) {
 
@@ -127,16 +124,16 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
 
         self.rows = rows
         self.columns = columns
-        self.type = "real"
+        self.type = .real
         
         for i in 0..<rows{
             for j in 0..<columns{
                 
                 let index = i*columns+j
                 if meshIndicesAlong == 1{
-                    real[index] = Float(j)
-                }else{
                     real[index] = Float(i)
+                }else{
+                    real[index] = Float(j)
                 }
                 
             }
@@ -144,22 +141,51 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
     }
     
-    init(array:[Float], _ rows:Int, _ columns:Int) {
-        
-        self.real = Array.init(repeating: 0.0, count: rows*columns)
-        
-        for i in 0..<rows*columns{
-            self.real[i] = array[i]
+    /// - Note: the copy is bounded by what `array` actually holds.
+    ///
+    ///   This used to read `array[i]` for every `i` in `0..<rows*columns` and
+    ///   trust the caller for the length. When a caller got it wrong the result
+    ///   was a fatal "Index out of range" inside the standard library, which
+    ///   names neither this initialiser nor the caller — the least useful place
+    ///   for the failure to surface and a hard one to act on from a crash
+    ///   report. A short array now fills what it can, leaves the rest at zero,
+    ///   and says so in the log with both sizes, which identifies the caller.
+    ///
+    ///   This is a safety net, not a licence: a matrix that does not match its
+    ///   declared size is a bug wherever it was built.
+    init(array:[Float], _ rows:Int, _ columns:Int, type:MatrixType? = .real) {
+
+        let needed = Swift.max(0, rows * columns)
+        let available = Swift.min(needed, array.count)
+        if available < needed {
+            NSLog("[Matrix] built %dx%d = %d from only %d values; the remainder is zero. This is a bug in the caller.",
+                  rows, columns, needed, array.count)
         }
-        
+
         self.rows = rows
         self.columns = columns
-        self.type = "real"
-        
-        
+
+        if type == .complex{
+            self.type = .complex
+            self.real = Array.init(repeating: 0.0, count: needed)
+            self.imag = Array.init(repeating: 0.0, count: needed)
+
+            for i in 0..<available{
+                self.imag![i] = array[i]
+            }
+        }else{
+            self.type = .real
+            self.real = Array.init(repeating: 0.0, count: needed)
+
+            for i in 0..<available{
+                self.real[i] = array[i]
+            }
+        }
     }
     
-    init(_ rows:Int, _ columns:Int, _ type:String? = "real"){
+    
+    
+    init(_ rows:Int, _ columns:Int, _ type:MatrixType? = .real){
                
         self.rows = rows
         self.columns = columns
@@ -167,26 +193,26 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             if let newType = type{
                 
                 
-                if(newType == "real"){
+                if(newType == .real){
                     self.type = newType
 
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = nil
-                }else if (newType == "complex"){
+                }else if (newType == .complex){
                     self.type = newType
 
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = Array(repeating: Float(0), count: rows*columns)
                     
                 }else{
-                    self.type = "real"
+                    self.type = .real
                     
                     real = Array(repeating: Float(0), count: rows*columns)
                     imag = nil
                 }
                 
             }else{
-                self.type = "real"
+                self.type = .real
                 
                 real = Array(repeating: Float(0), count: rows*columns)
                 imag = nil
@@ -196,43 +222,9 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
     }
     
-    class func identity(size:Int)->Matrix{
-        
-        let newMat = Matrix(size, size)
-        
-        for i in 0..<size{
-            newMat.set(i, i, 1.0)
-        }
-        
-        return newMat
-        
-    }
-    
-
     
     //MARK: - Matrix setters
     
-//    mutating func setRange(range:Range<Int>, values:[Any]){
-//        
-//        switch values {
-//        case let complexValue as [Complex]:
-//            
-//            real[index] = complexValue.a
-//            imag?[index] = complexValue.b
-//            
-//        case let floatValue as [Float]:
-//            real[index] = floatValue
-//        case let intValue as [Int]:
-//            real[index] = Float(intValue)
-//        case let doubleValue as [Double]:
-//            real[index] = Float(doubleValue)
-//        default:
-//            print("not a valid type")
-//        }
-//        
-//    }
-    
-
     func set(_ i:Int,_ j:Int,_ value:Any){
  
         let index = columns*i+j
@@ -242,46 +234,88 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
             
                 real[index] = complexValue.a
                 imag?[index] = complexValue.b
-            
-            case let floatValue as Float:
+        case let floatValue as (Float, Float?):
+            if let imagPart = floatValue.1{
+                imag?[index] = imagPart
+            }
+            real[index] = floatValue.0
+
+        case let floatValue as Float:
                 real[index] = floatValue
             case let intValue as Int:
                 real[index] = Float(intValue)
             case let doubleValue as Double:
-            real[index] = Float(doubleValue)
+                real[index] = Float(doubleValue)
             default:
                 print("not a valid type")
         }
     }
     
-    func get(_ i:Int,_ j:Int)->Float{
+    func get(_ i:Int,_ j:Int)->(Float, Float?){
         
+    
         let index = columns*i+j
-        return real[index]
+        
+        
+        if type == .complex{
+            return (real[index], imag![index])
+            
+        }else{
+            return (real[index], nil)
+        }
     
     
     }
     
-    // TODO: Add capability to set a range with an array
-     func set(array:[Float], type:String ){
-        
-        if(type == "real" && count == array.count){
-            self.real = array
+    func mean(_ rect:CGRect?)->Float{
+        if let selRect = rect {
+            // Convert CGFloat bounds to integer index ranges, clamped to matrix bounds
+            let minRow = floor(selRect.minY)
+            let maxRowInclusive = floor(selRect.maxY)
+            let minCol = floor(selRect.minX)
+            let maxColInclusive = floor(selRect.maxX)
+
+            // Ensure valid non-empty ranges
+            if minRow <= maxRowInclusive && minCol <= maxColInclusive {
+                let iRange: Range<Int> = Int(minRow)..<(Int(maxRowInclusive))
+                let jRange: Range<Int> = Int(minCol)..<(Int(maxColInclusive))
+                let sub = subMatrix(iRange, jRange)
+                
+                return sub.mean()
+            }
         }
+        return 0.0
+    }
+    
+    private func mean()->Float{
         
+        return self.sum()/Float(rows*columns)
+        
+    }
+    
+    func sum() -> Float {
+        var sumValue = Float()
+        let length:vDSP_Length = UInt(self.count)
+        
+        vDSP_sve(self.real, 1, &sumValue, length)
+        
+        return sumValue
     }
 
     func quantiles(_ quantiles: Array<Float>) throws -> Array<Float> {
-        guard self.type == "real" else {
+        guard self.type == .real else {
             throw ValueError("'quantiles' only works on real-valued data.")
         }
         var sorted = self.real
         vDSP.sort(&sorted, sortOrder: .ascending)
         sorted = sorted.filter { !$0.isNaN && !$0.isInfinite }
         
-        guard sorted.count > 0 else {
-            throw ValueError("No valid values in matrix.")
+        if sorted.count == 0 {
+            return [0, 0]
         }
+//        guard sorted.count > 0 else {
+//            throw ValueError("No valid values in matrix.")
+//        }
 
         let rough_indices = vDSP.multiply(Float(sorted.count - 1), quantiles)
         var lower_indices = Array<Int32>(repeating: 0, count: quantiles.count)
@@ -296,95 +330,19 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         }
     }
 
-    func log()->Matrix{
-        
-        let loggedMatrix = self.copy() as! Matrix
-        
-        loggedMatrix.real = loggedMatrix.real.map({log2(fabs($0+0.0000002))})
-        
-        
-        return loggedMatrix
-    }
-    
-    func convert()->Matrix{
-        
-        let newMat:Matrix
-        
-        if complex{
-            newMat = Matrix(rows, columns)
-            newMat.real = real
-            newMat.imag = imag!
-        }else{
-            newMat = Matrix(rows, columns, "complex")
-            newMat.real = real
-        }
-        
-        return newMat
-        
-    }
-    
-    //MARK: - Operations (replace values in this matrix)
-
-    
-     func add(_ addMatrix:Matrix)  {
-        
-        guard self.sameSize(addMatrix)  else {
-           print("Matrices are not the same size for element-wise calculation")
-            return
-        }
-        
-         let length:vDSP_Length = UInt(self.count)
-        vDSP_vadd(self.real, 1, addMatrix.real, 1, &self.real, 1, length)
-                
-        
-    }
-    
-     func sub(_ subMatrix:Matrix)  {
-        
-        guard self.sameSize(subMatrix)  else {
-            print("Matrices are not the same size for element-wise calculation")
-            return
-        }
-        
-        let length:vDSP_Length = UInt(self.count)
-        vDSP_vsub(subMatrix.real, 1, self.real, 1, &self.real, 1, length)
-        
-    }
-    
-     func mul(_ mulMatrix:Matrix)  {
-        
-        guard self.sameSize(mulMatrix)  else {
-            print("Matrices are not the same size for element-wise calculation")
-            return
-        }
-        
-        let length:vDSP_Length = UInt(self.count)
-        vDSP_vmul(mulMatrix.real, 1, self.real, 1, &self.real, 1, length)
-        
-    }
-    
-    func sum() -> Float {
-        var sumValue = Float()
-        let length:vDSP_Length = UInt(self.count)
-        
-        vDSP_sve(self.real, 1, &sumValue, length)
-        
-        return sumValue
-    }
-
     func clip(min: Float, max: Float) -> Matrix {
         let out = self.copy() as! Matrix
         var min = min
         var max = max
         vDSP_vclip(&self.real, 1, &min, &max, &out.real, 1, vDSP_Length(self.count))
-        if self.type != "real" {
+        if self.type != .real {
             vDSP_vclip(&self.imag!, 1, &min, &max, &out.imag!, 1, vDSP_Length(self.count))
         }
         return out
     }
     
     
-    func subMatrix(_ iRange:CountableRange<Int>, _ jRange:CountableRange<Int>)->Matrix{
+    func subMatrix(_ iRange: Range<Int>, _ jRange: Range<Int>) -> Matrix{
         
         let subMat = Matrix.init(iRange.count, jRange.count)
         
@@ -401,17 +359,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         return subMat
         
     }
-    
-    func accumulate(product:[Float]) -> Float {
-        var sumValue:Float = 0.0
-
-        for i in 0..<count{
-            sumValue += self.real[i]*product[i]
-        }
-
-        return sumValue
-    }
-    
     
     func sameSize(_ compareMatrix:Matrix)->Bool{
         
@@ -435,7 +382,7 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
                 
                index = i*columns+j
                 
-                if type == "complex"{
+                if type == .complex{
                     
                     var sign:String;
                     let b = imag![index]
@@ -496,121 +443,40 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
         
     }
 
-    func realUint16()->[UInt16]{
-        
-        var maximum = self.max
-        let minimum = self.min
-        
-        
-        if maximum.a == 0 {
-            maximum.a = 1
-        }
-        
-        var outUint16:[UInt16] = [UInt16].init(repeating: UInt16(0), count:self.count)
-        
-        for i in 0..<real.count{
-            if maximum.a-minimum.a > 0 {
-                outUint16[i] = UInt16((real[i]-minimum.a)/(maximum.a-minimum.a)*255)
-            }else{
-                outUint16[i] = 0
-            }
-        }
-        
-        return outUint16
-        
-    }
-
-    
-    func imagUint8()->[UInt8]{
-        
-        
-        var maximum = self.max
-        let minimum = self.min
-        
-    
-        if  maximum.b == 0 {
-            maximum.b = 1
-            
-        }
-        
-        var outUInt8:[UInt8] = [UInt8].init(repeating: UInt8(0), count:self.count)
-        
-        if imag != nil{
-        
-            for i in 0..<real.count{
-                
-                outUInt8[i] = UInt8((imag![i]-minimum.b)/(maximum.b-minimum.b)*255)
-            }
-        }
-        
-        return outUInt8
-
-        
-    }
-    
-    func imagUint16(_ max:Float?, _ min:Float?)->[UInt16]{
-        
-        let maximum:Complex?
-        let minimum:Complex?
-        
-        if max == nil{
-             maximum = self.max
-        }else{
-            maximum = Complex(max!,0)
-        }
-        
-        if min == nil{
-            minimum = self.min
-        }else{
-            minimum = Complex(min!,0)
-        }
-        
-        
-//        if  maximum.b == 0 {
-//            maximum.b = 1
-//            
-//        }
-        
-        var outUint16:[UInt16] = [UInt16].init(repeating: UInt16(0), count:self.count)
-
-        
-        if imag != nil{
-            
-            for i in 0..<imag!.count{
-                
-                
-                outUint16[i] = UInt16((imag![i]-minimum!.b)/(maximum!.b-minimum!.b)*255)
-            }
-        }
-        
-        return outUint16
-        
-    }
     func floatImageRep()->NSBitmapImageRep{
-        
         let floatSize = MemoryLayout<Float>.size
 
-        let imageData = NSData(bytes: UnsafePointer(real), length: real.count*floatSize)
-        
+        // Create a bitmap image rep configured for 32-bit floating grayscale
         let bitmapFormatInfo = NSBitmapImageRep.Format(rawValue: NSBitmapImageRep.Format.floatingPointSamples.rawValue | NSBitmapImageRep.Format.thirtyTwoBitLittleEndian.rawValue)
-        
-        
-        let uint8Pointer = imageData.bytes.bindMemory(to: UInt8.self, capacity: rows*columns*floatSize)
 
-        
-        let bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 32, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bitmapFormat: bitmapFormatInfo, bytesPerRow: columns*floatSize, bitsPerPixel: 32)!
-        
-        let imagePointer = bitmapRep.bitmapData
-        
-        for i in 0..<rows*columns*floatSize{
-            
-            imagePointer![i] = uint8Pointer[i]
-
+        guard let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: columns,
+            pixelsHigh: rows,
+            bitsPerSample: 32,
+            samplesPerPixel: 1,
+            hasAlpha: false,
+            isPlanar: false,
+            colorSpaceName: NSColorSpaceName.calibratedWhite,
+            bitmapFormat: bitmapFormatInfo,
+            bytesPerRow: columns * floatSize,
+            bitsPerPixel: 32
+        ) else {
+            // As a fallback, return an empty 1x1 rep to avoid crashes
+            return NSBitmapImageRep()
         }
-//        
-//        let image = NSImage.init(size: NSSize(width: columns, height: rows))
-//        
-//        image.addRepresentation(bitmapRep)
+
+        // Copy the raw bytes from `real` into the bitmap's backing buffer safely
+        if let dest = bitmapRep.bitmapData {
+            let byteCount = rows * columns * floatSize
+            real.withUnsafeBytes { src in
+                // Ensure we don't read beyond the source buffer
+                let count = Swift.min(byteCount, src.count)
+                if count > 0 {
+                    memcpy(dest, src.baseAddress!, count)
+                }
+            }
+        }
 
         return bitmapRep
     }
@@ -646,173 +512,6 @@ class Matrix: CustomStringConvertible, CustomPlaygroundQuickLookable, NSCopying{
 
         return bitmapRep
     }
-    
-    func imageRepresentation(part:String, format:Int, _ max:Float?, _ min:Float?) -> NSImage? {
-    
-        var maximum = self.max
-        let minimum = self.min
-        
-        if maximum.a == 0 {
-            maximum.a = 1
-        }
-        
-        let typeSize:Int = format/8
-        let dataSize:Int = format*count
-        
-        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue).union(CGBitmapInfo())
-        let providerRef:CGDataProvider?
-        
-        var out = [UInt8].init(repeating: UInt8(0), count:self.count)
-        
-        let test = UnsafeMutablePointer<UInt16>.allocate(capacity: Int(rows*columns))
-
-//        let imageData = NSData(bytes: out, length: dataSize)
-
-        var bitmapRep:NSBitmapImageRep?
-        
-        bitmapRep = NSBitmapImageRep.init(bitmapDataPlanes: nil, pixelsWide: columns, pixelsHigh: rows, bitsPerSample: 8, samplesPerPixel: 1, hasAlpha: false, isPlanar: false, colorSpaceName: NSColorSpaceName.calibratedWhite, bytesPerRow: columns, bitsPerPixel: 8)
-        
-        let imagePointer = bitmapRep?.bitmapData
-        
-        if format == MatrixOutput.uint16 && dataSize > 0 {
-            
-            for i in 0..<real.count{
-                if maximum.a-minimum.a > 0 {
-                    
-                    var newValue = (real[i]-minimum.a)/(maximum.a-minimum.a)*255
-                    
-                    if newValue.isNaN || newValue.isInfinite{
-                        newValue = 0
-                    }
-                    
-                    out[i] = UInt8(newValue)
-                    
-                    
-                }else{
-                    out[i] = 0
-
-                }
-                imagePointer![i] = UInt8(out[i])
-
-            }
-            
-            if part == "imag" {
-//                out = self.imagUint16(max,min)
-
-            }else{
-//                out = self.realUint16()
-
-            }
-            
-        
-
-//            providerRef = withUnsafePointer(to: &out!, { ptr -> CGDataProvider in
-//
-//                let imageData = UnsafeMutableRawPointer(mutating: ptr.pointee).assumingMemoryBound(to: UInt8.self)
-//
-//                let releaseData: CGDataProviderReleaseDataCallback = {
-//                    (info: UnsafeMutableRawPointer?, data: UnsafeRawPointer, size: Int) -> () in
-//                }
-//
-//                let provider = CGDataProvider(dataInfo: nil, data: imageData, size: dataSize, releaseData: releaseData)
-//                return provider!
-//
-//            })
-//
-            
-   
-//            let imageData = NSData(bytes: UnsafeRawPointer, length: dataSize)
-            
-            
-            
-        }else{
-
-            var out:[UInt8]
-
-            if part == "imag" {
-                 out = self.imagUint8()
-                
-            }else{
-                 out = self.realUint8()
-                
-            }
-            
-            
-//            let data = NSData(bytes: &out, length: dataSize)
-            
-//            providerRef = CGDataProvider(data: data)!
-
-            
-//        }
-//        self.provider = providerRef
-
-            // careful of bits not bytes!
-//            if let image = CGImage(width: columns,
-//                                      height: rows,
-//                                      bitsPerComponent: format,
-//                                      bitsPerPixel: format,
-//                                      bytesPerRow: typeSize*columns,
-//                                      space: CGColorSpaceCreateDeviceGray(),
-//                                      bitmapInfo: bitmapInfo,
-//                                      provider: provider!,
-//                                      decode: nil,
-//                                      shouldInterpolate: true,
-//                                      intent: CGColorRenderingIntent.defaultIntent){
-        
-
-            }
-        
-        
-        let outImage = NSImage.init(size: NSSize(width: columns, height: rows))
-        
-        if (bitmapRep != nil){
-            outImage.addRepresentation(bitmapRep!)
-        }
-        
-        
-        return outImage
-    }
-    
-    /// A custom playground Quick Look for this instance.
-    ///
-    /// If this type has value semantics, the `PlaygroundQuickLook` instance
-    /// should be unaffected by subsequent mutations.
-    
-    var customPlaygroundQuickLook: PlaygroundQuickLook{
-        
-        
-        let realPartImage = self.imageRepresentation(part: "real", format: MatrixOutput.uint8, nil,nil)
-        
-        var combinedImage:NSImage?
-        
-        if type == "complex"{
-            
-            let imagPartImage = self.imageRepresentation(part: "imag", format: MatrixOutput.uint8, nil,nil)
-
-            
-            combinedImage = NSImage(size: NSSize.init(width: 2*columns, height: rows), flipped:false, drawingHandler: {rect in
-                
-                let realHalfRect = NSRect(x: 0, y: 0, width: self.columns, height: self.rows)
-                realPartImage?.draw(in:realHalfRect)
-                
-                let imagHalfRect = NSRect(x: self.columns+1, y: 0, width: self.columns, height: self.rows)
-                imagPartImage?.draw(in:imagHalfRect)
-                
-                return true
-            })
-            
-        }
-
-        if combinedImage != nil{
-            return .image(combinedImage!)
-        }else{
-            return .image(realPartImage!)
-        }
-//        else{
-//           return PlaygroundQuickLook.text(self.description)
-//        }
-    }
-    
     
     deinit {
 //        print("matrix deinit")
@@ -868,7 +567,7 @@ func +(lhs:Matrix,rhs:Matrix) -> Matrix? {
         newMatrix.real = outReal;
 
         
-        if newMatrix.type == "complex" {
+        if newMatrix.type == .complex {
             
             var outImag = newMatrix.imag
 
@@ -910,7 +609,7 @@ func -(lhs:Matrix,rhs:Matrix) -> Matrix? {
         newMatrix.real = outReal;
         
         
-        if newMatrix.type == "complex" {
+        if newMatrix.type == .complex {
             
             var outImag = newMatrix.imag
             
@@ -1015,24 +714,6 @@ func .*(lhs:Matrix,rhs:Matrix) -> Matrix?{
 
 //MARK: - Testing and convenience
 
-
-func complexMatricies(_ mat1:Matrix, _ mat2:Matrix)->Int{
-    
-    var numComplex = 0
-    
-    if mat1.complex{
-        numComplex += 1
-    }
-    
-    if mat2.complex{
-        numComplex += 1
-    }
-
-    
-    return numComplex
-}
-
-
 func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "element-wise")->Matrix?{
     
     var newMatrix:Matrix
@@ -1044,8 +725,8 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
             return nil
         }
         
-        if complexMatricies(mat1, mat2) > 0 {
-            newMatrix = Matrix(mat1.rows, mat1.columns, "complex")
+        if mat1.complex || mat2.complex {
+            newMatrix = Matrix(mat1.rows, mat1.columns, .complex)
             
         }else{
             newMatrix = Matrix(mat1.rows, mat1.columns)
@@ -1053,8 +734,8 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
         
     }else{
         
-        if complexMatricies(mat1, mat2) > 0 {
-            newMatrix = Matrix(mat1.columns, mat2.rows, "complex")
+        if mat1.complex || mat2.complex {
+            newMatrix = Matrix(mat1.columns, mat2.rows, .complex)
             
         }else{
             newMatrix = Matrix(mat1.columns, mat2.rows)
@@ -1065,6 +746,8 @@ func validOutputMatrix(_ mat1:Matrix, _ mat2:Matrix,_ operation:String? = "eleme
 
     return newMatrix
 }
+
+
 
 
 
