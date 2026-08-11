@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "2610"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A51FEFAB1FEC48FD00A8A5EC"
+               BuildableName = "4DSTEM Explorer.app"
+               BlueprintName = "4DSTEM Explorer"
+               ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BDEB43912ECE430D0000F7B1"
+               BuildableName = "4DSTEM ExploreTests.xctest"
+               BlueprintName = "4DSTEM ExploreTests"
+               ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BDEB439B2ECE430D0000F7B1"
+               BuildableName = "4DSTEM ExploreUITests.xctest"
+               BlueprintName = "4DSTEM ExploreUITests"
+               ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "A51FEFAB1FEC48FD00A8A5EC"
+            BuildableName = "4DSTEM Explorer.app"
+            BlueprintName = "4DSTEM Explorer"
+            ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "A51FEFAB1FEC48FD00A8A5EC"
+            BuildableName = "4DSTEM Explorer.app"
+            BlueprintName = "4DSTEM Explorer"
+            ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+      <PostActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Build Sparkle release"
+               scriptText = "&quot;${SRCROOT}/Scripts/make_release.sh&quot; \&#10;    &quot;${ARCHIVE_PRODUCTS_PATH}/Applications/4DSTEM Explorer.app&quot; \&#10;    &gt; /tmp/4dstem-release.log 2&gt;&amp;1 \&#10;    &amp;&amp; open &quot;${SRCROOT}/dist/release&quot; \&#10;    || open /tmp/4dstem-release.log&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "A51FEFAB1FEC48FD00A8A5EC"
+                     BuildableName = "4DSTEM Explorer.app"
+                     BlueprintName = "4DSTEM Explorer"
+                     ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PostActions>
+   </ArchiveAction>
+</Scheme>

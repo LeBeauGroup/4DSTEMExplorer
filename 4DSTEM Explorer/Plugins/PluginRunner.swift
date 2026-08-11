@@ -202,6 +202,11 @@ extension DataViewModel {
             scanStepNanometers: Double(calibrations?.scan_step ?? 0),
             diffractionStepMilliradians: Double(calibrations?.diff_step ?? 0),
             accelerationKilovolts: Double(calibrations?.voltage ?? 0),
+            // What the data controller is actually applying — the calibration's
+            // copy may have been changed by a plugin and not yet reloaded, and a
+            // plugin composing against a value the patterns do not reflect would
+            // double-count the correction.
+            detectorFlips: dataController.currentDetectorFlips,
             selectedRow: selectedRow,
             selectedColumn: selectedColumn,
             selectionRect: rect,

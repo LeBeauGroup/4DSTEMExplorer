@@ -1,0 +1,56 @@
+% References for the Scan Rotation plugin.
+%
+% Bibliographic fields were taken from Crossref, not transcribed by hand.
+% `annote` says why the plugin cites each entry; the common BibTeX styles
+% ignore that field, so this remains an ordinary .bib file. Entries appear in
+% the order they should be read.
+%
+% The plugin measures the angle between the scan and detector axes by nulling
+% the curl of the centre-of-mass field. The references below establish the two
+% things that makes it work: that the centre of mass measures the projected
+% field, and that the projected field is a gradient and so has no curl.
+
+@article{muellercaspary2017com,
+  author  = {M{\"u}ller-Caspary, Knut and Krause, Florian F. and Grieb, Tim and L{\"o}ffler, Stefan and Schowalter, Marco and B{\'e}ch{\'e}, Armand and Galioit, Vincent and Marquardt, Dennis and Zweck, Josef and Schattschneider, Peter and Verbeeck, Johan and Rosenauer, Andreas},
+  title   = {{Measurement of atomic electric fields and charge densities from average momentum transfers using scanning transmission electron microscopy}},
+  journal = {Ultramicroscopy},
+  volume  = {178},
+  pages   = {62--80},
+  year    = {2017},
+  doi     = {10.1016/j.ultramic.2016.05.004},
+  annote  = {Establishes that the first moment of the diffraction pattern measures the momentum transferred to the beam, and hence the projected electric field and — through its divergence — the projected charge density. This is the quantity the plugin differentiates, and the source of the sign convention used to resolve the 180-degree ambiguity.}
+}
+
+@article{lazic2016idpc,
+  author  = {Lazi{\'c}, Ivan and Bosch, Eric G. T. and Lazar, Sorin},
+  title   = {{Phase contrast STEM for thin samples: Integrated differential phase contrast}},
+  journal = {Ultramicroscopy},
+  volume  = {160},
+  pages   = {265--280},
+  year    = {2016},
+  doi     = {10.1016/j.ultramic.2015.10.011},
+  annote  = {Shows that for a thin specimen the centre-of-mass field is the gradient of the projected potential, which is exactly why it is curl-free and why any measured curl can be attributed to the frame it was measured in.}
+}
+
+@article{close2015dpc,
+  author  = {Close, R. and Chen, Z. and Shibata, N. and Findlay, S. D.},
+  title   = {{Towards quantitative, atomic-resolution reconstruction of the electrostatic potential via differential phase contrast using electrons}},
+  journal = {Ultramicroscopy},
+  volume  = {159},
+  pages   = {124--137},
+  year    = {2015},
+  doi     = {10.1016/j.ultramic.2015.09.002},
+  annote  = {Examines where the gradient-field picture holds and where it breaks down with thickness and probe size — the assumption this measurement rests on, and the limits within which its answer means anything.}
+}
+
+@article{savitzky2021py4dstem,
+  author  = {Savitzky, Benjamin H. and Zeltmann, Steven E. and Hughes, Lauren A. and Brown, Hamish G. and Zhao, Shiteng and Pelz, Philipp M. and Pekin, Thomas C. and Barnard, Edward S. and Donohue, Jennifer and Rangel DaCosta, Luis and Kennedy, Ellis and Xie, Yujun and Janish, Matthew T. and Schneider, Matthew M. and Herring, Patrick and Gopal, Chirranjeevi and Anapolsky, Abraham and Dhall, Rohan and Bustillo, Karen C. and Ercius, Peter and Scott, Mary C. and Ciston, Jim and Minor, Andrew M. and Ophus, Colin},
+  title   = {{py4DSTEM: A Software Package for Four-Dimensional Scanning Transmission Electron Microscopy Data Analysis}},
+  journal = {Microscopy and Microanalysis},
+  volume  = {27},
+  number  = {4},
+  pages   = {712--743},
+  year    = {2021},
+  doi     = {10.1017/S1431927621000477},
+  annote  = {The reference open-source implementation of curl minimisation for the scan-detector rotation, including the two handednesses. Cite it when comparing against py4DSTEM's answer.}
+}

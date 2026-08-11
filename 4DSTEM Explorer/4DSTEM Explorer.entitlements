@@ -2,12 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.files.user-selected.read-write</key>
-	<true/>
-	<!-- Required to load third-party plugin bundles: the hardened runtime
-	     otherwise refuses any code not signed by this app's team. -->
+	<!-- Not sandboxed.
+
+	     This is a Developer ID application, distributed directly and updated
+	     through Sparkle, which rules out the App Store — so the sandbox was
+	     buying defence in depth rather than a distribution requirement, and it
+	     was buying it at a steep price here. The app opens multi-gigabyte
+	     datasets from wherever the user keeps them, materialises them from
+	     iCloud and Dropbox through NSFileCoordinator, walks user-chosen
+	     directory trees for batch runs, and loads third-party plugin bundles
+	     that it had already had to disable library validation to permit.
+
+	     What actually protects the user is unchanged: the hardened runtime
+	     stays on, the app is signed with a Developer ID and notarised, and
+	     Gatekeeper checks both. Sparkle in a sandboxed app additionally needs
+	     its Downloader and Installer XPC services embedded and separately
+	     entitled, which is a class of failure that only appears in a signed,
+	     notarised build — the worst place to discover it. -->
+
+	<!-- The hardened runtime otherwise refuses to load any code not signed by
+	     this app's team, which is every plugin. -->
 	<key>com.apple.security.cs.disable-library-validation</key>
 	<true/>
 </dict>

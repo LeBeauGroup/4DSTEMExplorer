@@ -37,6 +37,9 @@ struct PluginDataSnapshot {
     var scanStepNanometers: Double
     var diffractionStepMilliradians: Double
     var accelerationKilovolts: Double
+    /// How the patterns were oriented when the file was read: the transforms
+    /// actually in force, not what a metadata file wishes they were.
+    var detectorFlips: DetectorFlips
     var selectedRow: Int
     var selectedColumn: Int
     /// The marquee in scan coordinates, or nil when a single point is selected.
@@ -89,6 +92,9 @@ final class PluginHostContext: NSObject, FDSHostContext {
     var scanStepNanometers: Double { return snapshot.scanStepNanometers }
     var diffractionStepMilliradians: Double { return snapshot.diffractionStepMilliradians }
     var accelerationKilovolts: Double { return snapshot.accelerationKilovolts }
+    var detectorFlips: [NSNumber] {
+        return snapshot.detectorFlips.triple.map { NSNumber(value: $0) }
+    }
 
     // MARK: - Pattern access
 

@@ -4,6 +4,7 @@ import CoreVideo
 import QuartzCore
 import Accelerate
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Temporary local definitions to make the toolbar compile.
 // If your project already defines these elsewhere, you can remove these and import/use the shared ones.
@@ -129,12 +130,64 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var detectorInnerRadius: CGFloat = 1 {
         didSet {
             syncSelectedDetector { $0.innerRadius = detectorInnerRadius }
+            balanceRadii(after: .inner)
         }
     }
     @Published var detectorOuterRadius: CGFloat = 10 {
         didSet {
             syncSelectedDetector { $0.outerRadius = detectorOuterRadius }
+            balanceRadii(after: .outer)
         }
+    }
+
+    // MARK: Keeping the annulus open
+    //
+    // The rule lives here rather than in the sliders because the sliders are
+    // not the only thing that writes these: dragging the detector's rim on the
+    // pattern sets both directly, and a stored detector restores both. A fix
+    // applied only to the controls would leave the drag able to close the
+    // annulus.
+
+    private enum MovedRadius { case inner, outer }
+    private var isBalancingRadii = false
+
+    /// The largest radius that fits on the detector.
+    var maximumDetectorRadius: CGFloat {
+        return CGFloat(min(patternSize.width, patternSize.height)) / 2
+    }
+
+    var innerRadiusRange: ClosedRange<Double> {
+        return DetectorRadii.innerRange(ceiling: maximumDetectorRadius)
+    }
+    var outerRadiusRange: ClosedRange<Double> {
+        return DetectorRadii.outerRange(ceiling: maximumDetectorRadius)
+    }
+
+    /// Moves whichever radius was *not* just set, so the two keep their gap.
+    ///
+    /// Re-entrant by nature — correcting one radius sets the other, which comes
+    /// straight back through here — so the flag stops the second pass. It stops
+    /// only the balancing: the write still reaches the stored detector, because
+    /// that happens before this is called.
+    private func balanceRadii(after moved: MovedRadius) {
+        guard !isBalancingRadii, !isApplyingDetectorSelection else { return }
+        isBalancingRadii = true
+        defer { isBalancingRadii = false }
+
+        let ceiling = maximumDetectorRadius
+        let settled: DetectorRadii
+        switch moved {
+        case .inner:
+            settled = DetectorRadii.movingInner(to: detectorInnerRadius,
+                                                outer: detectorOuterRadius,
+                                                ceiling: ceiling)
+        case .outer:
+            settled = DetectorRadii.movingOuter(to: detectorOuterRadius,
+                                                inner: detectorInnerRadius,
+                                                ceiling: ceiling)
+        }
+        if settled.inner != detectorInnerRadius { detectorInnerRadius = settled.inner }
+        if settled.outer != detectorOuterRadius { detectorOuterRadius = settled.outer }
     }
     @Published var detectorCenter: CGPoint = .zero {
         didSet {
@@ -167,7 +220,24 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var comAxis: COMAxis = .x {
         didSet { syncSelectedDetector { $0.comAxis = comAxis } }
     }
-    @Published var calibrations:Calibrations?
+    /// Live for one load, so a cancellation or a second open can disown the
+    /// first without it writing over the newer one when it finishes.
+    private var loadToken: LoadCancellationToken?
+    private var openWork: DispatchWorkItem?
+
+    @Published var calibrations:Calibrations? {
+        didSet {
+            // Keep an open calibration window showing what the application
+            // believes, so a calibration read from a newly opened file is not
+            // hidden behind stale fields.
+            if let windowModel = calibrationWindowModel, !windowModel.isEditing {
+                windowModel.load(from: calibrations)
+            }
+        }
+    }
+    private var calibrationWindow: NSWindow?
+    private var calibrationBatchWindow: NSWindow?
+    private var calibrationWindowModel: CalibrationWindowModel?
     @Published var focusedPanel: FocusedPanel = .image
     @Published var pattern_mat:Matrix? = nil
     @Published var patternLogScaleEnabled: Bool = false
@@ -372,74 +442,53 @@ final class DataViewModel: NSObject, ObservableObject {
 
 
 
+    /// Opens the batch calibration sheet.
+    func showCalibrationBatch() {
+        if let existing = calibrationBatchWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 640),
+                              styleMask: [.titled, .closable, .resizable],
+                              backing: .buffered, defer: false)
+        window.title = "Batch Calibrations"
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: CalibrationBatchSheet(
+            onClose: { [weak self] in self?.calibrationBatchWindow?.close() }))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        calibrationBatchWindow = window
+    }
+
+    /// Opens the calibration window.
+    ///
+    /// One window rather than a panel per activity: it shows the whole
+    /// calibration, lets any of it be typed, and measures the parts that can be
+    /// measured. Held in a property because it is a real window the user can
+    /// leave open beside the data while adjusting a detector, not a sheet that
+    /// blocks the application it is calibrating.
     func calibrate() {
-        let currentScanStep = calibrations?.scan_step.map { String($0) } ?? ""
-        let currentDiffStep = calibrations?.diff_step.map { String($0) } ?? ""
-        let currentVoltage = calibrations?.voltage.map { String($0) } ?? ""
-
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 180),
-                            styleMask: [.titled, .closable],
-                            backing: .buffered,
-                            defer: false)
-        panel.title = "Calibrate"
-        panel.isFloatingPanel = false
-        panel.hidesOnDeactivate = false
-        panel.level = .modalPanel
-
-        let hosting = NSHostingView(rootView: CalibrationSheet(
-            scanStep: currentScanStep,
-            diffStep: currentDiffStep,
-            voltage: currentVoltage,
-            onCancel: {
-                if let parent = panel.sheetParent {
-                    parent.endSheet(panel, returnCode: .cancel)
-                } else {
-                    NSApp.stopModal(withCode: .cancel)
-                    panel.close()
-                }
-            },
-            onOK: { [weak self] scanStepStr, diffStepStr, voltageStr in
-                let newScanStep = Float(scanStepStr)
-                let newDiffStep = Float(diffStepStr)
-                let newVoltage = Float(voltageStr)
-                self?.calibrations = Calibrations(scan_step: newScanStep,
-                                                  diff_step: newDiffStep,
-                                                  voltage: newVoltage)
-                if let parent = panel.sheetParent {
-                    parent.endSheet(panel, returnCode: .OK)
-                } else {
-                    NSApp.stopModal(withCode: .OK)
-                    panel.close()
-                }
-            }
-        ))
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-
-        let contentView = NSView()
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(hosting)
-        panel.contentView = contentView
-        NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: contentView.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-        ])
-
-        func hostWindow() -> NSWindow? {
-            func isContentWindow(_ w: NSWindow) -> Bool {
-                !(w is NSPanel) && w.isVisible && w.styleMask.contains(.titled)
-            }
-            let preferred = [NSApp.keyWindow, NSApp.mainWindow].compactMap { $0 }
-            if let w = preferred.first(where: isContentWindow) { return w }
-            return NSApp.windows.first(where: isContentWindow)
+        if let existing = calibrationWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
         }
 
-        if let host = hostWindow() {
-            host.beginSheet(panel, completionHandler: nil)
-        } else {
-            NSApp.runModal(for: panel)
-        }
+        let windowModel = CalibrationWindowModel(model: self)
+        calibrationWindowModel = windowModel
+
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 620),
+                              styleMask: [.titled, .closable, .resizable],
+                              backing: .buffered, defer: false)
+        window.title = "Calibration"
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: CalibrationWindowView(
+            model: windowModel,
+            onClose: { [weak self] in
+                self?.calibrationWindow?.close()
+            }))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        calibrationWindow = window
     }
 
     func exportAll() {
@@ -810,6 +859,61 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
 // SwiftUI panel to prompt for RAW dimensions
+    /// Writes the current calibration as EMPAD metadata JSON.
+    ///
+    /// What is exported is what the application currently believes, whatever put
+    /// it there — a sidecar read at open time, the Calibrate dialog, or a
+    /// measurement accepted from the Calibration plugin. There is deliberately
+    /// no separate "calibrated" copy to drift out of step with the live one.
+    func exportMetadata() {
+        let data: Data
+        do {
+            data = try EMPADMetadataWriter.json(url: selectedURL,
+                                                scanWidth: imageWidth,
+                                                scanHeight: imageHeight,
+                                                calibrations: calibrations)
+        } catch {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Cannot export metadata"
+            alert.informativeText = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = EMPADMetadataWriter.suggestedFilename(for: selectedURL)
+        panel.canCreateDirectories = true
+        panel.message = "Save the calibration as EMPAD metadata"
+        // Alongside the data, for the same reason the metadata panel opens there:
+        // `raw_filename` is relative to the metadata's own location, so the two
+        // belong in one folder.
+        panel.directoryURL = selectedURL?.deletingLastPathComponent()
+
+        let write: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url, options: .atomic)
+            } catch {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Could not save"
+                alert.informativeText = error.localizedDescription
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: write)
+        } else {
+            write(panel.runModal())
+        }
+    }
+
     private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step: Float?, diff_step: Float?, voltage: Float?, flipRows: Bool, flipCols: Bool, transpose: Bool)?) -> Void) {
         // Helper to parse strings like "80x80", "256×128", "64 X 32"
         func parseXY(_ text: String) -> (Int, Int)? {
@@ -871,7 +975,7 @@ final class DataViewModel: NSObject, ObservableObject {
 
         let fileHint = self.selectedURL?.lastPathComponent ?? ""
 
-        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step: "None", fileHint: fileHint, onCancel: {
+        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step: "None", fileHint: fileHint, fileURL: self.selectedURL, onCancel: {
             if let parent = panel.sheetParent {
                 parent.endSheet(panel, returnCode: .cancel)
                 DispatchQueue.main.async { completion(nil) }
@@ -939,15 +1043,21 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
     private func continueOpen(afterPromptFor url: URL) {
-        do {
-            try self.dataController.openFile(url: url)
-        } catch {
-            handleOpenError(error)
-        }
+        // The RAW panel has already been answered on the main thread; the read
+        // itself goes the same way round as every other format.
+        beginOpen(url: url)
     }
 
     private func handleOpenError(_ error: Error) {
         isLoading = false
+
+        // A cancellation is an outcome, not a fault, and an alert about it would
+        // be reporting the user's own decision back to them.
+        if case FileMaterializer.Failure.cancelled = error {
+            status = "Cancelled"
+            loadErrorMessage = nil
+            return
+        }
 
         let message: String
         switch error {
@@ -988,9 +1098,16 @@ final class DataViewModel: NSObject, ObservableObject {
                 if let dims = dims {
                     self.dataController.setRawImageSize(width: dims.w, height: dims.h)
                     self.dataController.setRawTransforms(flipRows: dims.flipRows, flipCols: dims.flipCols, transpose: dims.transpose)
+                    // The orientation the file is about to be read with is the
+                    // orientation the metadata should record, so it is captured
+                    // here rather than inferred later.
                     self.calibrations = Calibrations(scan_step: dims.scan_step,
                                                      diff_step: dims.diff_step,
-                                                     voltage: dims.voltage)
+                                                     voltage: dims.voltage,
+                                                     detectorFlips: DetectorFlips(
+                                                        flipY: dims.flipRows,
+                                                        flipX: dims.flipCols,
+                                                        transpose: dims.transpose))
                     self.continueOpen(afterPromptFor: url)
                 } else {
                     self.isLoading = false
@@ -999,11 +1116,91 @@ final class DataViewModel: NSObject, ObservableObject {
             }
             return
         }
-        do {
-            try dataController.openFile(url: url)
-        } catch {
-            handleOpenError(error)
+        beginOpen(url: url)
+    }
+
+    /// Everything between choosing a file and the first pattern arriving.
+    ///
+    /// All of it happens off the main thread. It used to happen on it, and the
+    /// consequences were not subtle: identifying the format means reading a
+    /// header, and for a Digital Micrograph file it means parsing the entire tag
+    /// tree, so opening a large dataset froze the window for as long as that
+    /// took. Worse, a file still in iCloud is fetched *inside* the first read
+    /// that touches it, so opening one that had not been downloaded blocked the
+    /// main thread for the length of a multi-gigabyte download, with no progress
+    /// and no way out.
+    private func beginOpen(url: URL) {
+        // Whatever was loading is no longer wanted. Superseding without
+        // cancelling would leave the previous file still downloading in the
+        // background, competing for the network with the one actually asked for
+        // and finishing into a window that has moved on.
+        loadToken?.cancel()
+        openWork?.cancel()
+        dataController.cancelLoad()
+
+        let token = LoadCancellationToken()
+        loadToken = token
+
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+
+            func finish(_ error: Error?) {
+                DispatchQueue.main.async {
+                    guard self.loadToken === token else { return }   // superseded
+                    self.loadToken = nil
+                    if let error = error { self.handleOpenError(error) }
+                }
+            }
+
+            do {
+                // Bring the file down first, if it is not already here. Doing it
+                // deliberately is what makes it visible and interruptible.
+                try FileMaterializer.ensureLocal(url, token: token) { fraction, line in
+                    DispatchQueue.main.async {
+                        guard self.loadToken === token else { return }
+                        self.status = line
+                        // Nil means the system will not say how far along it is;
+                        // leaving the bar where it was beats pinning it to zero
+                        // and implying nothing is happening.
+                        if let fraction = fraction { self.progress = fraction }
+                    }
+                }
+                if token.isCancelled { throw FileMaterializer.Failure.cancelled }
+
+                DispatchQueue.main.async {
+                    guard self.loadToken === token else { return }
+                    self.status = "Reading \(url.lastPathComponent)…"
+                    self.progress = 0
+                }
+
+                // `openFile` hands the bulk read to its own queue and returns, so
+                // this thread is only carrying the header and format work — which
+                // is the part that used to block.
+                try self.dataController.openFile(url: url)
+                finish(nil)
+            } catch {
+                finish(error)
+            }
         }
+        openWork = work
+        DispatchQueue.global(qos: .userInitiated).async(execute: work)
+    }
+
+    /// Stops whatever stage the load has reached.
+    ///
+    /// Three of them, and all three have to be told: the iCloud download watches
+    /// the token, the header work is a cancellable work item, and the bulk read
+    /// belongs to the data controller.
+    func cancelLoading() {
+        loadToken?.cancel()
+        openWork?.cancel()
+        dataController.cancelLoad()
+        loadToken = nil
+        openWork = nil
+        isLoading = false
+        progress = 0
+        status = "Cancelled"
+        loadErrorMessage = nil
     }
 
     private func currentDetector() -> Detector {
@@ -1014,6 +1211,67 @@ final class DataViewModel: NSObject, ObservableObject {
         let clampedInnerRadius = min(detectorInnerRadius, detectorOuterRadius)
         let params:[DetectorParameter: Float]  = [.innerRadius:Float(clampedInnerRadius), .outerRadius:Float(detectorOuterRadius)]
         return Detector(shape: detectorShape, type: detectorType, center: center, params: params, size: NSSize(width: pW, height: pH))
+    }
+
+
+    // MARK: - Calibration window support
+    //
+    // The calibration measurements are host-free by design — they take arrays
+    // and a closure, not a view model. These are the adapters that hand them
+    // what they need, and are the only place the window touches the data
+    // controller.
+
+    /// Names of the configured detectors, for the centre-of-mass picker.
+    var detectorNames: [String] {
+        return detectors.map { $0.name }
+    }
+
+    /// The computed image currently displayed.
+    func currentScanImageFloats() -> (image: [Float], rows: Int, columns: Int)? {
+        guard let matrix = lastScanMatrix, matrix.rows > 0, matrix.columns > 0 else { return nil }
+        return (matrix.real, matrix.rows, matrix.columns)
+    }
+
+    /// The diffraction pattern currently displayed.
+    func currentPatternFloats() -> (image: [Float], rows: Int, columns: Int)? {
+        guard let matrix = pattern_mat, matrix.rows > 0, matrix.columns > 0 else { return nil }
+        return (matrix.real, matrix.rows, matrix.columns)
+    }
+
+    /// The stack geometry, or nil when nothing is loaded.
+    func rotationGeometry() -> ScanRotationGeometry? {
+        let scan = dataController.imageSize
+        let pattern = dataController.patternSize
+        guard scan.width > 0, scan.height > 0, pattern.width > 0, pattern.height > 0 else {
+            return nil
+        }
+        return ScanRotationGeometry(scanWidth: scan.width, scanHeight: scan.height,
+                                    patternWidth: pattern.width, patternHeight: pattern.height)
+    }
+
+    /// A detector's mask, as the centre-of-mass computation wants it.
+    func detectorMaskFloats(at index: Int) -> [Float]? {
+        guard detectors.indices.contains(index) else { return nil }
+        return makeDetector(from: detectors[index]).detectorMask().real
+    }
+
+    /// Reads patterns straight out of the loaded stack.
+    ///
+    /// The buffer is owned by the caller and the pointer is not retained, so this
+    /// stays valid for the life of one measurement — which is the only thing it
+    /// is used for.
+    func patternProvider() -> PatternProvider {
+        let controller = dataController
+        let pixels = controller.patternPixels
+        let width = controller.imageSize.width
+        let height = controller.imageSize.height
+        return { row, column, buffer, capacity in
+            guard row >= 0, row < height, column >= 0, column < width,
+                  capacity >= pixels, let base = controller.patternPointer else { return false }
+            let source = base + (row * width + column) * pixels
+            buffer.update(from: source, count: pixels)
+            return true
+        }
     }
 
     private func makeDetector(from config: DetectorConfiguration) -> Detector {
@@ -1090,6 +1348,19 @@ final class DataViewModel: NSObject, ObservableObject {
 
         return (NSImage(cgImage: cgImage, size: NSSize(width: cols, height: rows)), first)
     }
+    /// True when everything being computed is a point detector.
+    ///
+    /// All of them, not just the first: a point detector blended with an annular
+    /// one still has to sum the annular one over every probe position, and that
+    /// is the cost subsampling exists to avoid.
+    private var selectedDetectorsAreAllPoints: Bool {
+        let active = detectors.filter { selectedDetectorIDs.contains($0.id) }
+        let considered = active.isEmpty ? detectors : active
+        return !considered.isEmpty && considered.allSatisfy {
+            $0.shape == .point && $0.calculationMode == .integrate
+        }
+    }
+
     private func dynamicStrideForTargetGrid(targetWidth: Int = 80, targetHeight: Int = 80) -> Int {
         let w = max(1, self.dataController.imageSize.width)
         let h = max(1, self.dataController.imageSize.height)
@@ -1105,7 +1376,12 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let pH = self.dataController.patternSize.height
         if pW == 0 || pH == 0 { return nil }
 
-        if interactive {
+        // Subsampling exists to keep dragging responsive, and it costs
+        // resolution to do it. A point detector reads one number per probe
+        // position rather than summing a masked pattern, which is thousands of
+        // times less work — cheap enough that there is nothing to trade, so the
+        // full scan is computed even while the crosshair is moving.
+        if interactive && !selectedDetectorsAreAllPoints {
             stride = max(1, dynamicStrideForTargetGrid())
         } else {
             stride = 1
@@ -1589,7 +1865,6 @@ extension DataViewModel: STEMDataControllerDelegate {
     }
 
     func cancel(_ sender: Any) {
-        isLoading = false
-        status = "Cancelled"
+        cancelLoading()
     }
 }

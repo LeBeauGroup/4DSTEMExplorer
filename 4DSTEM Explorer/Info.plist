@@ -84,7 +84,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>2760</string>
+	<string>2870</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -93,6 +93,12 @@
 	<string>Copyright © 2017 The LeBeau Group. All rights reserved.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://4dstem-explorer.s3.amazonaws.com/4DSTEMExplorerAppcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>wliBP0lp3lV+0ydacaJ8aFDcOTcZtfb4levJlaYM9yM=</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

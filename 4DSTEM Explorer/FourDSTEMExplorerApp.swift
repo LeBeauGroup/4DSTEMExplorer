@@ -394,19 +394,42 @@ struct FourDSTEMExplorerApp: App {
                     ToolbarItem() {
                         
                         if model.isLoading {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ProgressView(value: model.progress, total: 1.0) // Determinate
-                                    .progressViewStyle(.linear)
-                                    .controlSize(.small)
-                                    .frame(width: 100)
-                                
-                                    .onReceive(NotificationCenter.default.publisher(for: .taskProgressUpdated)) { notification in
-                                        // Extract the value from userInfo
-                                        if let progress = notification.object as? Double {
-                                            model.progress = progress
+                            HStack(spacing: 6) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    ProgressView(value: model.progress, total: 1.0) // Determinate
+                                        .progressViewStyle(.linear)
+                                        .controlSize(.small)
+                                        .frame(width: 130)
+
+                                        .onReceive(NotificationCenter.default.publisher(for: .taskProgressUpdated)) { notification in
+                                            // Extract the value from userInfo
+                                            if let progress = notification.object as? Double {
+                                                model.progress = progress
+                                            }
                                         }
-                                    }
-                                
+
+                                    // What it is doing, which matters most when
+                                    // the answer is "waiting for iCloud" — the
+                                    // one case where a long wait is not the
+                                    // application's own doing.
+                                    Text(model.status)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .frame(width: 130, alignment: .leading)
+                                        .help(model.status)
+                                }
+
+                                Button {
+                                    model.cancelLoading()
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Stop loading")
+                                .accessibilityLabel("Stop loading")
                             }
                         }
 //                        Spacer()
@@ -425,6 +448,11 @@ struct FourDSTEMExplorerApp: App {
                                   pluginManager: pluginManager,
                                   pluginRunner: pluginRunner,
                                   showDetector: $showDetector)
+        }
+
+        // ⌘, — where a Mac user looks to turn automatic update checking off.
+        Settings {
+            SettingsView()
         }
     }
 }

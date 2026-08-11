@@ -327,7 +327,11 @@ enum EMDReader {
 
         let kilovolts = volts.map { Float($0 / 1000.0) }
         if scanStep == nil && diffStep == nil && kilovolts == nil { return nil }
-        return Calibrations(scan_step: scanStep, diff_step: diffStep, voltage: kilovolts)
+        // An EMD carries its patterns in the orientation it means them to be
+        // read; the RAW flip flags are not applied to it, so no flips is the
+        // honest record rather than the application's RAW default.
+        return Calibrations(scan_step: scanStep, diff_step: diffStep, voltage: kilovolts,
+                            detectorFlips: .unflipped)
     }
 
     /// Reads a string attribute off any object.

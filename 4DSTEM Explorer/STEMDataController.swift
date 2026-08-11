@@ -53,6 +53,79 @@ protocol STEMDataControllerProgressDelegate:class {
     func cancel(_ sender:Any)
 }
 
+/// A 2×2 scan correction, in the sense `[x', y'] = M · [x, y]`.
+///
+/// Stored row-major because that is how it is written and read — EMPAD metadata
+/// records `scan_correction` as `[[m00, m01], [m10, m11]]` with exactly this
+/// meaning, and keeping one convention from the file through to the arithmetic
+/// removes the transpose that otherwise has to be remembered at each boundary.
+struct ScanCorrection: Equatable {
+    var m00: Float, m01: Float
+    var m10: Float, m11: Float
+
+    static let identity = ScanCorrection(m00: 1, m01: 0, m10: 0, m11: 1)
+
+    var isIdentity: Bool {
+        return abs(m00 - 1) < 1e-6 && abs(m11 - 1) < 1e-6
+            && abs(m01) < 1e-6 && abs(m10) < 1e-6
+    }
+
+    /// Row-major, as the JSON records it.
+    var rows: [[Float]] { return [[m00, m01], [m10, m11]] }
+
+    init(m00: Float, m01: Float, m10: Float, m11: Float) {
+        self.m00 = m00; self.m01 = m01; self.m10 = m10; self.m11 = m11
+    }
+
+    init?(rowMajor values: [Float]) {
+        guard values.count == 4, values.allSatisfy({ $0.isFinite }) else { return nil }
+        self.init(m00: values[0], m01: values[1], m10: values[2], m11: values[3])
+    }
+}
+
+/// How the raw diffraction patterns are oriented on the detector.
+///
+/// This is EMPAD metadata's `det_flips`, in its order and its meaning: the
+/// operations to apply when *reading* the raw file, `(flip_y, flip_x, transpose)`.
+/// The application's own RAW transforms are the same three flags, so the two are
+/// the same quantity and are kept as one rather than converted between.
+///
+/// `(true, false, false)` is the usual EMPAD orientation and the application's
+/// default, which is why it is named rather than left as a bare triple.
+struct DetectorFlips: Equatable {
+    var flipY: Bool
+    var flipX: Bool
+    var transpose: Bool
+
+    static let empadDefault = DetectorFlips(flipY: true, flipX: false, transpose: false)
+    /// Deliberately not called `none`. This type is almost always held as
+    /// `DetectorFlips?`, and in that context `.none` is `Optional.none` — so
+    /// `detectorFlips: .none` would silently mean "not recorded" rather than
+    /// "recorded as unflipped", which are opposite things to a reader that
+    /// defaults a missing field to flipping in y.
+    static let unflipped = DetectorFlips(flipY: false, flipX: false, transpose: false)
+
+    /// As the JSON records it: `[flip_y, flip_x, transpose]`.
+    var triple: [Bool] { return [flipY, flipX, transpose] }
+
+    init(flipY: Bool, flipX: Bool, transpose: Bool) {
+        self.flipY = flipY; self.flipX = flipX; self.transpose = transpose
+    }
+
+    init?(triple values: [Bool]) {
+        guard values.count == 3 else { return nil }
+        self.init(flipY: values[0], flipX: values[1], transpose: values[2])
+    }
+
+    var summary: String {
+        var parts: [String] = []
+        if flipY { parts.append("flip y") }
+        if flipX { parts.append("flip x") }
+        if transpose { parts.append("transpose") }
+        return parts.isEmpty ? "none" : parts.joined(separator: ", ")
+    }
+}
+
 struct Calibrations{
     let scan_step:Float?          // nm per probe position
     let diff_step:Float?          // mrad per detector pixel
@@ -60,11 +133,31 @@ struct Calibrations{
     /// what turns a reciprocal-space calibration into an angle, and plugins ask
     /// for it rather than making the user type it again.
     let voltage:Float?
+    /// Scan rotation in degrees, when it is known.
+    let scanRotationDegrees:Float?
+    /// The shape of the raster, with the mean scale divided out.
+    ///
+    /// Held apart from `scan_step` for the same reason the calibration is
+    /// reported as `A = R · D`: the step is a scale and the correction is a
+    /// shape, and folding a non-square raster into a single number misreports
+    /// every distance measured along its axes.
+    let scanCorrection:ScanCorrection?
+    /// How the patterns are oriented on the detector.
+    ///
+    /// Seeded from the transforms the file was actually read with, so it starts
+    /// out describing what is on screen rather than a guess. A measurement that
+    /// finds the detector mirrored relative to the scan can correct it.
+    let detectorFlips:DetectorFlips?
 
-    init(scan_step: Float?, diff_step: Float?, voltage: Float? = nil) {
+    init(scan_step: Float?, diff_step: Float?, voltage: Float? = nil,
+         scanRotationDegrees: Float? = nil, scanCorrection: ScanCorrection? = nil,
+         detectorFlips: DetectorFlips? = nil) {
         self.scan_step = scan_step
         self.diff_step = diff_step
         self.voltage = voltage
+        self.scanRotationDegrees = scanRotationDegrees
+        self.scanCorrection = scanCorrection
+        self.detectorFlips = detectorFlips
     }
 }
 
@@ -89,6 +182,15 @@ class STEMDataController: NSObject {
     var patternSize:IntSize = empadSize
     
     var providedRawImageSize: IntSize? = nil
+    /// Set from the file when it records one, and applied as the data is read so
+    /// that everything downstream sees physical values. Nil for formats that
+    /// store calibrated values already.
+    private(set) var intensityCalibration: IntensityCalibration? = nil
+    /// Which microscope, at what voltage, in what mode — when the file says.
+    /// Used to file and find calibrations in the library.
+    private(set) var instrument: InstrumentIdentity? = nil
+    /// Indicated magnification, when the file records it.
+    private(set) var magnification: Double? = nil
     var rawFlipRows: Bool = true
     var rawFlipCols: Bool = false
     var rawTranspose: Bool = false
@@ -133,6 +235,37 @@ class STEMDataController: NSObject {
         self.rawTranspose = transpose
     }
 
+    /// A DM dimension, whatever integer width the file wrote it as.
+    ///
+    /// The original read only accepted `UInt32`; a file writing its dimensions
+    /// as `Int32` or `UInt16` silently contributed nothing, leaving a zero in
+    /// that slot and a dataset that looked like it had no scan.
+    static func dimension(_ value: Any?) -> UInt32? {
+        let number: Double?
+        switch value {
+        case let v as UInt32: return v
+        case let v as Int:    number = Double(v)
+        case let v as Int32:  number = Double(v)
+        case let v as UInt16: number = Double(v)
+        case let v as Int16:  number = Double(v)
+        case let v as NSNumber: number = v.doubleValue
+        default: number = nil
+        }
+        guard let n = number, n > 0, n <= Double(UInt32.max) else { return nil }
+        return UInt32(n)
+    }
+
+    /// The orientation the patterns currently in memory were read with.
+    ///
+    /// Recorded by the read path rather than worked out again from the file
+    /// extension. Deriving it a second time invites the derivation to disagree
+    /// with what the loader actually did — which it did: this used to answer
+    /// "unflipped" for anything that was not a .raw, while the loader applies the
+    /// flip flags to every format except EMD.
+    private(set) var appliedDetectorFlips: DetectorFlips = .unflipped
+
+    var currentDetectorFlips: DetectorFlips { return appliedDetectorFlips }
+
     var fileStream:InputStream?
     
     var patternPointer:UnsafeMutablePointer<Float32>?
@@ -142,6 +275,11 @@ class STEMDataController: NSObject {
     private var emdDataset:EMDDataset?
     
     var dwi: DispatchWorkItem?
+
+    /// Stops the bulk read, if one is running.
+    func cancelLoad() {
+        dwi?.cancel()
+    }
 
 
     
@@ -401,20 +539,37 @@ class STEMDataController: NSObject {
         return false
     }
     
+    /// Asks whatever sync client owns the file to bring it down.
+    ///
+    /// Coordinated access is the trigger, not the read: a plain `read()` on a
+    /// Dropbox placeholder succeeds, returns zero bytes and fetches nothing,
+    /// whereas announcing the read through `NSFileCoordinator` makes the client
+    /// materialise the file first. Measured on a 2.2 GB placeholder: the plain
+    /// read returned instantly with nothing, the coordinated one took 81 seconds
+    /// and produced the file.
+    ///
+    /// Blocks for the length of the download. Callers must not be on the main
+    /// thread.
     func nudgeDownload(url: URL) {
         let coordinator = NSFileCoordinator()
         var error: NSError?
-        
         coordinator.coordinate(readingItemAt: url, options: [], error: &error) { _ in
-                print("test")
-            // No-op — access itself is the trigger
+            // No-op — the coordinated access itself is the trigger.
         }
+#if DEBUG
+        if let error = error { NSLog("[open] coordination failed: %@", error.localizedDescription) }
+#endif
     }
     
     func openFile(url: URL) throws {
         
         
 //        if isDropboxFile(url) {
+            // The nudge has already happened, in FileMaterializer, before this
+            // was called — where it could be watched and cancelled. Doing it
+            // again here is a no-op on a local file, and is left only so that a
+            // direct call to `openFile` still fetches rather than reading an
+            // empty placeholder.
             nudgeDownload(url: url)
             // ...
 //        } else if (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]))?.isUbiquitousItem == true {
@@ -438,7 +593,7 @@ class STEMDataController: NSObject {
 
         let isTIFF = typeIdentifier.map { UTTypeConformsTo($0, kUTTypeTIFF) } ?? false
         let isMRC = ext == "mrc"
-        let isDM4 = ext == "dm4"
+        let isDM = ext == "dm4" || ext == "dm3"
         let isRaw = ext == "raw"
         let isEMD = ext == "emd" || ext == "h5" || ext == "hdf5"
         
@@ -446,6 +601,13 @@ class STEMDataController: NSObject {
         var dataType: DataType = .unknown
         var firstImageOffset: UInt64
         var additionalRows:Int = 0
+
+        // Cleared up front rather than in each branch: this is instance state,
+        // and a format that records no intensity calibration must not silently
+        // inherit the one belonging to whatever was opened before it.
+        self.intensityCalibration = nil
+        self.instrument = nil
+        self.magnification = nil
     
         if isTIFF {
             dataType = .float32
@@ -488,7 +650,7 @@ class STEMDataController: NSObject {
 #if DEBUG
             NSLog("[EMD] %@ — %@", dataset.datasetPath, dataset.summary)
 #endif
-        } else if isDM4{
+        } else if isDM{
             
             let dm4 = try DigitalMicrographReader(fileURL: url)
             var metadata = dm4.tagsDict
@@ -557,22 +719,84 @@ class STEMDataController: NSObject {
             
             
             
-            var sizesArray: [UInt32]  = Array.init(repeating: 0, count: 4)
-            
-            for sizeKey in sizes.keys{
-                if let index = sizeKey.last(where: { $0.isNumber }){
-                    if let t = sizes[sizeKey] as? UInt32{
-                        sizesArray[Int(String(index))!] = t
-                    }
-                    
+            // The four dimensions, read by the index in each tag's name.
+            //
+            // Three things here were crashes or silent corruption waiting:
+            //
+            //   * the slot was taken from the *last digit character* of the name,
+            //     so `TagGroup10` wrote slot 0 — quietly overwriting the detector
+            //     width with a scan dimension. The whole trailing run of digits
+            //     is parsed instead.
+            //   * the slot was used to index a fixed four-element array with no
+            //     bounds check, so anything above three was a fatal "Index out of
+            //     range" rather than an error the user could act on.
+            //   * `navigateDict` returns its *parent* when a key is missing, so a
+            //     file without `ImageData/Dimensions` reached this loop with some
+            //     unrelated dictionary's keys and wrote whatever they happened to
+            //     end in.
+            //
+            // A dataset that does not resolve to exactly four dimensions is not
+            // one this reader can open, and saying so beats guessing.
+            var sizesArray: [UInt32] = Array(repeating: 0, count: 4)
+            var seenSlots = Set<Int>()
+
+            for sizeKey in sizes.keys {
+                let digits = String(sizeKey.reversed().prefix { $0.isNumber }.reversed())
+                guard !digits.isEmpty, let slot = Int(digits) else { continue }
+                guard let value = STEMDataController.dimension(sizes[sizeKey]) else { continue }
+                guard slot >= 0, slot < sizesArray.count else {
+                    // A fifth dimension, or a name this reader misread. Either
+                    // way the four it expects are no longer trustworthy.
+                    throw FileReadError.invalidDimensions
                 }
+                sizesArray[slot] = value
+                seenSlots.insert(slot)
             }
-            
-            firstImageOffset = UInt64(data["offset"] as! Int)
+
+            guard seenSlots == [0, 1, 2, 3], sizesArray.allSatisfy({ $0 > 0 }) else {
+                throw FileReadError.invalidDimensions
+            }
+
+            guard let dataOffset = data["offset"] as? Int, dataOffset >= 0 else {
+                throw FileReadError.invalidDimensions
+            }
+            firstImageOffset = UInt64(dataOffset)
             self.detectorSize = IntSize(width: Int(sizesArray[0]), height: Int(sizesArray[1]))
             self.patternSize = detectorSize
             
             self.imageSize = IntSize(width: Int(sizesArray[2]), height: Int(sizesArray[3]))
+
+            // The pedestal and gain that turn the stored integers into electrons.
+            self.intensityCalibration = dm4.intensityCalibration(imageTagGroup: tg)
+
+            let described = dm4.instrumentDescription(imageTagGroup: tg)
+            self.magnification = dm4.magnification(imageTagGroup: tg)
+
+            // And the axis calibrations, which DM records alongside them.
+            let dm = dm4.scanCalibration(imageTagGroup: tg,
+                                         patternPixels: self.patternSize.width)
+            if dm.scanStepNanometres != nil || dm.diffractionStepMilliradians != nil
+                || dm.voltageKilovolts != nil {
+                self.calibrations = Calibrations(
+                    scan_step: dm.scanStepNanometres.map { Float($0) },
+                    diff_step: dm.diffractionStepMilliradians.map { Float($0) },
+                    voltage: dm.voltageKilovolts.map { Float($0) })
+            } else {
+                self.calibrations = nil
+            }
+            if !described.microscope.isEmpty || (dm.voltageKilovolts ?? 0) > 0 {
+                self.instrument = InstrumentIdentity(microscope: described.microscope,
+                                                     kilovolts: dm.voltageKilovolts ?? 0,
+                                                     mode: described.mode)
+            }
+#if DEBUG
+            NSLog("[DM] %@ — scan %@ nm/px, diffraction %@ mrad/px, %@ kV%@",
+                  tg,
+                  dm.scanStepNanometres.map { String(format: "%.6g", $0) } ?? "—",
+                  dm.diffractionStepMilliradians.map { String(format: "%.6g", $0) } ?? "—",
+                  dm.voltageKilovolts.map { String(format: "%.0f", $0) } ?? "—",
+                  dm.diffractionNeedsVoltage ? " (reciprocal axis, but no voltage recorded)" : "")
+#endif
         
 
         } else {
@@ -680,9 +904,15 @@ class STEMDataController: NSObject {
         // The row flip is an EMPAD RAW convention. EMD files store the stack in
         // the orientation they mean, and the transforms are instance state left
         // over from whatever was opened last, so don't apply them here.
+        // Captured before the work item so the background read never touches
+        // instance state that the main thread could be changing.
+        let intensity = self.intensityCalibration
+
         let doFlipRows = isEMD ? false : rawFlipRows
         let doFlipCols = isEMD ? false : rawFlipCols
         let doTranspose = isEMD ? false : rawTranspose
+        self.appliedDetectorFlips = DetectorFlips(flipY: doFlipRows, flipX: doFlipCols,
+                                                  transpose: doTranspose)
 
         let batchSize = 64
         let totalBatches = (totalImages + batchSize - 1) / batchSize
@@ -757,6 +987,20 @@ class STEMDataController: NSObject {
                 let count = imagesInBatch * totalPatternPixels
 
                 self.convertToFloat(dataType: dataType, sourceData: batchData, destinationBuffer: floatTempBuffer, count: count)
+
+                // Applied here, on the whole batch, before anything looks at a
+                // value. This is the one place every stored sample passes
+                // through, so doing it here means patterns, detectors, computed
+                // images and plugins all see physical units without any of them
+                // having to know the file format.
+                //
+                // `(raw - origin) * scale` as one pass: D = A * scale + (-origin * scale).
+                if let intensity = intensity, !intensity.isIdentity {
+                    var scale = Float(intensity.scale)
+                    var bias = Float(-intensity.origin * intensity.scale)
+                    vDSP_vsmsa(floatTempBuffer, 1, &scale, &bias,
+                               floatTempBuffer, 1, vDSP_Length(count))
+                }
 
 
                 for img in 0..<imagesInBatch {
@@ -1053,8 +1297,58 @@ class STEMDataController: NSObject {
         return Matrix.init(array: outArray, strideHeight, strideWidth)
     }
     
+    /// The image a one-pixel detector forms, read directly.
+    ///
+    /// The general path below would find the same number by multiplying the
+    /// whole pattern by a mask that is zero everywhere except one pixel and
+    /// summing the result — sixteen thousand multiplies and sixteen thousand
+    /// adds, per probe position, to fetch a value already sitting at a known
+    /// offset. Reading it is what makes a point detector cheap enough to compute
+    /// over the whole scan while the crosshair is being dragged, instead of on a
+    /// subsampled grid.
+    private func pointImage(atPatternIndex index: Int, strideLength: Int) -> Matrix {
+        let (strideWidth, strideHeight) = strideSize(imageSize, strideLength)
+        var outArray = [Float](repeating: 0, count: strideWidth * strideHeight)
+
+        guard let base = patternPointer, index >= 0, index < patternPixels else {
+            return Matrix(array: outArray, strideHeight, strideWidth)
+        }
+
+        let pixels = patternPixels
+        let width = imageSize.width
+        var pos = 0
+        for i in stride(from: 0, to: imageSize.height, by: strideLength) {
+            for j in stride(from: 0, to: width, by: strideLength) {
+                outArray[pos] = base[(i * width + j) * pixels + index]
+                pos += 1
+            }
+        }
+        return Matrix(array: outArray, strideHeight, strideWidth)
+    }
+
+    /// The single pattern pixel a point detector selects, or nil when this is
+    /// not a point detector or its geometry does not match the loaded patterns.
+    ///
+    /// The rounding is `ApertureFactory.point`'s, so the fast path and the mask
+    /// it replaces always choose the same pixel; a detector built against a
+    /// different pattern size falls through to the general path rather than
+    /// indexing with a stale geometry.
+    private func pointPatternIndex(for detector: Detector) -> Int? {
+        guard detector.shape == .point else { return nil }
+        guard Int(detector.size.width) == patternSize.width,
+              Int(detector.size.height) == patternSize.height else { return nil }
+        let x = Int(detector.center.x.rounded())
+        let y = Int(detector.center.y.rounded())
+        guard x >= 0, x < patternSize.width, y >= 0, y < patternSize.height else { return nil }
+        return y * patternSize.width + x
+    }
+
     func integrating(_ detector:Detector,strideLength:Int = 1) ->Matrix{
-        
+
+        if let index = pointPatternIndex(for: detector) {
+            return pointImage(atPatternIndex: index, strideLength: strideLength)
+        }
+
         let mask = detector.detectorMask()
         
 //        let group = DispatchGroup()
