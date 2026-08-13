@@ -73,3 +73,6 @@ fastlane/test_output
 # the zips it finds there, so deleting them drops older versions from the
 # appcast.
 dist/
+
+# Local release script
+Scripts/make_release.sh
