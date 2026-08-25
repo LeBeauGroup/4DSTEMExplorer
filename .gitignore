@@ -76,3 +76,4 @@ dist/
 
 # Local release script
 Scripts/make_release.sh
+.DS_Store
