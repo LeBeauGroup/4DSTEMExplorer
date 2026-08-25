@@ -66,7 +66,6 @@ fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
 .DS_Store
-.DS_Store
 
 # Release artifacts. Kept out of the repository because they are large
 # binaries, but keep the local folder: generate_appcast rebuilds the feed from
@@ -76,4 +75,3 @@ dist/
 
 # Local release script
 Scripts/make_release.sh
-.DS_Store
