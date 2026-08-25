@@ -73,5 +73,3 @@ fastlane/test_output
 # appcast.
 dist/
 
-# Local release script
-Scripts/make_release.sh

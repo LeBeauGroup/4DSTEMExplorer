@@ -38,7 +38,7 @@ cd "$(dirname "$0")/.."
 
 S3_BUCKET="4dstem-explorer"
 S3_BASE="https://${S3_BUCKET}.s3.amazonaws.com"
-S3_PROFILE="default"
+S3_PROFILE="4dstem-release"
 SIGN_ID="Developer ID Application"
 NOTARY_PROFILE="4dstem-notary"
 OUT=dist/release
