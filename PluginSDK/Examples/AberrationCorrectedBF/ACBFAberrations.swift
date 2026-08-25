@@ -74,36 +74,31 @@ struct ACBFOrders {
         self.coefficientCount = offset
     }
 
-    /// Krivanek notation, with the common name where one exists.
+    /// Krivanek C_{n,m}, with the descriptive name where one exists.
+    ///
+    /// Indexed rather than lettered, so the label and the number are in the
+    /// same convention. The Haider letters — A1, B2, S3, D4 — name these same
+    /// terms, but four of them are normalised differently, and a value printed
+    /// under a letter it does not match is a threefold error waiting to be
+    /// compared against a corrector.
     private static func name(n: Int, m: Int) -> String {
+        let index = "C\(n),\(m)"
+        let description: String
         switch (n, m) {
-        case (1, 0): return "C1 defocus"
-        case (1, 2): return "A1 twofold astigmatism"
-        case (2, 1): return "B2 axial coma"
-        case (2, 3): return "A2 threefold astigmatism"
-        case (3, 0): return "C3 spherical"
-        case (3, 2): return "S3 star"
-        case (3, 4): return "A3 fourfold astigmatism"
-        case (4, 1): return "B4 coma"
-        case (4, 3): return "D4 three lobe"
-        case (4, 5): return "A4 fivefold astigmatism"
-        case (5, 0): return "C5 spherical"
-        default:     return m == 0 ? "C\(n)" : "A\(n),\(m)"
+        case (1, 0): description = "defocus"
+        case (1, 2): description = "twofold astigmatism"
+        case (2, 1): description = "axial coma"
+        case (2, 3): description = "threefold astigmatism"
+        case (3, 0): description = "spherical"
+        case (3, 2): description = "star"
+        case (3, 4): description = "fourfold astigmatism"
+        case (4, 1): description = "coma"
+        case (4, 3): description = "three lobe"
+        case (4, 5): description = "fivefold astigmatism"
+        case (5, 0): description = "spherical"
+        default:     description = ""
         }
-    }
-
-    /// Labels for every entry of the flat coefficient vector.
-    var coefficientLabels: [String] {
-        var labels: [String] = []
-        for key in keys {
-            if key.width == 1 {
-                labels.append(key.name)
-            } else {
-                labels.append(key.name + " a")
-                labels.append(key.name + " b")
-            }
-        }
-        return labels
+        return description.isEmpty ? index : "\(index) \(description)"
     }
 
     /// Index of the defocus coefficient, which several routines single out.
@@ -115,6 +110,49 @@ struct ACBFOrders {
     var astigmatismIndices: (Int, Int)? {
         guard let key = keys.first(where: { $0.n == 1 && $0.m == 2 }) else { return nil }
         return (key.offset, key.offset + 1)
+    }
+
+    /// The coefficient vector to reconstruct with, given what is stored and
+    /// what the three controls say.
+    ///
+    /// Only defocus and twofold astigmatism have controls of their own;
+    /// everything of higher order lives in the stored vector and is reachable
+    /// only through refinement or through zeroing. So the controls normally
+    /// win — that is what makes dragging the defocus slider refocus the image
+    /// live, rather than the slider being overridden by whatever was last
+    /// refined.
+    ///
+    /// Zeroing is the exception, and getting it wrong is what made "Zero
+    /// Aberrations" look broken. The controls still hold the values being
+    /// cleared at the moment the button is pressed, so letting them win put
+    /// defocus and astigmatism straight back the instant they were zeroed. The
+    /// higher orders, having no control to restore them from, were the only
+    /// ones that actually cleared — and since the values handed back to the
+    /// controls afterwards were these same restored ones, the sliders never
+    /// moved either. The button appeared to do nothing at all.
+    func coefficients(storedIn stored: [Double],
+                      defocus: Double?, astigmatismA: Double?, astigmatismB: Double?,
+                      zeroingAll: Bool) -> [Double] {
+
+        if zeroingAll {
+            return [Double](repeating: 0, count: coefficientCount)
+        }
+
+        // A length that does not match is a backstop against indexing off the
+        // end, not the resizing policy: when the order changes, the caller
+        // remaps the vector term by term on (n, m), which is the only correct
+        // way to do it and cannot be reconstructed from the length alone.
+        var out = stored
+        if out.count != coefficientCount {
+            out = Array(out.prefix(coefficientCount))
+            out.append(contentsOf: [Double](repeating: 0, count: coefficientCount - out.count))
+        }
+        if let index = defocusIndex, let defocus = defocus { out[index] = defocus }
+        if let (ia, ib) = astigmatismIndices {
+            if let a = astigmatismA { out[ia] = a }
+            if let b = astigmatismB { out[ib] = b }
+        }
+        return out
     }
 }
 

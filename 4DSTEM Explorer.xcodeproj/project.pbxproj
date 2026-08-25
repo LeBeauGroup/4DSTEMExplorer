@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A0000000000000000000040 /* ACBFAberrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0000000000000000000041 /* ACBFAberrations.swift */; };
 		5A0000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000002 /* Sparkle */; };
 		AAF19B000000000000000050 /* PluginOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000050 /* PluginOverlay.swift */; };
 		AAF19B000000000000000042 /* CalibrationBatchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000042 /* CalibrationBatchSheet.swift */; };
@@ -21,6 +22,7 @@
 		AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000060 /* SoftwareUpdater.swift */; };
 		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
 		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
+		AAF19B000000000000000063 /* Aberration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000063 /* Aberration.swift */; };
 		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
 		AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000004 /* ScanRotationMeasurement.swift */; };
 		AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000003 /* CurlMinimisation.swift */; };
@@ -33,6 +35,7 @@
 		A51FEFC01FEC491B00A8A5EC /* STEMDataController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */; };
 		A5219B111FF3E618006D4044 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5219B101FF3E618006D4044 /* Constants.swift */; };
 		A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A560204E2E38106B00BD8CB8 /* BinaryReader.swift */; };
+		5A0000000000000000000020 /* BinaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A560204E2E38106B00BD8CB8 /* BinaryReader.swift */; };
 		A56918EB1FEDB2B000C0EF70 /* Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EA1FEDB2B000C0EF70 /* Matrix.swift */; };
 		A56918ED1FEDB32E00C0EF70 /* Complex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56918EC1FEDB32E00C0EF70 /* Complex.swift */; };
 		A5A10E181FEFED0C00B5CA40 /* ApertureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5A10E171FEFED0C00B5CA40 /* ApertureFactory.swift */; };
@@ -104,7 +107,18 @@
 		};
 /* End PBXCopyFilesBuildPhase section */
 
+/* Begin PBXContainerItemProxy section */
+		5A0000000000000000000030 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A51FEFA41FEC48FD00A8A5EC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A51FEFAB1FEC48FD00A8A5EC;
+			remoteInfo = "4DSTEM Explorer";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		5A0000000000000000000041 /* ACBFAberrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ACBFAberrations.swift; path = "PluginSDK/Examples/AberrationCorrectedBF/ACBFAberrations.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000050 /* PluginOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PluginOverlay.swift; path = "4DSTEM Explorer/Plugins/PluginOverlay.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000042 /* CalibrationBatchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchSheet.swift; path = "4DSTEM Explorer/UI/CalibrationBatchSheet.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000041 /* CalibrationBatchRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationBatchRunner.swift; path = "4DSTEM Explorer/Plugins/CalibrationBatchRunner.swift"; sourceTree = SOURCE_ROOT; };
@@ -118,6 +132,7 @@
 		AAF19A000000000000000060 /* SoftwareUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SoftwareUpdater.swift; path = "4DSTEM Explorer/SoftwareUpdater.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000063 /* Aberration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Aberration.swift; path = "4DSTEM Explorer/Objects/Aberration.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000004 /* ScanRotationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRotationMeasurement.swift; path = PluginSDK/Examples/ScanRotation/ScanRotationMeasurement.swift; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000003 /* CurlMinimisation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurlMinimisation.swift; path = PluginSDK/Examples/ScanRotation/CurlMinimisation.swift; sourceTree = SOURCE_ROOT; };
@@ -378,6 +393,7 @@
 				AAF19A000000000000000060 /* SoftwareUpdater.swift */,
 				AAF19A000000000000000061 /* SettingsView.swift */,
 				AAF19A000000000000000062 /* DetectorRadii.swift */,
+				AAF19A000000000000000063 /* Aberration.swift */,
 				AAF19A000000000000000005 /* CalibrationWindow.swift */,
 				AAF19A000000000000000004 /* ScanRotationMeasurement.swift */,
 				AAF19A000000000000000003 /* CurlMinimisation.swift */,
@@ -487,6 +503,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				5A0000000000000000000031 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BDEB43952ECE430D0000F7B1 /* 4DSTEM ExploreTests */,
@@ -651,6 +668,7 @@
 				AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */,
 				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
 				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
+				AAF19B000000000000000063 /* Aberration.swift in Sources */,
 				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
 				AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */,
 				AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */,
@@ -713,6 +731,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BD9FD2C02E31819B00AF63D1 /* DigitalMicrographReader.swift in Sources */,
+				5A0000000000000000000020 /* BinaryReader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -720,6 +739,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000040 /* ACBFAberrations.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -731,6 +751,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5A0000000000000000000031 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A51FEFAB1FEC48FD00A8A5EC /* 4DSTEM Explorer */;
+			targetProxy = 5A0000000000000000000030 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		A51FEFB51FEC48FD00A8A5EC /* Main.storyboard */ = {
@@ -879,7 +907,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -922,7 +950,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 2.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -999,6 +1027,11 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
 				MARKETING_VERSION = 1.0;
@@ -1012,7 +1045,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explore";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explorer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explorer";
 			};
 			name = Debug;
 		};
@@ -1032,6 +1065,11 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				HDF5_PREFIX = /opt/homebrew/opt/hdf5;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(HDF5_PREFIX)/include",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
 				MARKETING_VERSION = 1.0;
@@ -1043,7 +1081,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explore";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/4DSTEM Explorer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/4DSTEM Explorer";
 			};
 			name = Release;
 		};
@@ -1075,7 +1113,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = "4DSTEM Explore";
+				TEST_TARGET_NAME = "4DSTEM Explorer";
 			};
 			name = Debug;
 		};
@@ -1105,7 +1143,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = "4DSTEM Explore";
+				TEST_TARGET_NAME = "4DSTEM Explorer";
 			};
 			name = Release;
 		};

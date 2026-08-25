@@ -11,6 +11,28 @@ Privacy policy: No user data is collected.
 
 [![DOI](https://zenodo.org/badge/116034666.svg)](https://zenodo.org/badge/latestdoi/116034666)
 
+## Tests
+
+```bash
+xcodebuild test -project "4DSTEM Explorer.xcodeproj" -scheme "4DSTEM Explorer" -destination 'platform=macOS'
+```
+
+Or ⌘U in Xcode. The unit tests live in `4DSTEM ExploreTests/`, which is a
+file-system synchronized group — a `.swift` file dropped in that folder is
+compiled with no project edit.
+
+They cover the parts that are silent when wrong: the aberration coefficients
+written for phaser, where a wrong unit or a named coefficient's hidden scale
+factor produces a plausible file describing the wrong probe; the annular
+detector's two radii, which are pure boundary arithmetic; and acBF's zeroing,
+where the fault was an ordering that let the controls write their old values
+back over a cleared vector.
+
+The UI test target is **skipped by default**. It holds only Xcode's generated
+template, which asserts nothing about the application and needs a GUI session
+with accessibility granted — so it fails anywhere headless and takes the whole
+run down with it. Unskip it in the shared scheme once there are real UI tests.
+
 ## Releasing
 
 The application updates itself through [Sparkle](https://sparkle-project.org),
@@ -41,7 +63,13 @@ produces a feed with only the newest version.
 | Developer ID certificate | login Keychain | Xcode ▸ Settings ▸ Accounts |
 | Notarisation credentials | Keychain profile `4dstem-notary` | `xcrun notarytool store-credentials 4dstem-notary --apple-id YOUR_APPLE_ID --team-id 67JZ53W5NK` (needs an app-specific password) |
 | Sparkle EdDSA key | login Keychain, service `https://sparkle-project.org` | already present — shared with the group's other applications |
-| S3 credentials | `aws` profile `default` | `aws configure` |
+| S3 credentials | `aws` profile `4dstem-release` | see `Scripts/aws/README.md` |
+
+Releases publish as a scoped IAM user rather than the account root, following
+the same approach as `emd`: read and write to this one bucket, and deliberately
+no delete — a release only adds files, and the appcast keeps pointing at the
+older archives that installations on a previous version upgrade through. The
+policy and the setup commands are in `Scripts/aws/`.
 
 The bucket (`4dstem-explorer`) must serve the appcast and the zips publicly
 over HTTPS. Nothing secret goes in it: the public half of the signing key is in
