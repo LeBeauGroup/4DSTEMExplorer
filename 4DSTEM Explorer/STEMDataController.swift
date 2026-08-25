@@ -148,16 +148,20 @@ struct Calibrations{
     /// out describing what is on screen rather than a guess. A measurement that
     /// finds the detector mirrored relative to the scan can correct it.
     let detectorFlips:DetectorFlips?
+    /// Measured aberration coefficients, Krivanek (n, m), ångström, detector
+    /// frame. Empty when nothing has measured them.
+    let aberrations:[Aberration]
 
     init(scan_step: Float?, diff_step: Float?, voltage: Float? = nil,
          scanRotationDegrees: Float? = nil, scanCorrection: ScanCorrection? = nil,
-         detectorFlips: DetectorFlips? = nil) {
+         detectorFlips: DetectorFlips? = nil, aberrations: [Aberration] = []) {
         self.scan_step = scan_step
         self.diff_step = diff_step
         self.voltage = voltage
         self.scanRotationDegrees = scanRotationDegrees
         self.scanCorrection = scanCorrection
         self.detectorFlips = detectorFlips
+        self.aberrations = aberrations
     }
 }
 

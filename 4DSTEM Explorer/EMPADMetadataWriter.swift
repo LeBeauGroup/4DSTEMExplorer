@@ -109,6 +109,27 @@ enum EMPADMetadataWriter {
             metadata["det_flips"] = flips.triple
         }
 
+        // Aberrations, as measured by the acBF plugin.
+        //
+        // Split deliberately across two fields. `defocus` already exists in the
+        // schema, documented in metres and converted back to ångström on the
+        // way in, so C1 goes there. Everything else goes in the `aberrations`
+        // list, each term carrying its Krivanek order as a two-character `nm`
+        // field — "12" is (n = 1, m = 2). The schema tolerates extra keys, so
+        // this rides along without disturbing a reader that does not know about
+        // it yet.
+        //
+        // C1 appears in exactly one of the two. The probe model adds
+        // `defocus/2·θ²` *and* the aberration surface, whose (1, 0) term is
+        // exactly `C1·θ²/2`, so a C1 written in both places is applied twice.
+        if let aberrations = calibrations?.aberrations, !aberrations.isEmpty {
+            if let defocusMetres = aberrations.defocusMetres {
+                metadata["defocus"] = defocusMetres
+            }
+            let rest = aberrations.phaserAberrations
+            if !rest.isEmpty { metadata["aberrations"] = rest }
+        }
+
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let now = Date()

@@ -7,7 +7,7 @@
 //
 
 import Testing
-@testable import _DSTEM_Explore
+@testable import _DSTEM_Explorer
 
 struct _DSTEM_ExploreTests {
 

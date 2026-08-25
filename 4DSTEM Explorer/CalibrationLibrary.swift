@@ -337,7 +337,11 @@ extension SavedCalibration {
                 ? (scanRotationDegrees.map { Float($0) } ?? current?.scanRotationDegrees)
                 : current?.scanRotationDegrees,
             scanCorrection: correction,
-            detectorFlips: flips)
+            detectorFlips: flips,
+            // A library entry describes an instrument and a mode. Aberrations
+            // belong to one dataset's probe, so they are never stored here and
+            // never cleared by applying an entry.
+            aberrations: current?.aberrations ?? [])
     }
 
     /// The fields to tick by default when this entry is loaded.
