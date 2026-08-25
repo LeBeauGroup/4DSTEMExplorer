@@ -33,6 +33,8 @@ struct PluginCalibration {
     let scanCorrection: ScanCorrection?
     /// How the patterns should be oriented on the detector.
     let detectorFlips: DetectorFlips?
+    /// Measured aberration coefficients, ångström, detector frame.
+    let aberrations: [Aberration]
     /// The plugin's own one-line description of what it is offering.
     let summary: String?
 
@@ -54,9 +56,12 @@ struct PluginCalibration {
         let flips = (dictionary[FDSCalibrationKey.detectorFlips] as? [NSNumber])
             .flatMap { DetectorFlips(triple: $0.map { $0.boolValue }) }
 
+        let measured = Aberration.list(dictionary[FDSCalibrationKey.aberrations])
+
         // A dictionary with nothing usable in it is not an offer.
         guard scan != nil || diffraction != nil || voltage != nil
-                || rotation != nil || correction != nil || flips != nil else { return nil }
+                || rotation != nil || correction != nil || flips != nil
+                || !measured.isEmpty else { return nil }
 
         scanStepNanometers = scan
         diffractionStepMilliradians = diffraction
@@ -64,6 +69,7 @@ struct PluginCalibration {
         scanRotationDegrees = rotation.flatMap { $0.isFinite ? $0 : nil }
         scanCorrection = correction
         detectorFlips = flips
+        aberrations = measured
         summary = (dictionary[FDSCalibrationKey.summary] as? String)
             .flatMap { $0.isEmpty ? nil : $0 }
     }
@@ -75,6 +81,15 @@ struct PluginCalibration {
     /// a real one.
     func changes(from current: Calibrations?) -> [String] {
         var lines: [String] = []
+        if !aberrations.isEmpty {
+            let named = aberrations.filter { $0.isSignificant }
+                .sorted { ($0.n, $0.m) < ($1.n, $1.m) }
+                .map { $0.name }
+                .joined(separator: ", ")
+            let had = current?.aberrations.isEmpty == false
+            lines.append("Aberrations: \(named)"
+                         + (had ? " (replacing the previous set)" : ""))
+        }
         func line(_ label: String, _ new: Float?, _ old: Float?, _ format: String, _ unit: String) {
             guard let new = new else { return }
             if let old = old, abs(old - new) < abs(new) * 1e-6 {
@@ -115,6 +130,14 @@ struct PluginCalibration {
                             voltage: accelerationKilovolts ?? current?.voltage,
                             scanRotationDegrees: scanRotationDegrees ?? current?.scanRotationDegrees,
                             scanCorrection: scanCorrection ?? current?.scanCorrection,
-                            detectorFlips: detectorFlips ?? current?.detectorFlips)
+                            detectorFlips: detectorFlips ?? current?.detectorFlips,
+                            // Measured aberrations replace the previous set
+                            // wholesale rather than merging term by term: a
+                            // refinement produces a vector, and mixing terms
+                            // from two different fits describes no probe that
+                            // was ever measured.
+                            aberrations: aberrations.isEmpty
+                                ? (current?.aberrations ?? [])
+                                : aberrations)
     }
 }

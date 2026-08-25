@@ -390,6 +390,23 @@ public struct FDSCalibrationKey {
     /// its finding with `FDSHostContext.detectorFlips` and offers the result, so
     /// the host never has to know what a given plugin meant by "flip".
     public static let detectorFlips = "detectorFlips"
+    /// Array of dictionaries, one per measured aberration coefficient:
+    /// `["nm": String, "re": Double, "im": Double]`.
+    ///
+    /// `nm` carries the Krivanek order as one character per index — "12" is
+    /// (n = 1, m = 2), "01" is (n = 0, m = 1). Character separation rather than
+    /// a delimiter, which works because both indices are single digits: the
+    /// radial order is capped at 6 and `m` never exceeds `n + 1`.
+    ///
+    /// Values are in **ångström**, in the **detector frame** — the frame chi is
+    /// evaluated in, not the scan frame. `re` and `im` are the cosine- and
+    /// sine-like halves of the pair; a symmetric term (m == 0) has `im` 0.
+    ///
+    /// Never offered under a coefficient's name. Downstream, phaser's
+    /// convenience names apply a scale factor to four terms — C_21 = 3·B2,
+    /// C_32 = 3·S3, C_41 = 4·B4, C_43 = 4·D4 — so a coefficient offered by name
+    /// would arrive multiplied.
+    public static let aberrations = "aberrations"
     /// String. One line describing what is being offered, shown to the user
     /// before they accept it.
     public static let summary = "summary"
@@ -408,6 +425,7 @@ extension FDSResult {
                                        scanRotationDegrees: Double? = nil,
                                        scanCorrectionRowMajor: [Double]? = nil,
                                        detectorFlips: [Bool]? = nil,
+                                       aberrations: [[String: Any]]? = nil,
                                        summary: String? = nil) -> [String: Any] {
         var calibration: [String: Any] = [:]
         if let value = scanStepNanometers, value.isFinite, value > 0 {
@@ -428,6 +446,9 @@ extension FDSResult {
         }
         if let flips = detectorFlips, flips.count == 3 {
             calibration[FDSCalibrationKey.detectorFlips] = flips.map { NSNumber(value: $0) }
+        }
+        if let terms = aberrations, !terms.isEmpty {
+            calibration[FDSCalibrationKey.aberrations] = terms
         }
         if let summary = summary { calibration[FDSCalibrationKey.summary] = summary }
         guard calibration.count > (summary == nil ? 0 : 1) else { return result }

@@ -299,7 +299,12 @@ final class CalibrationWindowModel: ObservableObject {
                             voltage: Float(voltage),
                             scanRotationDegrees: Float(scanRotation),
                             scanCorrection: scanCorrection,
-                            detectorFlips: detectorFlips)
+                            detectorFlips: detectorFlips,
+                            // Carried through untouched. This window has no
+                            // aberration fields, so rebuilding from what it
+                            // shows would quietly discard a refinement made
+                            // elsewhere.
+                            aberrations: model.calibrations?.aberrations ?? [])
     }
 
     /// True once anything has been typed or measured.

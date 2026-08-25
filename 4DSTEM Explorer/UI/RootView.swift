@@ -571,13 +571,37 @@ struct RootView: View {
     var body: some View {
         
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            // Left Panel
-            VStack(alignment: .leading, spacing: 12) {
+            // Left Panel, pinned to the top left.
+            //
+            // The pattern was a second flexible child of this stack: its
+            // content is a GeometryReader, which is greedy and has no height of
+            // its own, so the stack shared spare window height between the
+            // pattern and the detector panel. The pattern then grew as the
+            // window did — measured at 120pt in a short window against 216pt in
+            // a tall one — and everything below it moved down to make room.
+            //
+            // Capping it at the column's width fixes its height to the one
+            // thing that should decide it: the pattern is square, so a square
+            // as wide as the column is exactly the size it wants. Spare height
+            // then has only one place to go, which is the detector panel.
+            VStack(alignment: .leading, spacing: 10) {
                 patternPanel
+                    // Its ideal height is a square as wide as the column, which
+                    // is the only size a square pattern should be: it then
+                    // matches the width of the panel below and stays put at
+                    // every window height. Capping the height instead — the
+                    // previous attempt at this — made the square shrink to the
+                    // cap and left it visibly narrower than the controls.
+                    .fixedSize(horizontal: false, vertical: true)
                 detectorSettings
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(12)
+            // No top padding: a full-height sidebar already insets its content
+            // clear of the titlebar, and adding to that is what opened the gap
+            // below the window buttons.
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
         } detail: {

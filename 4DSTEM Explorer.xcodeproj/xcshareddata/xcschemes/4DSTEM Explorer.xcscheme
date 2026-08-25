@@ -38,8 +38,13 @@
                ReferencedContainer = "container:4DSTEM Explorer.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <!-- Skipped by default. This target holds only Xcode's generated
+              template, which asserts nothing about the application, and driving
+              it needs a GUI session with accessibility granted — so it fails
+              anywhere headless and takes the whole run down with it. Unskip
+              when there are real UI tests to run. -->
          <TestableReference
-            skipped = "NO">
+            skipped = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "BDEB439B2ECE430D0000F7B1"

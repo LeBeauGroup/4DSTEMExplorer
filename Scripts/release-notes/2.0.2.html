@@ -1,0 +1,31 @@
+<h2>Version 2.0.2</h2>
+
+<h3>Fixed</h3>
+<ul>
+  <li><b>Annular detector radii no longer collide.</b> Driving the inner radius
+      past the outer one used to leave them equal — an annulus of zero width,
+      collecting nothing. Each now pushes the other and a gap of at least one
+      pixel is kept. The inner control could also never widen the annulus from
+      the inside, because its slider stopped at the outer radius; it no longer
+      does.</li>
+  <li><b>acBF "Zero Aberrations" now clears the sliders.</b> It cleared the
+      coefficient vector and then let the defocus and astigmatism controls write
+      their old values straight back over it, so only the higher orders — which
+      have no control of their own — actually cleared.</li>
+  <li><b>The pattern keeps its size.</b> It was a second flexible element in the
+      sidebar and grew with the window height, pushing the detector controls
+      down. It is now a square as wide as the column, and the sidebar content is
+      pinned to the top left with the spacing below the title bar tightened.</li>
+</ul>
+
+<h3>Aberrations in the calibration</h3>
+<ul>
+  <li>The coefficients acBF refines can now be applied to the dataset's
+      calibration and are written to the exported EMPAD metadata: C1 as
+      <code>defocus</code> in metres, and the rest as an <code>aberrations</code>
+      list carrying Krivanek (n, m), magnitude in ångström, in the detector
+      frame.</li>
+  <li>The acBF aberration report now gives each term as a magnitude and an
+      azimuth rather than a pair of Cartesian halves, in Krivanek C_{n,m}
+      notation throughout so the labels and the numbers agree.</li>
+</ul>

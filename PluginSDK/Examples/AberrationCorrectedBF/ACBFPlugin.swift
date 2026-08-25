@@ -227,18 +227,15 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
         let orders = ACBFOrders(maxOrder: maxOrder)
         resizeCoefficients(to: orders)
 
-        if (parameters["zeroAll"] as? NSNumber)?.boolValue == true {
-            coefficients = [Double](repeating: 0, count: orders.coefficientCount)
-        }
-        // Controls win over stored state, so dragging the defocus slider works.
-        if let index = orders.defocusIndex,
-           let value = (parameters["c1"] as? NSNumber)?.doubleValue {
-            coefficients[index] = value
-        }
-        if let (ia, ib) = orders.astigmatismIndices {
-            if let a = (parameters["a1a"] as? NSNumber)?.doubleValue { coefficients[ia] = a }
-            if let b = (parameters["a1b"] as? NSNumber)?.doubleValue { coefficients[ib] = b }
-        }
+        // Controls win over stored state so the defocus slider refocuses live —
+        // except when zeroing, where they still hold the values being cleared.
+        let zeroingAll = (parameters["zeroAll"] as? NSNumber)?.boolValue == true
+        coefficients = orders.coefficients(
+            storedIn: coefficients,
+            defocus: (parameters["c1"] as? NSNumber)?.doubleValue,
+            astigmatismA: (parameters["a1a"] as? NSNumber)?.doubleValue,
+            astigmatismB: (parameters["a1b"] as? NSNumber)?.doubleValue,
+            zeroingAll: zeroingAll)
 
         var transform = ACBFCoordinateTransform(
             flipRows: (parameters["flipRows"] as? NSNumber)?.boolValue ?? false,
@@ -339,9 +336,37 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
 
         if host.isCancelled { return nil }
 
-        // 6. Hand refined values back to the controls.
+        // 6. Hand refined values back to the controls, and offer the whole
+        //    refined vector to the host so it can be saved with the dataset.
+        //
+        //    The detector-frame vector, not the scan-frame one computed below
+        //    for reporting: chi is evaluated at detector coordinates here and
+        //    in every downstream probe model, so the scan-frame vector would be
+        //    rotated twice.
+        var aberrationTerms: [[String: Any]] = []
+        for key in orders.keys {
+            let a = coefficients[key.offset]
+            let b = key.width == 2 ? coefficients[key.offset + 1] : 0
+            guard a.isFinite, b.isFinite, a != 0 || b != 0 else { continue }
+            // One field for the order, a character per index: "12" is (1, 2).
+            aberrationTerms.append(["nm": "\(key.n)\(key.m)", "re": a, "im": b])
+        }
+
         var writeBack: [String: Any] = [:]
-        if pressedDefocus || pressedAberrations || pressedOrientation || pressedAll || (parameters["zeroAll"] as? NSNumber)?.boolValue == true {
+
+        /// Everything an output carries back regardless of which output it is.
+        func finish(_ result: [String: Any]) -> [String: Any] {
+            var out = result
+            if !writeBack.isEmpty { out[FDSResultKey.parameters] = writeBack }
+            guard !aberrationTerms.isEmpty else { return out }
+            let summary = aberrationTerms.count == 1
+                ? "1 aberration coefficient measured by acBF."
+                : "\(aberrationTerms.count) aberration coefficients measured by acBF."
+            return FDSResult.withCalibration(out, aberrations: aberrationTerms,
+                                             summary: summary)
+        }
+
+        if pressedDefocus || pressedAberrations || pressedOrientation || pressedAll || zeroingAll {
             if let index = orders.defocusIndex {
                 writeBack["c1"] = NSNumber(value: coefficients[index])
             }
@@ -365,8 +390,7 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
                 title: "acBF defocus curve — \(host.fileName)",
                 xLabel: "C1 defocus (Å)", yLabel: metric.label,
                 message: "\(baseStack.count) virtual detectors, binning \(binning), \(String(format: "%.1f", convergence)) mrad convergence.")
-            if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
-            return result
+            return finish(result)
         }
 
         let stack = staged(transform)
@@ -391,17 +415,56 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
             report += "  flip columns   \(transform.flipColumns)\n"
             report += "  transpose      \(transform.transpose)\n\n"
 
-            report += "Aberrations (Å, detector frame)\n"
-            let labels = orders.coefficientLabels
-            for (index, label) in labels.enumerated() {
-                let value = coefficients[index]
-                // Also as phase at the aperture edge, which is what decides
-                // whether a term matters at all.
-                let key = orders.keys.first { index >= $0.offset && index < $0.offset + $0.width }
-                let radians = key.map { value / optics.coefficientScale(order: $0.n) } ?? 0
-                report += String(format: "  %-26@ % 12.4g   (%+.2f rad at the edge)\n",
-                                 label as NSString, value, radians)
+            report += "Aberrations (Å, detector frame, Krivanek C_{n,m})\n"
+            // Magnitude and azimuth, because that is how an aberration is read
+            // and how a corrector quotes it — "A1 = 12 Å at 38°" rather than a
+            // pair of Cartesian halves. The Cartesian pair is kept alongside,
+            // since it is what the metadata file carries and what evaluates chi.
+            //
+            // The azimuth is atan2(b, a) divided by m. Chi goes as
+            // cos(m(φ − φ₀)), so the raw argument of the coefficient is m times
+            // the angle on the specimen: for A1 the two differ by a factor of
+            // two, which is small enough to look plausible and large enough to
+            // be badly wrong. Dividing here means the printed angle is the one
+            // that can be compared against the microscope.
+            // Padded in Swift rather than with a width on %@, which does not
+            // pad and leaves the columns ragged in a table meant to be read.
+            func column(_ text: String) -> String {
+                return text.padding(toLength: 26, withPad: " ", startingAt: 0)
             }
+
+            for key in orders.keys {
+                let a = coefficients[key.offset]
+
+                if key.width == 1 {
+                    // No azimuth exists: chi is constant around the ring, and
+                    // the sign carries the meaning — negative C1 is underfocus.
+                    let radians = a / optics.coefficientScale(order: key.n)
+                    report += String(format: "  %@ %12.4g Å              (%+.2f rad at the edge)\n",
+                                     column(key.name), a, radians)
+                    continue
+                }
+
+                let b = coefficients[key.offset + 1]
+                let magnitude = (a * a + b * b).squareRoot()
+                // Folded into one period. The term repeats every 360/m degrees,
+                // so quoting an angle outside that says nothing extra and makes
+                // two files describing the same aberration look different.
+                let period = 360.0 / Double(key.m)
+                var azimuth = atan2(b, a) * 180 / Double.pi / Double(key.m)
+                azimuth = azimuth.truncatingRemainder(dividingBy: period)
+                if azimuth < 0 { azimuth += period }
+
+                let edge = magnitude / optics.coefficientScale(order: key.n)
+                report += String(format: "  %@ %12.4g Å at %5.1f°  (%+.2f rad at the edge)\n",
+                                 column(key.name), magnitude, azimuth, edge)
+                report += String(format: "  %@ a %10.4g  b %10.4g   (repeats every %.0f°)\n",
+                                 column(""), a, b, period)
+            }
+            report += "\nKrivanek C_{n,m} throughout, matching what is written to the metadata\n"
+            report += "file. A corrector quoting Haider coefficients normalises four of these\n"
+            report += "differently — C21 = 3·B2, C32 = 3·S3, C41 = 4·B4, C43 = 4·D4 — so divide\n"
+            report += "those before comparing. Every other term is the same in both.\n"
             report += "\nA term contributing much less than about a tenth of a radian at the\n"
             report += "aperture edge cannot be measured from image sharpness, and a value\n"
             report += "reported for one should be read as noise rather than as a measurement.\n\n"
@@ -412,8 +475,7 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
             report += "the absolute angle matters.\n"
 
             var result = FDSResult.text(report, title: "acBF Aberrations — \(host.fileName)")
-            if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
-            return result
+            return finish(result)
         }
 
         guard let image = reconstructor.reconstruct(stack: stack, coefficients: scanFrame,
@@ -433,8 +495,7 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
         var result = FDSResult.scanImage(image, rows: scanHeight, columns: scanWidth,
                                          title: "\(modeName) — \(host.fileName)",
                                          message: message)
-        if !writeBack.isEmpty { result[FDSResultKey.parameters] = writeBack }
-        return result
+        return finish(result)
     }
 
     // MARK: - Coefficients
