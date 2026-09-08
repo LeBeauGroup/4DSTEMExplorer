@@ -60,6 +60,24 @@ struct ScanMetadata {
     /// way that one written down by the microscope does not.
     var scanStepDerivation: String?
 
+    /// The file this was read from.
+    ///
+    /// Kept so an export can be named after the metadata it came from rather
+    /// than after the raw data — acquisition software names the two differently,
+    /// and a calibration written back under the raster's name is hard to pair
+    /// with the file it describes.
+    var sourceURL: URL?
+
+    /// The JSON object exactly as it was read, when the source was JSON.
+    ///
+    /// This type models only the fields the application understands; a real
+    /// acquisition file carries a good deal more — exposure, beam current, the
+    /// single-electron level, the acquisition time. Exporting a calibration
+    /// built from this struct alone would silently drop all of it, so the
+    /// original is kept and written back through, with the calibration laid
+    /// over the top.
+    var originalJSON: [String: Any]?
+
     /// One line describing what was found, for the panel.
     var summary: String {
         var parts: [String] = []
@@ -125,9 +143,13 @@ struct ScanMetadata {
         // should still work.
         var fields: [Field]
         var format: String
+        var original: [String: Any]? = nil
         if let root = try? JSONSerialization.jsonObject(with: data) {
             fields = ScanMetadata.flattenJSON(root, path: [])
             format = "JSON"
+            // Only a top-level object round-trips as metadata; an array or a
+            // bare value parses but is not an EMPAD document.
+            original = root as? [String: Any]
         } else if let parsed = ScanMetadata.flattenXML(data) {
             fields = parsed
             format = "XML"
@@ -137,6 +159,8 @@ struct ScanMetadata {
 
         var metadata = ScanMetadata.interpret(fields)
         metadata.sourceFormat = format
+        metadata.sourceURL = url
+        metadata.originalJSON = original
         guard !metadata.isEmpty else { throw ReadError.nothingUseful(name) }
         return metadata
     }

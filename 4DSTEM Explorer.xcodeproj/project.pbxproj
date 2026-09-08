@@ -23,6 +23,7 @@
 		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
 		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
 		AAF19B000000000000000063 /* Aberration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000063 /* Aberration.swift */; };
+		AAF19B000000000000000064 /* NumpyWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000064 /* NumpyWriter.swift */; };
 		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
 		AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000004 /* ScanRotationMeasurement.swift */; };
 		AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000003 /* CurlMinimisation.swift */; };
@@ -133,6 +134,7 @@
 		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000063 /* Aberration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Aberration.swift; path = "4DSTEM Explorer/Objects/Aberration.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000064 /* NumpyWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NumpyWriter.swift; path = "4DSTEM Explorer/Plugins/NumpyWriter.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000004 /* ScanRotationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRotationMeasurement.swift; path = PluginSDK/Examples/ScanRotation/ScanRotationMeasurement.swift; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000003 /* CurlMinimisation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurlMinimisation.swift; path = PluginSDK/Examples/ScanRotation/CurlMinimisation.swift; sourceTree = SOURCE_ROOT; };
@@ -394,6 +396,7 @@
 				AAF19A000000000000000061 /* SettingsView.swift */,
 				AAF19A000000000000000062 /* DetectorRadii.swift */,
 				AAF19A000000000000000063 /* Aberration.swift */,
+				AAF19A000000000000000064 /* NumpyWriter.swift */,
 				AAF19A000000000000000005 /* CalibrationWindow.swift */,
 				AAF19A000000000000000004 /* ScanRotationMeasurement.swift */,
 				AAF19A000000000000000003 /* CurlMinimisation.swift */,
@@ -669,6 +672,7 @@
 				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
 				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
 				AAF19B000000000000000063 /* Aberration.swift in Sources */,
+				AAF19B000000000000000064 /* NumpyWriter.swift in Sources */,
 				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
 				AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */,
 				AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */,
@@ -907,7 +911,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -950,7 +954,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.2;
+				MARKETING_VERSION = 2.0.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",

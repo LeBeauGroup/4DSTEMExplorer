@@ -84,6 +84,13 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var isDragging: Bool = false
 
     @Published var selectedURL: URL?
+
+    /// The metadata document this dataset was opened with, when one was loaded.
+    ///
+    /// Kept for the export, which is based on it and named after it: the
+    /// acquisition records a great deal this application does not model, and a
+    /// calibration written from the modelled fields alone would drop the rest.
+    @Published private(set) var importedMetadata: ScanMetadata?
     @Published var status: String = "Idle"
     @Published var loadErrorMessage: String?
     @Published var progress: Double = 0.0
@@ -858,6 +865,107 @@ final class DataViewModel: NSObject, ObservableObject {
         return (inferredW, inferredH)
     }
 
+    /// Reads a metadata sidecar for the dataset that is already open.
+    ///
+    /// The same file can be loaded from the RAW dimensions sheet, but only while
+    /// opening — and a raster is the one thing that sheet is needed for. Once
+    /// the data is in, wanting the calibration is no reason to read a
+    /// multi-gigabyte file again.
+    ///
+    /// What it applies is the calibration. It cannot apply the raster: the data
+    /// has already been laid out on one, and changing it would mean re-reading
+    /// the file. So a sidecar whose scan size disagrees is reported rather than
+    /// partly obeyed — the usual cause is that it belongs to a different
+    /// dataset, which makes the rest of its numbers suspect too.
+    func importMetadata() {
+        guard let selectedURL = selectedURL else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = ScanMetadata.supportedExtensions.compactMap {
+            UTType(filenameExtension: $0)
+        }
+        panel.prompt = "Import"
+        panel.message = "Choose the JSON or XML metadata for \(selectedURL.lastPathComponent)"
+        // Beside the data, which is where a sidecar almost always is.
+        panel.directoryURL = selectedURL.deletingLastPathComponent()
+
+        let adopt: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard let self = self, response == .OK, let url = panel.url else { return }
+
+            let metadata: ScanMetadata
+            do {
+                metadata = try ScanMetadata.read(url: url)
+            } catch {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Could not read that metadata"
+                alert.informativeText = (error as? LocalizedError)?.errorDescription
+                    ?? error.localizedDescription
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+                return
+            }
+
+            // A raster that disagrees is the signature of a sidecar belonging to
+            // another dataset. Worth stopping for: its calibration would then be
+            // another dataset's calibration.
+            if let w = metadata.scanWidth, let h = metadata.scanHeight,
+               self.imageWidth > 0, self.imageHeight > 0,
+               w != self.imageWidth || h != self.imageHeight {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "This metadata describes a different scan"
+                alert.informativeText = """
+                    \(url.lastPathComponent) records a \(w)×\(h) scan, but \
+                    \(selectedURL.lastPathComponent) is loaded as \
+                    \(self.imageWidth)×\(self.imageHeight).
+
+                    The raster cannot be changed without reopening the file. \
+                    Its calibration can still be applied, but a sidecar written \
+                    for another scan is unlikely to describe this one.
+                    """
+                alert.addButton(withTitle: "Apply Calibration Anyway")
+                alert.addButton(withTitle: "Cancel")
+                guard alert.runModal() == .alertFirstButtonReturn else { return }
+            }
+
+            let current = self.calibrations
+            let incoming = BatchDiscovery.calibrations(from: metadata)
+            // What the file is silent about is left as it is, rather than
+            // cleared: importing a sidecar that records only the voltage should
+            // not discard a scan step measured this morning.
+            self.calibrations = Calibrations(
+                scan_step: incoming.scan_step ?? current?.scan_step,
+                diff_step: incoming.diff_step ?? current?.diff_step,
+                voltage: incoming.voltage ?? current?.voltage,
+                scanRotationDegrees: incoming.scanRotationDegrees ?? current?.scanRotationDegrees,
+                scanCorrection: incoming.scanCorrection ?? current?.scanCorrection,
+                detectorFlips: incoming.detectorFlips ?? current?.detectorFlips,
+                aberrations: current?.aberrations ?? [])
+            // Recorded so an export is based on this document and named after
+            // it, exactly as when it is loaded during opening.
+            self.importedMetadata = metadata
+
+            let done = NSAlert()
+            done.alertStyle = .informational
+            done.messageText = "Imported \(url.lastPathComponent)"
+            done.informativeText = metadata.summary.isEmpty
+                ? "The calibration was applied."
+                : "\(metadata.summary)\n\nExports will be based on this file and named after it."
+            done.addButton(withTitle: "OK")
+            done.runModal()
+        }
+
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: adopt)
+        } else {
+            adopt(panel.runModal())
+        }
+    }
+
 // SwiftUI panel to prompt for RAW dimensions
     /// Writes the current calibration as EMPAD metadata JSON.
     ///
@@ -871,7 +979,8 @@ final class DataViewModel: NSObject, ObservableObject {
             data = try EMPADMetadataWriter.json(url: selectedURL,
                                                 scanWidth: imageWidth,
                                                 scanHeight: imageHeight,
-                                                calibrations: calibrations)
+                                                calibrations: calibrations,
+                                                basedOn: importedMetadata?.originalJSON)
         } catch {
             let alert = NSAlert()
             alert.alertStyle = .warning
@@ -885,13 +994,15 @@ final class DataViewModel: NSObject, ObservableObject {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = EMPADMetadataWriter.suggestedFilename(for: selectedURL)
+        panel.nameFieldStringValue = EMPADMetadataWriter.suggestedFilename(
+            for: selectedURL, metadataURL: importedMetadata?.sourceURL)
         panel.canCreateDirectories = true
         panel.message = "Save the calibration as EMPAD metadata"
         // Alongside the data, for the same reason the metadata panel opens there:
         // `raw_filename` is relative to the metadata's own location, so the two
         // belong in one folder.
-        panel.directoryURL = selectedURL?.deletingLastPathComponent()
+        panel.directoryURL = (importedMetadata?.sourceURL ?? selectedURL)?
+            .deletingLastPathComponent()
 
         let write: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let url = panel.url else { return }
@@ -984,7 +1095,10 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose in
+        }, onOK: { [weak self] scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, metadata in
+            // Recorded here rather than threaded through the completion tuple,
+            // which several other callers share.
+            self?.importedMetadata = metadata
             if let xy = parseXY(scan_dims) {
                 let scan_step = Float(scan_step) ?? nil
                 let diff_step = Float(diff_step) ?? nil
@@ -1086,6 +1200,8 @@ final class DataViewModel: NSObject, ObservableObject {
     func open(url: URL) {
         updateSecurityScopedAccess(for: url)
         selectedURL = url
+        // Belongs to the file being replaced, not to this one.
+        importedMetadata = nil
         loadErrorMessage = nil
         
         status = "Preparing to load \(url.lastPathComponent)…"

@@ -1,0 +1,33 @@
+<h2>Version 2.0.3</h2>
+
+<h3>Metadata</h3>
+<ul>
+  <li><b>File ▸ Import Metadata…</b> reads a JSON or XML sidecar for the dataset
+      already open. The same file could previously only be loaded while opening,
+      which meant rereading a multi-gigabyte raw file just to pick up a
+      calibration.
+      <ul>
+        <li>It applies the calibration, not the raster — the data is already laid
+            out, so a sidecar recording a different scan size is reported rather
+            than partly obeyed.</li>
+        <li>Fields the file is silent about are kept, not cleared. Importing a
+            sidecar that records only the voltage no longer discards a
+            diffraction step measured this morning.</li>
+      </ul></li>
+  <li><b>Exports start from the imported metadata</b> and are named after it —
+      <code>aq3_10nm_20Mx_calib.json</code> rather than the raster's name.
+      Everything the acquisition recorded that this application does not model —
+      exposure, beam current, single-electron level, acquisition time — now
+      survives the round trip instead of being dropped.</li>
+  <li><b>Re-exporting an unchanged calibration reproduces the file exactly.</b>
+      An export that changes nothing no longer rewrites the timestamp or adds a
+      note, so a file that has not been recalibrated stays byte for byte as it
+      was.</li>
+</ul>
+
+<h3>Sample Tilt</h3>
+<ul>
+  <li>The tilt map can be exported as <b>NumPy <code>.npy</code></b>, shaped
+      (ny, nx, 2) with [ty, tx] rows in milliradian — the arrangement a
+      ptychographic reconstruction reads directly, with no conversion step.</li>
+</ul>

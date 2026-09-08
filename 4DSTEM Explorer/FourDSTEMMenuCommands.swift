@@ -87,6 +87,12 @@ struct FourDSTEMMenuCommands: Commands {
             }
             .help("Calibrate every dataset under a folder, seeded from the metadata beside each one")
 
+            Button("Import Metadata…") {
+                model.importMetadata()
+            }
+            .disabled(model.selectedURL == nil)
+            .help("Read a JSON or XML sidecar for the open dataset, without reopening it")
+
             Button("Export Metadata…") {
                 model.exportMetadata()
             }

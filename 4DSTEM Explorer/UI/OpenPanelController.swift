@@ -68,6 +68,9 @@ struct RawDimsSheet: View {
     @State private var isTransformVisible: Bool = false
     @State private var metadataNote: String?
     @State private var metadataFailed: Bool = false
+    /// What "Load Metadata…" read, kept so the export can be based on it and
+    /// named after it rather than after the raster.
+    @State private var importedMetadata: ScanMetadata?
     @State private var hostWindow: NSWindow?
 
     let fileHint: String
@@ -76,7 +79,7 @@ struct RawDimsSheet: View {
     /// than not, so anywhere else is a wasted navigation.
     var fileURL: URL? = nil
     let onCancel: () -> Void
-    let onOK: (String, String, String, String, Bool, Bool, Bool) -> Void
+    let onOK: (String, String, String, String, Bool, Bool, Bool, ScanMetadata?) -> Void
 
     /// Fills the fields in from a JSON sidecar, so the numbers come from the
     /// acquisition rather than from retyping them.
@@ -104,12 +107,14 @@ struct RawDimsSheet: View {
                 if let volts = metadata.voltageKilovolts { voltage = trimmed(volts) }
                 metadataFailed = false
                 metadataNote = metadata.summary
+                importedMetadata = metadata
                 // Show what was filled in, rather than leaving it collapsed and
                 // apparently unchanged.
                 isCalibrationVisible = true
             } catch {
                 metadataFailed = true
                 metadataNote = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                importedMetadata = nil
             }
         }
 
@@ -181,7 +186,7 @@ struct RawDimsSheet: View {
             HStack {
                 Spacer()
                 Button("Cancel") { onCancel() }
-                Button("OK") { onOK(scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose) }
+                Button("OK") { onOK(scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, importedMetadata) }
                     .keyboardShortcut(.defaultAction)
             }
         }

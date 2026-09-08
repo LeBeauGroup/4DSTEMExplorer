@@ -251,6 +251,9 @@ struct PluginResultView: View {
                     if !payload.datasets.isEmpty {
                         Divider()
                         Button("All Arrays (HDF5)…") { PluginResultExporter.exportHDF5(payload) }
+                        if PluginResultExporter.tiltMapNPY(payload) != nil {
+                            Button("Tilt Map (NPY)…") { PluginResultExporter.exportTiltNPY(payload) }
+                        }
                     }
                 }
                 .fixedSize()
@@ -1013,6 +1016,66 @@ enum PluginResultExporter {
     /// attribute is what `h5py` reads as `f.attrs["provenance"]` and what
     /// `h5dump -A` shows without being asked; the dataset is what survives tools
     /// that copy data and drop attributes. It is the same text both times.
+    /// The tilt map as a .npy, in the arrangement a ptychographic
+    /// reconstruction expects.
+    ///
+    /// Three things have to be right and none of them is visible in the file:
+    ///
+    ///   * **[ty, tx], y first.** The reader stacks the pair that way, and the
+    ///     two are easy to swap because both are "tilt".
+    ///   * **Milliradian.** What the plugin measures and what the reader
+    ///     documents, so nothing is scaled on the way out. A conversion here
+    ///     would be silently undone by the reader's own `scale` prop.
+    ///   * **One value per probe position.** The plugin only attaches the
+    ///     `scan/` pair when the binned grid differs from the scan; when it is
+    ///     absent the binned map already is the scan grid, which is why falling
+    ///     back to it is correct rather than approximate.
+    static func tiltMapNPY(_ payload: PluginResultPayload) -> (data: Data, rows: Int, columns: Int)? {
+        func dataset(_ name: String) -> PluginDataset? {
+            return payload.datasets.first { $0.name == name }
+        }
+        // Resampled onto the scan where that exists, binned otherwise.
+        let pair = (dataset("scan/tilt_y"), dataset("scan/tilt_x"))
+        let fallback = (dataset("binned/tilt_y"), dataset("binned/tilt_x"))
+        guard let ty = pair.0 ?? fallback.0, let tx = pair.1 ?? fallback.1 else { return nil }
+        guard ty.rows == tx.rows, ty.columns == tx.columns,
+              ty.values.count == ty.rows * ty.columns,
+              tx.values.count == ty.values.count else { return nil }
+
+        // Interleaved to (rows, columns, 2), C-ordered.
+        var interleaved = [Float](repeating: 0, count: ty.values.count * 2)
+        for i in 0..<ty.values.count {
+            interleaved[2 * i] = ty.values[i]
+            interleaved[2 * i + 1] = tx.values[i]
+        }
+        guard let data = NumpyWriter.float32(interleaved, shape: [ty.rows, ty.columns, 2])
+        else { return nil }
+        return (data, ty.rows, ty.columns)
+    }
+
+    static func exportTiltNPY(_ payload: PluginResultPayload) {
+        guard let (data, rows, columns) = tiltMapNPY(payload) else { return }
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(payload.fileRoot)_tilts.npy"
+        panel.canCreateDirectories = true
+        panel.message = "Save the tilt map as (\(rows), \(columns), 2) of [ty, tx] in mrad"
+        panel.allowedContentTypes = []
+        panel.allowsOtherFileTypes = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Could not write \(url.lastPathComponent)"
+            alert.informativeText = error.localizedDescription
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
     static func exportHDF5(_ payload: PluginResultPayload) {
         guard !payload.datasets.isEmpty else { return }
 
