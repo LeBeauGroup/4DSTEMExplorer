@@ -22,6 +22,7 @@
 		AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000060 /* SoftwareUpdater.swift */; };
 		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
 		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
+		AAF19B000000000000000070 /* EMPADLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000070 /* EMPADLayout.swift */; };
 		AAF19B000000000000000063 /* Aberration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000063 /* Aberration.swift */; };
 		AAF19B000000000000000064 /* NumpyWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000064 /* NumpyWriter.swift */; };
 		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
@@ -133,6 +134,7 @@
 		AAF19A000000000000000060 /* SoftwareUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SoftwareUpdater.swift; path = "4DSTEM Explorer/SoftwareUpdater.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000070 /* EMPADLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EMPADLayout.swift; path = "4DSTEM Explorer/Objects/EMPADLayout.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000063 /* Aberration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Aberration.swift; path = "4DSTEM Explorer/Objects/Aberration.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000064 /* NumpyWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NumpyWriter.swift; path = "4DSTEM Explorer/Plugins/NumpyWriter.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
@@ -395,6 +397,7 @@
 				AAF19A000000000000000060 /* SoftwareUpdater.swift */,
 				AAF19A000000000000000061 /* SettingsView.swift */,
 				AAF19A000000000000000062 /* DetectorRadii.swift */,
+				AAF19A000000000000000070 /* EMPADLayout.swift */,
 				AAF19A000000000000000063 /* Aberration.swift */,
 				AAF19A000000000000000064 /* NumpyWriter.swift */,
 				AAF19A000000000000000005 /* CalibrationWindow.swift */,
@@ -671,6 +674,7 @@
 				AAF19B000000000000000060 /* SoftwareUpdater.swift in Sources */,
 				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
 				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
+				AAF19B000000000000000070 /* EMPADLayout.swift in Sources */,
 				AAF19B000000000000000063 /* Aberration.swift in Sources */,
 				AAF19B000000000000000064 /* NumpyWriter.swift in Sources */,
 				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
@@ -911,7 +915,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.3;
+				MARKETING_VERSION = 2.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -954,7 +958,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.0.3;
+				MARKETING_VERSION = 2.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",

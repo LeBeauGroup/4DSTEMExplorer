@@ -91,7 +91,7 @@ struct FourDSTEMMenuCommands: Commands {
                 model.importMetadata()
             }
             .disabled(model.selectedURL == nil)
-            .help("Read a JSON or XML sidecar for the open dataset, without reopening it")
+            .help("Read a JSON, XML or TOML sidecar for the open dataset, without reopening it")
 
             Button("Export Metadata…") {
                 model.exportMetadata()

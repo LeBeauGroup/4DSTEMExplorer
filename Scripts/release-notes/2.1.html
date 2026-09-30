@@ -1,0 +1,27 @@
+<h2>Version 2.1</h2>
+
+<h3>EMPAD2</h3>
+<ul>
+  <li>EMPAD2 RAW files now open. Its patterns are stored as 128×128, where the
+      original EMPAD appends two rows of per-frame metadata and stores 130.</li>
+  <li>Which one wrote a file is worked out from the file's own length — the two
+      generations put a different number of bytes on disk for the same scan, so
+      there is nothing to set and nothing to get wrong. Reading a file the wrong
+      way does not fail loudly: it shifts every frame a little further than the
+      last, which looks like a misaligned detector rather than a mistake.</li>
+  <li>The metadata EMPAD2 writes beside the data, <code>metadata.toml</code>, is
+      read alongside the older JSON and XML sidecars — scan size, step size,
+      voltage, convergence angle and scan rotation.</li>
+</ul>
+
+<h3>Calibration accuracy</h3>
+<ul>
+  <li>A convergence semi-angle recorded in radians was being read as
+      milliradians, a factor of a thousand, with nothing downstream to show it
+      was wrong.</li>
+  <li>Metadata keys were matched loosely enough that an unrelated setting could
+      be picked up as a calibration — in one real file, a temperature
+      controller's PID gain was read as the detector's angle per pixel. Keys are
+      now matched against whole path components, so a name can no longer match
+      part of another word.</li>
+</ul>

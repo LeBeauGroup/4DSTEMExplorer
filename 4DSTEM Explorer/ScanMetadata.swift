@@ -2,7 +2,8 @@
 //  ScanMetadata.swift
 //  4DSTEM Explorer
 //
-//  Reads the sidecar file that accompanies a RAW scan, in JSON or XML.
+//  Reads the sidecar file that accompanies a RAW scan, in JSON, XML or TOML
+//  — EMPAD wrote the first two, EMPAD2 writes the third.
 //
 //  A RAW file is just pixels: no dimensions, no calibration. Acquisition
 //  software writes the rest alongside it, and typing those numbers back in by
@@ -121,7 +122,7 @@ struct ScanMetadata {
             case .unreadable(let name):
                 return "\(name) could not be read."
             case .unrecognised(let name):
-                return "\(name) is not JSON or XML."
+                return "\(name) is not JSON, XML or TOML."
             case .nothingUseful(let name):
                 return "\(name) has no scan size or calibration in it. Expected fields such as scan_shape, scan_step, diff_step and voltage."
             }
@@ -129,7 +130,7 @@ struct ScanMetadata {
     }
 
     /// File extensions the open panel should offer.
-    static let supportedExtensions = ["json", "xml"]
+    static let supportedExtensions = ["json", "xml", "toml"]
 
     static func read(url: URL) throws -> ScanMetadata {
         let name = url.lastPathComponent
@@ -153,6 +154,9 @@ struct ScanMetadata {
         } else if let parsed = ScanMetadata.flattenXML(data) {
             fields = parsed
             format = "XML"
+        } else if let parsed = ScanMetadata.flattenTOML(data) {
+            fields = parsed
+            format = "TOML"
         } else {
             throw ReadError.unrecognised(name)
         }
@@ -171,6 +175,13 @@ struct ScanMetadata {
     private struct Field {
         /// Normalised full path, e.g. `acquisitionscanstep`.
         let path: String
+        /// The same path before it was joined, each component normalised.
+        ///
+        /// Kept so a synonym can be required to line up with whole components.
+        /// Matching a suffix of the joined string instead lets a short synonym
+        /// land in the middle of a word: `dk` matches `…pid_k`, and `ht`
+        /// matches `…height`.
+        let components: [String]
         /// Normalised local name, e.g. `step`.
         let name: String
         /// The value as written.
@@ -202,6 +213,19 @@ struct ScanMetadata {
         }
 
         var number: Double? { return numbers.count == 1 ? numbers[0] : numbers.first }
+
+        /// True when `synonym` is exactly the last one-or-more components
+        /// joined together.
+        func matchesTrailingComponents(_ synonym: String) -> Bool {
+            guard !components.isEmpty else { return false }
+            var joined = ""
+            for component in components.reversed() {
+                joined = component + joined
+                if joined == synonym { return true }
+                if joined.count > synonym.count { return false }
+            }
+            return false
+        }
     }
 
     /// Lowercased with everything that is not a letter or digit removed, so
@@ -250,11 +274,217 @@ struct ScanMetadata {
 
     private static func field(path: [String], text: String, unit: String?,
                              qualifiers: Set<String> = []) -> Field {
-        return Field(path: normalise(path.joined()),
+        let components = path.map(normalise).filter { !$0.isEmpty }
+        return Field(path: components.joined(),
+                     components: components,
                      name: normalise(path.last ?? ""),
                      text: text,
                      unit: unit.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
                      qualifiers: qualifiers)
+    }
+
+    // MARK: TOML
+
+    /// EMPAD2 writes its metadata as TOML, so this reads TOML.
+    ///
+    /// A deliberate subset, not a conforming parser: table headers, key/value
+    /// pairs, strings, numbers, booleans and arrays including the multi-line
+    /// form. That is what instrument software writes. The things left out —
+    /// arrays of tables, inline tables, multi-line strings — do not appear in
+    /// these files, and a partial read of one would be worse than declining it,
+    /// so anything unrecognised is skipped rather than guessed at.
+    ///
+    /// Emits the same `Field` values the JSON and XML readers do, so everything
+    /// downstream — the synonym lookup, the unit handling, the whole of
+    /// `interpret` — applies unchanged.
+    private static func flattenTOML(_ data: Data) -> [Field]? {
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+
+        var fields: [Field] = []
+        var table: [String] = []
+        var headers = 0
+        var buffer = ""
+        var depth = 0
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            let line = stripComment(rawLine)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if depth == 0 {
+                if trimmed.isEmpty { continue }
+                // A table header: bracketed, and no assignment in it. An array
+                // value also starts with a bracket but only after an `=`.
+                if trimmed.hasPrefix("["), trimmed.hasSuffix("]"), !trimmed.contains("=") {
+                    let inner = String(trimmed.dropFirst().dropLast())
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "[] "))
+                    table = inner.split(separator: ".").map {
+                        $0.trimmingCharacters(in: CharacterSet(charactersIn: " \"'"))
+                    }
+                    headers += 1
+                    continue
+                }
+                guard trimmed.contains("=") else { continue }
+            }
+
+            buffer += buffer.isEmpty ? trimmed : " " + trimmed
+            depth += bracketDepth(trimmed)
+            guard depth <= 0 else { continue }
+            depth = 0
+
+            defer { buffer = "" }
+            guard let split = assignmentIndex(buffer) else { continue }
+            let key = String(buffer[buffer.startIndex..<split])
+                .trimmingCharacters(in: .whitespaces)
+            let value = String(buffer[buffer.index(after: split)...])
+                .trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty, !value.isEmpty else { continue }
+
+            // A dotted key names a sub-table of the current one.
+            let keyPath = key.split(separator: ".").map {
+                $0.trimmingCharacters(in: CharacterSet(charactersIn: " \"'"))
+            }
+            guard !keyPath.isEmpty else { continue }
+            fields.append(field(path: table + keyPath, text: tomlValue(value), unit: nil))
+        }
+
+        // Some structure is required before this is called TOML at all: any
+        // plain text file has lines with an equals sign in it.
+        guard headers > 0 || fields.count > 1 else { return nil }
+        return fields.isEmpty ? nil : fields
+    }
+
+    /// Everything from an unquoted `#` onwards.
+    private static func stripComment(_ line: String) -> String {
+        var out = ""
+        var quote: Character? = nil
+        var escaped = false
+        for character in line {
+            if let active = quote {
+                out.append(character)
+                if escaped { escaped = false }
+                else if character == "\\" && active == "\"" { escaped = true }
+                else if character == active { quote = nil }
+                continue
+            }
+            if character == "\"" || character == "'" { quote = character; out.append(character); continue }
+            if character == "#" { break }
+            out.append(character)
+        }
+        return out
+    }
+
+    /// Net bracket depth, ignoring brackets inside strings.
+    private static func bracketDepth(_ line: String) -> Int {
+        var depth = 0
+        var quote: Character? = nil
+        var escaped = false
+        for character in line {
+            if let active = quote {
+                if escaped { escaped = false }
+                else if character == "\\" && active == "\"" { escaped = true }
+                else if character == active { quote = nil }
+                continue
+            }
+            switch character {
+            case "\"", "'": quote = character
+            case "[": depth += 1
+            case "]": depth -= 1
+            default: break
+            }
+        }
+        return depth
+    }
+
+    /// The first `=` that is not inside a string.
+    private static func assignmentIndex(_ line: String) -> String.Index? {
+        var quote: Character? = nil
+        var escaped = false
+        var index = line.startIndex
+        while index < line.endIndex {
+            let character = line[index]
+            if let active = quote {
+                if escaped { escaped = false }
+                else if character == "\\" && active == "\"" { escaped = true }
+                else if character == active { quote = nil }
+            } else if character == "\"" || character == "'" {
+                quote = character
+            } else if character == "=" {
+                return index
+            }
+            index = line.index(after: index)
+        }
+        return nil
+    }
+
+    /// A TOML value as the text a `Field` carries.
+    ///
+    /// Arrays collapse to their scalars separated by spaces, which is how the
+    /// JSON reader renders them and what `Field.numbers` expects. Booleans
+    /// become 1 and 0 for the same reason: the detector-flip triple is read as
+    /// three numbers whatever wrote it.
+    private static func tomlValue(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespaces)
+        if value.hasPrefix("["), value.hasSuffix("]") {
+            value = String(value.dropFirst().dropLast())
+            let parts = splitTopLevel(value).map { tomlValue($0) }.filter { !$0.isEmpty }
+            return parts.joined(separator: " ")
+        }
+        if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
+            let body = String(value.dropFirst().dropLast())
+            var out = ""
+            var escaped = false
+            for character in body {
+                if escaped {
+                    switch character {
+                    case "n": out.append("\n")
+                    case "t": out.append("\t")
+                    case "r": out.append("\r")
+                    default: out.append(character)
+                    }
+                    escaped = false
+                } else if character == "\\" {
+                    escaped = true
+                } else {
+                    out.append(character)
+                }
+            }
+            return out
+        }
+        if value.hasPrefix("'"), value.hasSuffix("'"), value.count >= 2 {
+            return String(value.dropFirst().dropLast())
+        }
+        if value == "true" { return "1" }
+        if value == "false" { return "0" }
+        return value
+    }
+
+    /// Splits on commas that are not inside a nested array or a string.
+    private static func splitTopLevel(_ text: String) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var depth = 0
+        var quote: Character? = nil
+        var escaped = false
+        for character in text {
+            if let active = quote {
+                current.append(character)
+                if escaped { escaped = false }
+                else if character == "\\" && active == "\"" { escaped = true }
+                else if character == active { quote = nil }
+                continue
+            }
+            switch character {
+            case "\"", "'": quote = character; current.append(character)
+            case "[": depth += 1; current.append(character)
+            case "]": depth -= 1; current.append(character)
+            case "," where depth == 0:
+                parts.append(current.trimmingCharacters(in: .whitespaces)); current = ""
+            default: current.append(character)
+            }
+        }
+        let last = current.trimmingCharacters(in: .whitespaces)
+        if !last.isEmpty { parts.append(last) }
+        return parts
     }
 
     // MARK: XML
@@ -375,8 +605,19 @@ struct ScanMetadata {
         for synonym in synonyms {
             if let hit = fields.first(where: { $0.name == synonym }) { return hit }
         }
+        // A trailing run of whole components, not any trailing substring.
+        //
+        // `scan.width` still answers to `scanwidth` and `raw_file.filename` to
+        // `rawfilefilename`, because those align with the components. What no
+        // longer matches is a synonym that happens to end a word: `dk` against
+        // `instruments.ostech_ps01.pid_k`, which read a cooler's PID gain as the
+        // detector calibration, or `ht` against `scan.height`, which would read
+        // a raster as an accelerating voltage. Both are silent — the number is
+        // plausible and nothing downstream can tell it came from the wrong key.
         for synonym in synonyms {
-            if let hit = fields.first(where: { $0.path.hasSuffix(synonym) }) { return hit }
+            if let hit = fields.first(where: { $0.matchesTrailingComponents(synonym) }) {
+                return hit
+            }
         }
         return nil
     }
@@ -392,7 +633,8 @@ struct ScanMetadata {
     private static func interpret(_ fields: [Field]) -> ScanMetadata {
         var metadata = ScanMetadata()
 
-        if let name = lookup(fields, ["rawfilename", "rawfile", "datafilename", "filename"]),
+        if let name = lookup(fields, ["rawfilename", "rawfilefilename", "rawfile",
+                                      "datafilename", "filename"]),
            name.numbers.count != 1 {
             metadata.rawFilename = name.text
         }
@@ -437,7 +679,8 @@ struct ScanMetadata {
 
         // Scan step, if it is written down.
         if let step = lookup(fields, ["scanstep", "scanstepsize", "stepsize", "pixelsize",
-                                      "scanpixelsize", "realspacepixelsize", "scancalibration"],
+                                      "scanpixelsize", "scanpixelsizex", "scanpixelsizey",
+                                      "realspacepixelsize", "scancalibration"],
                              preferring: acquisitionQualifiers,
                              rejecting: previewQualifiers) {
             metadata.scanStepNanometres = lengthInNanometres(step)
@@ -486,7 +729,7 @@ struct ScanMetadata {
 
         if let angle = lookup(fields, ["convangle", "convergenceangle", "convergencesemiangle",
                                        "semiangle", "alpha", "probeconvergence", "aperture"]) {
-            metadata.convergenceMilliradians = milliradians(angle)
+            metadata.convergenceMilliradians = beamMilliradians(angle)
         }
 
         if let rotation = lookup(fields, ["scanrotation", "rotation", "scanrotationangle"],
@@ -609,6 +852,33 @@ struct ScanMetadata {
             }
         }
         return value < 1e-3 ? Float(value * 1000) : Float(value)
+    }
+
+    /// A beam angle in milliradians.
+    ///
+    /// Kept apart from the per-pixel version because the two quantities live at
+    /// different magnitudes and one rule cannot serve both. A convergence
+    /// semi-angle is 1–50 mrad, which is 0.001–0.05 rad, so below 1 means
+    /// radians. The per-pixel step is a thousand times smaller and needs the
+    /// lower threshold it has.
+    ///
+    /// Sharing the per-pixel rule is what EMPAD2 exposed: it records
+    /// `convergence_angle = 0.025` in radians, and 0.025 is above that rule's
+    /// threshold, so a 25 mrad probe was read as 0.025 mrad. A factor of a
+    /// thousand, and nothing downstream looks wrong enough to catch it — the
+    /// disc simply implies a detector calibration a thousand times too fine.
+    private static func beamMilliradians(_ field: Field) -> Float? {
+        guard let value = field.number, value > 0, value.isFinite else { return nil }
+        if let unit = field.unit {
+            switch normalise(unit) {
+            case "rad", "radian", "radians":            return Float(value * 1000)
+            case "mrad", "milliradian", "milliradians": return Float(value)
+            case "deg", "degree", "degrees", "°":       return Float(value * 1000 * .pi / 180)
+            default: break
+            }
+        }
+        // No convergence semi-angle worth recording is below a milliradian.
+        return value < 1 ? Float(value * 1000) : Float(value)
     }
 
     private static func kilovolts(_ field: Field) -> Float? {

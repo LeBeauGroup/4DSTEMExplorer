@@ -95,7 +95,7 @@ struct RawDimsSheet: View {
         }
         panel.directoryURL = fileURL?.deletingLastPathComponent()
         panel.prompt = "Load"
-        panel.message = "Choose the JSON or XML metadata written alongside this RAW file"
+        panel.message = "Choose the JSON, XML or TOML metadata written alongside this RAW file"
 
         func adopt(_ response: NSApplication.ModalResponse) {
             guard response == .OK, let url = panel.url else { return }

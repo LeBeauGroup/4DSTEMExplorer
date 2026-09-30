@@ -26,6 +26,16 @@ enum DataType {
     case bool
     case unknown // for default handling
 
+    /// The candidates the RAW reader considers, most likely first.
+    static let rawCandidates: [DataType] = [.float32, .uint16, .int16, .uint8, .uint32]
+
+    /// The first RAW candidate of this size. Sizes do not identify a type —
+    /// int16 and uint16 share one — so the reader's own order decides, which is
+    /// the order it has always used.
+    static func rawCandidate(elementSize: Int) -> DataType? {
+        return rawCandidates.first { $0.elementSize == elementSize }
+    }
+
     var elementSize: Int {
         switch self {
         case .uint32: return MemoryLayout<UInt32>.size
@@ -182,8 +192,13 @@ class STEMDataController: NSObject {
     weak var delegate:STEMDataControllerDelegate?
     weak var progressdelegate:STEMDataControllerProgressDelegate?
     
-    var detectorSize:IntSize = empadSize
-    var patternSize:IntSize = empadSize
+    // Defaults until a file is opened. `patternSize` is the image, so it never
+    // includes the metadata rows — it used to be initialised to 128x130, which
+    // is the size of a stored frame, not of a pattern.
+    var detectorSize = IntSize(width: EMPADLayout.first.columns,
+                               height: EMPADLayout.first.storedRows)
+    var patternSize = IntSize(width: EMPADLayout.first.columns,
+                              height: EMPADLayout.first.rows)
     
     var providedRawImageSize: IntSize? = nil
     /// Set from the file when it records one, and applied as the data is read so
@@ -806,13 +821,55 @@ class STEMDataController: NSObject {
         } else {
             dataType = .float32
             firstImageOffset = 0
-            self.detectorSize = empadSize
-            self.patternSize = detectorSize
-            patternSize.height -= 2
-            additionalRows = 2
+            // EMPAD's own layout until the file says otherwise. For RAW that
+            // decision is made below, once its length is known.
+            var layout = EMPADLayout.first
+            self.detectorSize = IntSize(width: layout.columns, height: layout.storedRows)
+            self.patternSize = IntSize(width: layout.columns, height: layout.rows)
+            additionalRows = layout.metadataRows
 
             if isRaw {
                 self.imageSize = providedRawImageSize ?? IntSize(width: 0, height: 0)
+
+                // Which EMPAD wrote this. Nothing in the file says so, but the
+                // two generations write different numbers of bytes for the same
+                // raster, so its length does — see EMPADLayout. Decided here,
+                // before anything is read, because every offset below depends
+                // on how many rows a frame occupies.
+                let fileBytes = (try? FileManager.default
+                    .attributesOfItem(atPath: url.path))
+                    .flatMap { ($0[.size] as? NSNumber)?.intValue } ?? 0
+                let elementSizes = DataType.rawCandidates.map { $0.elementSize }
+
+                // The raster comes from whatever the caller was given — a
+                // sidecar, or the scan_xN_yN convention in the name — and with
+                // it the choice is a division rather than a guess.
+                let scanPixels = (providedRawImageSize.map { $0.width * $0.height })
+                    ?? ScanMetadata.dimensions(fromFilename: url.lastPathComponent)
+                        .map { $0.width * $0.height }
+                    ?? 0
+
+                if let chosen = EMPADLayout.choose(fileSize: fileBytes,
+                                                   scanPixels: scanPixels,
+                                                   elementSizes: elementSizes) {
+                    layout = chosen.layout
+                    dataType = DataType.rawCandidate(elementSize: chosen.elementSize) ?? .float32
+                } else if scanPixels == 0,
+                          let inferred = EMPADLayout.infer(fileSize: fileBytes, elementSize: 4) {
+                    layout = inferred
+                }
+
+                self.detectorSize = IntSize(width: layout.columns, height: layout.storedRows)
+                self.patternSize = IntSize(width: layout.columns, height: layout.rows)
+                additionalRows = layout.metadataRows
+                // Logged in every build, not just debug ones. Which generation
+                // a file was read as is the first thing worth knowing when
+                // patterns come out looking sheared, and it is not recoverable
+                // after the fact from anything the user can see.
+                NSLog("[RAW] %@ — read as %@: %d×%d per frame, %d metadata row(s), %@",
+                      url.lastPathComponent, layout.name,
+                      layout.columns, layout.rows, layout.metadataRows,
+                      scanPixels > 0 ? "raster known" : "raster inferred from length")
             }
         }
 
@@ -834,7 +891,7 @@ class STEMDataController: NSObject {
                     let basePixelsPerImage = (self.patternSize.height + additionalRows) * self.patternSize.width
                     let totalPixels = basePixelsPerImage * imagePixels
 
-                    let candidates: [DataType] = [.float32, .uint16, .int16, .uint8, .uint32]
+                    let candidates = DataType.rawCandidates
                     var matched = false
                     for cand in candidates {
                         let expectedBytes = totalPixels * cand.elementSize

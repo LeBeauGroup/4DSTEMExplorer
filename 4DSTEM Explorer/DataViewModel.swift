@@ -888,7 +888,7 @@ final class DataViewModel: NSObject, ObservableObject {
             UTType(filenameExtension: $0)
         }
         panel.prompt = "Import"
-        panel.message = "Choose the JSON or XML metadata for \(selectedURL.lastPathComponent)"
+        panel.message = "Choose the JSON, XML or TOML metadata for \(selectedURL.lastPathComponent)"
         // Beside the data, which is where a sidecar almost always is.
         panel.directoryURL = selectedURL.deletingLastPathComponent()
 

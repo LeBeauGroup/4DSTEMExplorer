@@ -75,10 +75,11 @@ enum BatchDiscovery {
     /// Metadata files that might describe `url`, most specific first.
     ///
     /// Same-stem names come first because they are unambiguous. Everything else
-    /// in the folder follows, JSON before XML — JSON in this workflow is written
-    /// by whoever calibrated the data, XML by the microscope, so where both
-    /// exist the JSON is the more considered of the two. Within each kind, names
-    /// containing "calib" come first for the same reason.
+    /// in the folder follows, JSON then TOML then XML — JSON in this workflow is
+    /// written by whoever calibrated the data, TOML by EMPAD2's acquisition
+    /// software, XML by the microscope, so where several exist the JSON is the
+    /// most considered of them. Within each kind, names containing "calib" come
+    /// first for the same reason.
     static func sidecarCandidates(for url: URL) -> [URL] {
         let stem = url.deletingPathExtension().lastPathComponent
         let folder = url.deletingLastPathComponent()
@@ -92,7 +93,7 @@ enum BatchDiscovery {
             ordered.append(candidate)
         }
 
-        for name in ["\(stem)_calib.json", "\(stem).json"] {
+        for name in ["\(stem)_calib.json", "\(stem).json", "\(stem).toml"] {
             add(folder.appendingPathComponent(name))
         }
 
@@ -108,6 +109,7 @@ enum BatchDiscovery {
                 }
         }
         for name in neighbours(extension: "json") { add(folder.appendingPathComponent(name)) }
+        for name in neighbours(extension: "toml") { add(folder.appendingPathComponent(name)) }
         for name in ["\(stem)_calib.xml", "\(stem).xml"] {
             add(folder.appendingPathComponent(name))
         }
