@@ -41,6 +41,16 @@ S3_BASE="https://${S3_BUCKET}.s3.amazonaws.com"
 S3_PROFILE="4dstem-release"
 SIGN_ID="Developer ID Application"
 NOTARY_PROFILE="4dstem-notary"
+
+# Apple's codesign, by absolute path.
+#
+# Conda ships a `codesign` of its own — a sigtool shim that only ad-hoc signs a
+# single Mach-O file and aborts on a bundle — and miniforge puts it ahead of
+# /usr/bin on PATH. Resolving through PATH therefore depends on whose shell this
+# runs in, which is no way to pick a system tool. `xcrun -f codesign` is no help
+# either: it searches PATH too and hands back the same shim.
+CODESIGN=/usr/bin/codesign
+[ -x "$CODESIGN" ] || { echo "error: $CODESIGN is missing" >&2; exit 1; }
 OUT=dist/release
 mkdir -p "$OUT"
 
@@ -87,9 +97,9 @@ if [[ -d "$SPARKLE" ]]; then
         "$SPARKLE/Versions/B/Updater.app" \
         "$SPARKLE/Versions/B/Autoupdate"; do
         [[ -e "$nested" ]] || continue
-        codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$nested"
+        "$CODESIGN" --force --options runtime --timestamp --sign "$SIGN_ID" "$nested"
     done
-    codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$SPARKLE"
+    "$CODESIGN" --force --options runtime --timestamp --sign "$SIGN_ID" "$SPARKLE"
 else
     echo "⚠️  no Sparkle.framework in the app — updates will not work" >&2
 fi
@@ -97,14 +107,14 @@ fi
 # The plugins. They are separate bundles of code and Gatekeeper treats them as
 # such: unsigned, the notary service refuses the whole application.
 for plugin in "$APP"/Contents/PlugIns/*.bundle(N); do
-    codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$plugin"
+    "$CODESIGN" --force --options runtime --timestamp --sign "$SIGN_ID" "$plugin"
 done
 
-codesign --force --options runtime --timestamp \
+"$CODESIGN" --force --options runtime --timestamp \
     --entitlements "4DSTEM Explorer/4DSTEM Explorer.entitlements" \
     --sign "$SIGN_ID" "$APP"
 
-codesign --verify --strict --verbose=2 "$APP"
+"$CODESIGN" --verify --strict --verbose=2 "$APP"
 echo "signature verified"
 
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
@@ -134,10 +144,15 @@ echo "archived $ZIP"
 
 # Sparkle's tools ship inside the resolved package artifacts, whose path
 # depends on whether the package was resolved by SwiftPM or by Xcode.
+#
+# The DerivedData pattern carries (N) so that finding nothing there expands to
+# nothing. Without it zsh treats an unmatched glob as a fatal error, and because
+# a `for` list is expanded before the loop runs, that killed the search outright
+# — including the candidate that would have matched.
 BIN=""
 for candidate in \
     "${DD:-/nonexistent}"/SourcePackages/artifacts/sparkle/Sparkle/bin \
-    "$HOME"/Library/Developer/Xcode/DerivedData/4DSTEM_Explorer-*/SourcePackages/artifacts/sparkle/Sparkle/bin \
+    "$HOME"/Library/Developer/Xcode/DerivedData/4DSTEM_Explorer-*/SourcePackages/artifacts/sparkle/Sparkle/bin(N) \
     .build/artifacts/sparkle/Sparkle/bin; do
     [[ -x "$candidate/generate_appcast" ]] && { BIN="$candidate"; break; }
 done

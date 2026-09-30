@@ -190,8 +190,19 @@ fi
 # Apple silicon refuses to load unsigned code, so ad-hoc signing is mandatory,
 # not optional. Set PLUGIN_SIGN_IDENTITY to sign with a real identity instead.
 SIGN_IDENTITY="${PLUGIN_SIGN_IDENTITY:--}"
-codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$BUNDLE" 2>/dev/null \
-    || codesign --force --sign "$SIGN_IDENTITY" "$BUNDLE"
+
+# Apple's codesign, by absolute path.
+#
+# Conda ships a `codesign` of its own — a sigtool shim that only ad-hoc signs a
+# single Mach-O file and aborts on a bundle — and miniforge puts it ahead of
+# /usr/bin on PATH. Resolving through PATH therefore depends on whose shell this
+# runs in, which is no way to pick a system tool. `xcrun -f codesign` is no help
+# either: it searches PATH too and hands back the same shim.
+CODESIGN=/usr/bin/codesign
+[ -x "$CODESIGN" ] || { echo "error: $CODESIGN is missing" >&2; exit 1; }
+
+"$CODESIGN" --force --sign "$SIGN_IDENTITY" --timestamp=none "$BUNDLE" 2>/dev/null \
+    || "$CODESIGN" --force --sign "$SIGN_IDENTITY" "$BUNDLE"
 
 echo "  signed          : $SIGN_IDENTITY"
 echo "Installed to $BUNDLE"
