@@ -1,0 +1,47 @@
+<h2>Version 2.2</h2>
+
+<h3>DECTRIS ARINA</h3>
+<ul>
+  <li>Native ARINA scans now open — the NeXus master file and the data files
+      beside it, read directly.</li>
+  <li>Their frames are compressed with <b>bslz4</b>, which HDF5 cannot undo on
+      its own; without the filter it returns empty data rather than an error, so
+      the app decodes the compression itself and nothing is silently blank.</li>
+  <li>A full scan is far larger than memory — 1024&times;1024 probe positions of
+      96&times;96 frames is 39&nbsp;GB — so the scan is reduced as it is read.
+      The panel asks how, and shows what it will cost before you commit: the
+      memory needed and how long it will take.
+      <ul>
+        <li><b>Stride</b> keeps one position in each group and decodes only
+            those, so it is as many times faster as the factor squared. This is
+            the default: it is the quick look.</li>
+        <li><b>Bin</b> sums every position, keeping all the counts, and takes as
+            long as the whole scan.</li>
+      </ul></li>
+  <li>The scan raster is not recorded by the detector, only the number of frames
+      triggered, so a square raster is offered and can be corrected.</li>
+</ul>
+
+<h3>Single-electron histogram</h3>
+<ul>
+  <li>Now works on counting detectors. The noise floor was measured as a spread
+      about the median, which is zero when most pixels are empty — as they are
+      on a counting detector — so the plugin reported that it could find no
+      variation and stopped. Where there is no spread to measure it now cuts
+      half way between no electron and one, which is the right place and does
+      not change if the data is rescaled.</li>
+  <li>The histogram starts at zero, so the distance from the origin to the first
+      peak is the single-electron level, read straight off the plot. It used to
+      start at the smallest event that passed the threshold, which moved the
+      axis whenever the threshold changed.</li>
+  <li>With a region selected on the computed image, only those probe positions
+      are used — for the noise floor as well as the events, so the threshold is
+      not set on one part of the scan and applied to another.</li>
+</ul>
+
+<h3>Detectors</h3>
+<ul>
+  <li>The inner and outer handles on the diffraction pattern now push each other
+      aside instead of stopping dead, matching the sliders. Widening an annulus
+      from either side no longer means moving the other control first.</li>
+</ul>

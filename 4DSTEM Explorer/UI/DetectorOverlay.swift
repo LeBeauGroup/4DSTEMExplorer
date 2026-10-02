@@ -29,6 +29,13 @@ struct DetectorOverlay: View {
     let onRadiusChange: (CGFloat, CGFloat, Bool) -> Void  // (inner, outer, interactive)
     let imageSizeProvider: () -> (width: Int, height: Int)
 
+    /// The largest radius that fits, in detector pixels. Matches the bound the
+    /// sliders are given, so a handle and a slider cannot disagree about where
+    /// the edge of the detector is.
+    private var radiusCeiling: CGFloat {
+        return CGFloat(min(max(patternWidth, 1), max(patternHeight, 1))) / 2
+    }
+
     private let handleRadius: CGFloat = 6
     private let handleHitSlop: CGFloat = 6
     /// How close a click has to be to grab a point detector. It has no circle to
@@ -267,16 +274,15 @@ struct DetectorOverlay: View {
 
                             if isDraggingOuterHandle {
                                 let dx = abs(value.location.x - displayCenter.x)
-                                let minViewR = innerR + scale
-                                let maxViewR = min(drawRect.width, drawRect.height) / 2
-                                let newViewR = max(minViewR, min(dx, maxViewR))
-                                onRadiusChange(inner, newViewR / scale, true)
+                                let settled = DetectorRadii.movingOuter(
+                                    to: dx / scale, inner: inner, ceiling: radiusCeiling)
+                                onRadiusChange(settled.inner, settled.outer, true)
 
                             } else if isDraggingInnerHandle {
                                 let dy = abs(value.location.y - displayCenter.y)
-                                let maxViewR = max(0, outerR - scale)
-                                let newViewR = max(scale, min(dy, maxViewR))
-                                onRadiusChange(newViewR / scale, outer, true)
+                                let settled = DetectorRadii.movingInner(
+                                    to: dy / scale, outer: outer, ceiling: radiusCeiling)
+                                onRadiusChange(settled.inner, settled.outer, true)
 
                             } else if isDraggingFromDetector {
                                 let x = min(max(value.location.x, drawRect.minX), drawRect.maxX)
@@ -300,16 +306,15 @@ struct DetectorOverlay: View {
 
                             if isDraggingOuterHandle {
                                 let dx = abs(value.location.x - displayCenter.x)
-                                let minViewR = innerR + scale
-                                let maxViewR = min(drawRect.width, drawRect.height) / 2
-                                let newViewR = max(minViewR, min(dx, maxViewR))
-                                onRadiusChange(inner, newViewR / scale, false)
+                                let settled = DetectorRadii.movingOuter(
+                                    to: dx / scale, inner: inner, ceiling: radiusCeiling)
+                                onRadiusChange(settled.inner, settled.outer, false)
 
                             } else if isDraggingInnerHandle {
                                 let dy = abs(value.location.y - displayCenter.y)
-                                let maxViewR = max(0, outerR - scale)
-                                let newViewR = max(scale, min(dy, maxViewR))
-                                onRadiusChange(newViewR / scale, outer, false)
+                                let settled = DetectorRadii.movingInner(
+                                    to: dy / scale, outer: outer, ceiling: radiusCeiling)
+                                onRadiusChange(settled.inner, settled.outer, false)
 
                             } else if isDraggingFromDetector {
                                 let x = min(max((centerViewPoint ?? savedViewCenter).x, drawRect.minX), drawRect.maxX)

@@ -78,6 +78,10 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
             return FDSResult.failure("No 4D dataset is open.")
         }
 
+        // Everything below works over this, not over the whole scan.
+        let region = ScanRegion.from(host: host, scanWidth: scanWidth, scanHeight: scanHeight)
+        let regionNote = region.describe(scanWidth: scanWidth, scanHeight: scanHeight)
+
         // 1. Resolve the detector and enforce the annular requirement.
         let detectorIndex: Int
         switch resolveDetector(host: host, parameters: parameters) {
@@ -114,19 +118,31 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
 
         // 2. Noise floor from a sample of patterns, so the threshold adapts to
         //    the detector's own offset and read noise rather than being guessed.
-        guard let noise = estimateNoise(host: host, maskedIndices: maskedIndices,
+        guard let noise = estimateNoise(host: host, maskedIndices: maskedIndices, region: region,
                                         patternPixels: patternPixels,
                                         scanWidth: scanWidth, scanHeight: scanHeight) else {
             return nil   // cancelled
         }
-        guard noise.sigma > 0 else {
-            return FDSResult.failure("The detector signal has no measurable variation inside this aperture, so no noise floor can be established.")
+        // A threshold in units of noise where there is noise to measure, and
+        // half a quantum where the detector counts instead. The second case is
+        // not a degraded version of the first: for a counting detector half way
+        // between nought and one electron is exactly the right place to cut,
+        // and no number of sigmas would find it.
+        let threshold: Float
+        if noise.sigma > 0 {
+            threshold = noise.background + thresholdSigma * noise.sigma
+            host.log(String(format: "Noise floor %.4g, sigma %.4g, threshold %.4g",
+                            noise.background, noise.sigma, threshold))
+        } else if let quantum = noise.quantum, quantum > 0 {
+            threshold = noise.background + quantum * 0.5
+            host.log(String(format: "Counting detector: no spread to measure (most pixels read %.4g), so the threshold is half the smallest step above it, %.4g → %.4g",
+                            noise.background, quantum, threshold))
+        } else {
+            return FDSResult.failure("Every pixel inside this aperture holds the same value, so there is nothing to tell an electron from an empty pixel.")
         }
-        let threshold = noise.background + thresholdSigma * noise.sigma
-        host.log(String(format: "Noise floor %.4g, sigma %.4g, threshold %.4g", noise.background, noise.sigma, threshold))
 
         // 3. Sweep the scan, finding and integrating clusters.
-        guard let sweep = collectEvents(host: host,
+        guard let sweep = collectEvents(host: host, region: region,
                                         maskedIndices: maskedIndices, insideMask: insideMask,
                                         patternWidth: patternWidth, patternHeight: patternHeight,
                                         patternPixels: patternPixels,
@@ -154,7 +170,7 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
                 title: "Counted ADF — \(host.fileName)",
                 message: String(format: "%d events, %.2f per pattern. Threshold %.4g (%.1fσ above %.4g).%@",
                                 sweep.totalEvents, eventsPerPattern, threshold, thresholdSigma, noise.background,
-                                strideNote(stride)))
+                                strideNote(stride) + regionNote))
 
         case "Cluster size histogram":
             let maxSize = sweep.clusterSizes.count - 1
@@ -169,8 +185,8 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
                 title: "Cluster Sizes — \(host.fileName)",
                 xLabel: "Pixels per event",
                 yLabel: "Events",
-                message: String(format: "%d events, mean %.2f px per charge cloud. A mean near 1 suggests the threshold is too high to capture the full cloud.",
-                                sweep.totalEvents, mean))
+                message: String(format: "%d events, mean %.2f px per charge cloud. A mean near 1 suggests the threshold is too high to capture the full cloud.%@",
+                                sweep.totalEvents, mean, regionNote))
 
         default:
             let histogram = buildHistogram(sweep.integrals, binCount: binCount)
@@ -197,6 +213,7 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
                 notes.append("Event cap reached; histogram covers the first \(sweep.integrals.count) events.")
             }
             notes.append(strideNote(stride).trimmingCharacters(in: .whitespaces))
+            notes.append(regionNote.trimmingCharacters(in: .whitespaces))
 
             return FDSResult.plot(
                 x: histogram.centres, y: histogram.counts,
@@ -279,18 +296,27 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
     private struct Noise {
         var background: Float
         var sigma: Float
+        /// The smallest step the data actually takes above the background.
+        ///
+        /// A counting detector is quantised and mostly empty, so more than half
+        /// its pixels hold exactly the same value and both the median and the
+        /// median absolute deviation come out at zero — there is no spread to
+        /// measure because most of the sample is one number. The step between
+        /// no electron and one electron is what separates signal from nothing in
+        /// that case, and unlike a sigma it survives the data being rescaled.
+        var quantum: Float?
     }
 
     /// Median and MAD-derived sigma over aperture pixels from a sample of
     /// patterns. Robust statistics because a few percent of the pixels carry
     /// electron events, which would inflate an ordinary mean and deviation.
-    private func estimateNoise(host: FDSHostContext, maskedIndices: [Int],
+    private func estimateNoise(host: FDSHostContext, maskedIndices: [Int], region: ScanRegion,
                                patternPixels: Int, scanWidth: Int, scanHeight: Int) -> Noise? {
 
         let buffer = UnsafeMutablePointer<Float>.allocate(capacity: patternPixels)
         defer { buffer.deallocate() }
 
-        let totalProbes = scanWidth * scanHeight
+        let totalProbes = region.positions
         let step = Swift.max(1, totalProbes / noiseSampleTarget)
 
         var samples = [Float]()
@@ -299,8 +325,8 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
         var probe = 0
         while probe < totalProbes {
             if host.isCancelled { return nil }
-            let row = probe / scanWidth
-            let column = probe % scanWidth
+            let row = region.row + probe / region.width
+            let column = region.column + probe % region.width
             if host.copyPattern(row: row, column: column, into: buffer, capacity: patternPixels) {
                 for index in maskedIndices { samples.append(buffer[index]) }
             }
@@ -316,12 +342,52 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
         deviations.sort()
         let mad = deviations[deviations.count / 2]
 
+        // The smallest step the data takes away from the background, which is
+        // what a quantised detector offers in place of a spread. Taken from the
+        // sorted deviations, so it is one pass over data already in hand.
+        let quantum = deviations.first { $0 > 0 }
+
         host.reportProgress(0.1)
         // 1.4826 converts the median absolute deviation to a Gaussian sigma.
-        return Noise(background: background, sigma: mad * 1.4826)
+        return Noise(background: background, sigma: mad * 1.4826, quantum: quantum)
     }
 
     // MARK: - Event finding
+
+    /// The probe positions to work over.
+    ///
+    /// A marquee on the computed image means the user has pointed at something,
+    /// and on a counted detector that is usually the point: the single-electron
+    /// level is a property of the detector, but the event rate is a property of
+    /// what the beam is on. Averaging it over a whole scan that includes vacuum
+    /// answers a question nobody asked.
+    private struct ScanRegion {
+        var column: Int, row: Int, width: Int, height: Int
+        var positions: Int { return width * height }
+
+        /// The marquee if there is one, clipped to the scan, otherwise all of it.
+        static func from(host: FDSHostContext, scanWidth: Int, scanHeight: Int) -> ScanRegion {
+            let whole = ScanRegion(column: 0, row: 0, width: scanWidth, height: scanHeight)
+            let column = host.selectionColumn, row = host.selectionRow
+            let width = host.selectionWidth, height = host.selectionHeight
+            guard column >= 0, row >= 0, width > 0, height > 0 else { return whole }
+
+            let x0 = Swift.max(0, Swift.min(column, scanWidth - 1))
+            let y0 = Swift.max(0, Swift.min(row, scanHeight - 1))
+            let x1 = Swift.min(scanWidth, column + width)
+            let y1 = Swift.min(scanHeight, row + height)
+            guard x1 > x0, y1 > y0 else { return whole }
+            return ScanRegion(column: x0, row: y0, width: x1 - x0, height: y1 - y0)
+        }
+
+        var isWholeScan: Bool { return column == 0 && row == 0 }
+
+        func describe(scanWidth: Int, scanHeight: Int) -> String {
+            if width == scanWidth && height == scanHeight { return "" }
+            return String(format: " Selection only: %d×%d at (%d, %d), %d positions.",
+                          width, height, column, row, positions)
+        }
+    }
 
     private struct Sweep {
         var integrals: [Float]
@@ -335,15 +401,15 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
         var capped: Bool
     }
 
-    private func collectEvents(host: FDSHostContext,
+    private func collectEvents(host: FDSHostContext, region: ScanRegion,
                                maskedIndices: [Int], insideMask: [Bool],
                                patternWidth: Int, patternHeight: Int, patternPixels: Int,
                                scanWidth: Int, scanHeight: Int, stride: Int,
                                threshold: Float, background: Float, maxClusterSize: Int,
                                excludeEdge: Bool, diagonal: Bool) -> Sweep? {
 
-        let outputWidth = (scanWidth + stride - 1) / stride
-        let outputHeight = (scanHeight + stride - 1) / stride
+        let outputWidth = (region.width + stride - 1) / stride
+        let outputHeight = (region.height + stride - 1) / stride
 
         var integrals = [Float]()
         integrals.reserveCapacity(1 << 16)
@@ -367,11 +433,12 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
             : [(-1, 0), (0, -1), (0, 1), (1, 0)]
 
         var outputRow = 0
-        for row in Swift.stride(from: 0, to: scanHeight, by: stride) {
+        for row in Swift.stride(from: region.row, to: region.row + region.height, by: stride) {
             if host.isCancelled { return nil }
             var position = outputRow * outputWidth
 
-            for column in Swift.stride(from: 0, to: scanWidth, by: stride) {
+            for column in Swift.stride(from: region.column,
+                                       to: region.column + region.width, by: stride) {
                 guard host.copyPattern(row: row, column: column, into: pattern, capacity: patternPixels) else {
                     position += 1
                     continue
@@ -467,7 +534,15 @@ public final class SingleElectronHistogramPlugin: NSObject, FDSPlugin {
         var sorted = values
         sorted.sort()
 
-        let low = sorted.first ?? 0
+        // Anchored at zero rather than at the smallest event.
+        //
+        // The quantity on this axis is charge collected, and zero is where it
+        // genuinely starts — so the distance from the origin to the first peak
+        // is the single-electron level, readable straight off the plot. Starting
+        // at the smallest event instead slid the whole axis by an amount that
+        // depended on the threshold, which made two runs of the same data
+        // impossible to compare.
+        let low: Float = 0
         // Trim the extreme tail so a handful of coincidences do not compress the
         // single-electron peak into the first two bins.
         let high = sorted[Swift.min(sorted.count - 1, Int(Double(sorted.count - 1) * 0.999))]

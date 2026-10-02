@@ -1197,6 +1197,64 @@ final class DataViewModel: NSObject, ObservableObject {
         loadErrorMessage = message
     }
 
+    /// Asks how to read an ARINA scan.
+    private func promptForArinaOptions(
+        url: URL, dataset: ArinaDataset,
+        completion: @escaping ((width: Int, height: Int, factor: Int,
+                                reduction: ArinaReduction)?) -> Void) {
+
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+                            styleMask: [.titled, .closable],
+                            backing: .buffered, defer: false)
+        panel.title = "ARINA Scan"
+        panel.hidesOnDeactivate = false
+        panel.level = .modalPanel
+
+        func finish(_ value: (width: Int, height: Int, factor: Int, reduction: ArinaReduction)?) {
+            if let parent = panel.sheetParent {
+                parent.endSheet(panel, returnCode: value == nil ? .cancel : .OK)
+            } else {
+                NSApp.stopModal(withCode: value == nil ? .cancel : .OK)
+                panel.close()
+            }
+            DispatchQueue.main.async { completion(value) }
+        }
+
+        let side = dataset.sourceScanWidth
+        let sheet = ArinaOptionsSheet(
+            fileHint: url.lastPathComponent,
+            frameCount: dataset.frameCount,
+            patternWidth: dataset.patternWidth,
+            patternHeight: dataset.patternHeight,
+            suggestedSide: side,
+            rasterText: "\(side) x \(dataset.sourceScanHeight)",
+            onCancel: { finish(nil) },
+            onOK: { width, height, factor, reduction in
+                finish((width: width, height: height, factor: factor, reduction: reduction))
+            })
+
+        let hosting = NSHostingView(rootView: sheet)
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView()
+        content.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(hosting)
+        panel.contentView = content
+        NSLayoutConstraint.activate([
+            hosting.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            hosting.topAnchor.constraint(equalTo: content.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: content.bottomAnchor)
+        ])
+
+        let host = NSApp.keyWindow ?? NSApp.mainWindow
+        if let host = host, !(host is NSPanel), host.isVisible {
+            host.beginSheet(panel) { _ in }
+        } else {
+            panel.center()
+            NSApp.runModal(for: panel)
+        }
+    }
+
     func open(url: URL) {
         updateSecurityScopedAccess(for: url)
         selectedURL = url
@@ -1207,7 +1265,35 @@ final class DataViewModel: NSObject, ObservableObject {
         status = "Preparing to load \(url.lastPathComponent)…"
         isLoading = true
         dataController.filePath = url
-        if url.pathExtension.lowercased() == "raw" {
+        let extension_ = url.pathExtension.lowercased()
+        if extension_ == "h5" || extension_ == "hdf5" || extension_ == "emd" {
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self else { return }
+                let arina = ArinaReader.looksLikeArina(url: url)
+                    ? try? ArinaReader.inspect(url: url) : nil
+                DispatchQueue.main.async {
+                    guard let dataset = arina else {
+                        // Some other HDF5 — EMD, py4DSTEM, whatever.
+                        self.beginOpen(url: url)
+                        return
+                    }
+                    self.promptForArinaOptions(url: url, dataset: dataset) { choice in
+                        guard let choice = choice else {
+                            self.isLoading = false
+                            self.status = "Cancelled"
+                            return
+                        }
+                        self.dataController.arinaRaster = IntSize(width: choice.width,
+                                                                  height: choice.height)
+                        self.dataController.arinaFactor = choice.factor
+                        self.dataController.arinaReduction = choice.reduction
+                        self.continueOpen(afterPromptFor: url)
+                    }
+                }
+            }
+            return
+        }
+        if extension_ == "raw" {
             let suggested = suggestRawDimensions(from: url)
             promptForRawDimensions(suggested: suggested) { [weak self] dims in
                 guard let self = self else { return }

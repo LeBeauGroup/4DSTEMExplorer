@@ -292,6 +292,14 @@ class STEMDataController: NSObject {
     // Held between inspecting an EMD file and reading it.
     private var emdFile:HDF5File?
     private var emdDataset:EMDDataset?
+
+    // ARINA. The detector records how many frames it wrote but never their
+    // arrangement, and a full scan is far too large to hold, so the raster and
+    // the reduction are decided before the file is opened and set here.
+    var arinaRaster: IntSize? = nil
+    var arinaFactor: Int = 1
+    var arinaReduction: ArinaReduction = .stride
+    private var arinaDataset: ArinaDataset?
     
     var dwi: DispatchWorkItem?
 
@@ -615,6 +623,9 @@ class STEMDataController: NSObject {
         let isDM = ext == "dm4" || ext == "dm3"
         let isRaw = ext == "raw"
         let isEMD = ext == "emd" || ext == "h5" || ext == "hdf5"
+        // Decided by looking inside: the extension is shared with py4DSTEM, EMD
+        // and anything else, and only the structure tells them apart.
+        let isArina = isEMD && ArinaReader.looksLikeArina(url: url)
         
 
         var dataType: DataType = .unknown
@@ -649,9 +660,32 @@ class STEMDataController: NSObject {
             self.patternSize = detectorSize
             
             self.imageSize = IntSize(width: Int(feiHeader!.scanSizeRight), height: Int(feiHeader!.scanSizeBottom))
+        } else if isArina {
+            self.emdFile = nil
+            self.emdDataset = nil
+            self.arinaDataset = nil
+            self.calibrations = nil
+
+            let dataset = try ArinaReader.inspect(
+                url: url,
+                raster: arinaRaster.map { (width: $0.width, height: $0.height) },
+                factor: arinaFactor,
+                reduction: arinaReduction)
+
+            // The frames are uint16 counts, converted to Float as they are
+            // decoded; nothing downstream sees the stored type.
+            dataType = .float32
+            firstImageOffset = 0
+            self.detectorSize = IntSize(width: dataset.patternWidth, height: dataset.patternHeight)
+            self.patternSize = detectorSize
+            self.imageSize = IntSize(width: dataset.scanWidth, height: dataset.scanHeight)
+            self.calibrations = dataset.calibrations
+            self.arinaDataset = dataset
+            NSLog("[ARINA] %@ — %@", url.lastPathComponent, dataset.summary)
         } else if isEMD {
             self.emdFile = nil
             self.emdDataset = nil
+            self.arinaDataset = nil
             self.calibrations = nil
 
             let (dataset, file) = try EMDReader.inspect(url: url)
@@ -988,6 +1022,24 @@ class STEMDataController: NSObject {
                 }
             }
 
+            // ARINA is read frame by frame, decoding each chunk itself,
+            // because the compression it uses is not one libhdf5 can undo.
+            if let dataset = self.arinaDataset {
+                do {
+                    try self.readArina(dataset, url: url,
+                                       patternPixels: patternPixels,
+                                       totalImages: totalImages, nc: nc)
+                } catch {
+                    fail(error)
+                    return
+                }
+                if self.dwi?.isCancelled ?? false { return }
+                DispatchQueue.main.async(execute: DispatchWorkItem {
+                    _ = self.delegate?.didFinishLoadingData()
+                })
+                return
+            }
+
             // EMD goes through libhdf5 rather than the raw byte stream below,
             // so that chunking, compression and sample format are its problem.
             if let hdf5 = self.emdFile, let dataset = self.emdDataset {
@@ -1131,6 +1183,27 @@ class STEMDataController: NSObject {
         DispatchQueue.global().async(execute: dwi!)
     }
     
+    /// Decodes an ARINA scan into the pattern buffer, reducing it on the way.
+    private func readArina(_ dataset: ArinaDataset, url: URL,
+                           patternPixels: Int, totalImages: Int,
+                           nc: NotificationCenter) throws {
+
+        let total = patternPixels * totalImages
+        guard total > 0 else { throw FileReadError.invalidDimensions }
+
+        self.patternPointer?.deallocate()
+        self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: total)
+
+        try ArinaReader.read(dataset, url: url, reduction: dataset.scanBinning > 1
+                                ? self.arinaReduction : .bin,
+                             into: self.patternPointer!) { [weak self] fraction in
+            guard let self = self else { return false }
+            if self.dwi?.isCancelled ?? false { return false }
+            DispatchQueue.main.async { nc.post(name: .taskProgressUpdated, object: fraction) }
+            return true
+        }
+    }
+
     /// Streams an EMD stack into the pattern buffer, reporting progress and
     /// honouring cancellation between slabs.
     private func readEMD(_ file: HDF5File, _ dataset: EMDDataset,
