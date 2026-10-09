@@ -1,0 +1,23 @@
+<h2>Version 2.2.1</h2>
+
+<h3>EMPAD2</h3>
+<ul>
+  <li>Opening an EMPAD2 RAW file no longer defaults to flipping rows. That is an
+      EMPAD convention and not one EMPAD2 shares, so every EMPAD2 scan came in
+      upside down until you noticed and undid it. Which detector wrote the file
+      follows from its length, so the right default is chosen before the panel
+      appears. EMPAD files are unchanged, and anything you tick yourself still
+      wins.</li>
+</ul>
+
+<h3>The RAW scan dimensions panel</h3>
+<ul>
+  <li>The detector transforms are no longer hidden behind a disclosure triangle,
+      and sit above the calibrations. The orientation is the one setting here
+      that is wrong by default as often as it is right, and getting it wrong is
+      not obvious afterwards — it simply mirrors the scan. The calibrations
+      below it can be left blank and filled in later; this cannot.</li>
+  <li>The panel is sized by its contents rather than fixed, so there is no
+      longer a band of empty space above the buttons, and it grows and shrinks
+      smoothly as the calibrations section opens and closes.</li>
+</ul>

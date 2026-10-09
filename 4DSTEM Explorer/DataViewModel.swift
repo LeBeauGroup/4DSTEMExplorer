@@ -1086,7 +1086,24 @@ final class DataViewModel: NSObject, ObservableObject {
 
         let fileHint = self.selectedURL?.lastPathComponent ?? ""
 
-        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step: "None", fileHint: fileHint, fileURL: self.selectedURL, onCancel: {
+        // Row flipping is an EMPAD convention, and not one EMPAD2 shares: its
+        // frames come out the right way up. Defaulting to flipped for both put
+        // every EMPAD2 scan in upside down until the user noticed and undid it.
+        // Which generation wrote the file follows from its length — the same
+        // division EMPADLayout does when the file is actually read.
+        var flipRowsByDefault = true
+        if let url = self.selectedURL,
+           let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path))
+               .flatMap({ ($0[.size] as? NSNumber)?.intValue }) {
+            let elementSizes = DataType.rawCandidates.map { $0.elementSize }
+            let scanPixels = (suggested.w).flatMap { w in suggested.h.map { w * $0 } } ?? 0
+            let layout = EMPADLayout.choose(fileSize: bytes, scanPixels: scanPixels,
+                                            elementSizes: elementSizes)?.layout
+                ?? EMPADLayout.infer(fileSize: bytes, elementSize: 4)
+            if layout == .second { flipRowsByDefault = false }
+        }
+
+        let hosting = NSHostingView(rootView: RawDimsSheet(scan_dims: defaultString, diff_step: "None", scan_step: "None", flipRows: flipRowsByDefault, fileHint: fileHint, fileURL: self.selectedURL, onCancel: {
             if let parent = panel.sheetParent {
                 parent.endSheet(panel, returnCode: .cancel)
                 DispatchQueue.main.async { completion(nil) }
@@ -1116,19 +1133,29 @@ final class DataViewModel: NSObject, ObservableObject {
                 NSSound.beep()
             }
         }))
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-
-        let contentView = NSView()
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(hosting)
-
-        panel.contentView = contentView
-        NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: contentView.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-        ])
+        // The window takes its size from the content rather than the other way
+        // round, so the panel grows and shrinks as the calibrations disclosure
+        // opens and closes instead of leaving a gap or clipping.
+        // Two requirements that pull against each other.
+        //
+        // `.intrinsicContentSize` is not optional: without it the hosting view
+        // reports a fitting size of zero and nothing can be measured at all.
+        // But with the hosting view installed as the window's content view,
+        // AppKit acts on that intrinsic size itself and resizes the window the
+        // instant the content changes — measured, in the sheet's own log, as
+        // arriving at the new height before any animation could start.
+        //
+        // So it keeps the option and loses the job: held in a plain container
+        // with autoresizing rather than constraints, nothing propagates a size
+        // requirement up to the window, and the sheet animates its own frame.
+        hosting.sizingOptions = [.intrinsicContentSize]
+        let fitted = hosting.fittingSize
+        let container = NSView(frame: NSRect(origin: .zero, size: fitted))
+        hosting.frame = container.bounds
+        hosting.autoresizingMask = [.width, .height]
+        container.addSubview(hosting)
+        panel.contentView = container
+        panel.setContentSize(fitted)
 
         // Present as a sheet from a host window if available, otherwise modal
         func hostWindow() -> NSWindow? {
