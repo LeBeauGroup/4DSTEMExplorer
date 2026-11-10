@@ -1,0 +1,28 @@
+<h2>Version 2.3</h2>
+
+<h3>Non-raster scans</h3>
+<ul>
+  <li>Scans that were not acquired as a raster &mdash; spirals, constant-angular-velocity
+      paths, and lattices that span the field edge to edge &mdash; now open. Their recorded
+      positions (from <code>scan_positions.npz</code> or the metadata sidecar) are used to place
+      each frame, and off-grid paths are gridded onto a canvas with density compensation.</li>
+  <li>A RAW file's length is now checked against the scan path's frame count rather than the
+      raster size, so these files are no longer rejected as the wrong size.</li>
+  <li>Scan positions that were never visited are left out of the scan image's histogram and
+      automatic contrast, so empty corners no longer squash the useful range.</li>
+  <li>A microscope library and settings pane for the instrument-specific scan metadata.</li>
+</ul>
+
+<h3>Display</h3>
+<ul>
+  <li>Right-click the diffraction pattern to choose its colour map (viridis, inferno, magma,
+      plasma, turbo, twilight or gray).</li>
+  <li>A histogram below the pattern sets the black and white points of whichever panel you
+      clicked last &mdash; pattern or scan image &mdash; with draggable handles and an Auto button.</li>
+</ul>
+
+<h3>The RAW scan dimensions panel</h3>
+<ul>
+  <li>The sheet now follows the height of its contents, so notes that appear after the scan
+      positions are read are no longer cut off.</li>
+</ul>

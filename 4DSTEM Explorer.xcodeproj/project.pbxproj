@@ -951,7 +951,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
@@ -995,7 +995,7 @@
 					"$(LIBAEC_PREFIX)/lib",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"$(HDF5_PREFIX)/lib/libhdf5.a",
