@@ -47,6 +47,18 @@ struct ScanMetadata {
     var scanCorrectionRowMajor: [Float]?
     /// Detector orientation when recorded: `[flip_y, flip_x, transpose]`.
     var detectorFlips: [Bool]?
+    /// The side, in probe positions, of the image a scan path was drawn on.
+    ///
+    /// Not the same number as the scan size: a path that is not a raster is
+    /// drawn on a square canvas and then triggered out over whatever rectangle
+    /// of triggers holds its points, so a 128-canvas spiral can be written to
+    /// disk as 128×100 frames. Only the canvas tells you where a position is.
+    var scanPathCanvasSide: Int?
+    /// The field of view in metres, x then y.
+    ///
+    /// With the canvas side this gives the pixel pitch, which is the only way
+    /// to turn the metres an off-grid path records into probe positions.
+    var fieldOfViewMetres: [Double]?
     /// The RAW file this metadata was written for, if it says.
     var rawFilename: String?
     /// "JSON" or "XML", for the note shown in the panel.
@@ -740,6 +752,22 @@ struct ScanMetadata {
 
         metadata.scanCorrectionRowMajor = scanCorrection(fields)
         metadata.detectorFlips = detectorFlips(fields)
+
+        // The canvas a scan path was drawn on. Both synonyms have to line up
+        // with whole components: a bare "n" would answer to the cooler's
+        // `pid_n` in the same file, and a plausible wrong number here puts
+        // every frame of a scan in the wrong place.
+        if let side = lookup(fields, ["scanpathn", "pathn", "scanpathside"]),
+           let value = side.numbers.first, value >= 2, value <= 65_536,
+           value == value.rounded() {
+            metadata.scanPathCanvasSide = Int(value)
+        }
+        if let field = lookup(fields, ["fieldofview", "scanfieldofview"]) {
+            let extents = field.numbers.filter { $0.isFinite && $0 > 0 }
+            if let x = extents.first {
+                metadata.fieldOfViewMetres = [x, extents.count > 1 ? extents[1] : x]
+            }
+        }
 
         return metadata
     }

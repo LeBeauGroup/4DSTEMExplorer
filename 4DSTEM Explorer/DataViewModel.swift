@@ -91,6 +91,11 @@ final class DataViewModel: NSObject, ObservableObject {
     /// acquisition records a great deal this application does not model, and a
     /// calibration written from the modelled fields alone would drop the rest.
     @Published private(set) var importedMetadata: ScanMetadata?
+
+    /// The scan path chosen for the RAW file being opened, if the acquisition
+    /// recorded one. Kept here, like `importedMetadata`, rather than threaded
+    /// through the dimensions tuple that several callers share.
+    @Published private(set) var selectedScanPath: ScanPath?
     @Published var status: String = "Idle"
     @Published var loadErrorMessage: String?
     @Published var progress: Double = 0.0
@@ -1112,10 +1117,11 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { [weak self] scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, metadata in
+        }, onOK: { [weak self] scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, metadata, scanPath in
             // Recorded here rather than threaded through the completion tuple,
             // which several other callers share.
             self?.importedMetadata = metadata
+            self?.selectedScanPath = scanPath
             if let xy = parseXY(scan_dims) {
                 let scan_step = Float(scan_step) ?? nil
                 let diff_step = Float(diff_step) ?? nil
@@ -1326,6 +1332,12 @@ final class DataViewModel: NSObject, ObservableObject {
                 guard let self = self else { return }
                 if let dims = dims {
                     self.dataController.setRawImageSize(width: dims.w, height: dims.h)
+                    // From the panel that just ran, so it belongs to this file:
+                    // every RAW open goes through that panel, and a path that
+                    // was not chosen arrives as nil. Anything that is not a RAW
+                    // file ignores this outright — see `loadData`, which has to,
+                    // since nothing here runs before an EMD or ARINA open.
+                    self.dataController.setScanPath(self.selectedScanPath)
                     self.dataController.setRawTransforms(flipRows: dims.flipRows, flipCols: dims.flipCols, transpose: dims.transpose)
                     // The orientation the file is about to be read with is the
                     // orientation the metadata should record, so it is captured

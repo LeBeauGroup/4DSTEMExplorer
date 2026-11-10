@@ -70,6 +70,48 @@ struct RawDimsSheet: View {
     /// What "Load Metadata…" read, kept so the export can be based on it and
     /// named after it rather than after the raster.
     @State private var importedMetadata: ScanMetadata?
+    @State private var scanPath: ScanPath?
+    @State private var scanPathNote: String?
+    @State private var scanPathFailed: Bool = false
+    /// The archive the path came from, and whether it was found rather than
+    /// chosen. Kept so that loading metadata afterwards can read it again: an
+    /// off-grid path cannot be placed without the field of view, so the one
+    /// that failed for want of it should succeed the moment it arrives.
+    @State private var scanPathURL: URL?
+    @State private var scanPathFound: Bool = false
+    /// The gridding the user pinned, or nil to let the path decide.
+    @State private var griddingChoice: GriddingChoice?
+
+    /// How an off-grid path is put onto the probe grid.
+    ///
+    /// Only offered for a path that needs the choice. One that is already the
+    /// probe lattice — a raster, a Hilbert curve, an interleaved sub-raster —
+    /// lands on it exactly, and a window would do nothing but blur it.
+    enum GriddingChoice: String, CaseIterable, Identifiable {
+        case nearest = "Nearest position"
+        case kaiserBessel2 = "Kaiser–Bessel, 2 px"
+        case kaiserBessel3 = "Kaiser–Bessel, 3 px"
+
+        var id: String { rawValue }
+
+        var gridding: ScanPath.Gridding {
+            switch self {
+            case .nearest: return .nearest
+            case .kaiserBessel2: return .kaiserBessel(width: 2)
+            case .kaiserBessel3: return .kaiserBessel(width: 3)
+            }
+        }
+
+        /// What a path resolved to, so the control shows what is in effect
+        /// rather than an empty selection.
+        init(_ gridding: ScanPath.Gridding) {
+            switch gridding {
+            case .kaiserBessel(let width) where width >= 2.5: self = .kaiserBessel3
+            case .kaiserBessel: self = .kaiserBessel2
+            default: self = .nearest
+            }
+        }
+    }
     @State private var hostWindow: NSWindow?
 
     let fileHint: String
@@ -78,7 +120,7 @@ struct RawDimsSheet: View {
     /// than not, so anywhere else is a wasted navigation.
     var fileURL: URL? = nil
     let onCancel: () -> Void
-    let onOK: (String, String, String, String, Bool, Bool, Bool, ScanMetadata?) -> Void
+    let onOK: (String, String, String, String, Bool, Bool, Bool, ScanMetadata?, ScanPath?) -> Void
 
     /// Fills the fields in from a JSON sidecar, so the numbers come from the
     /// acquisition rather than from retyping them.
@@ -107,6 +149,12 @@ struct RawDimsSheet: View {
                 metadataFailed = false
                 metadataNote = metadata.summary
                 importedMetadata = metadata
+                // An off-grid path cannot be placed without the field of view
+                // this metadata carries, so a path already chosen is read
+                // again now that it is here.
+                if let pathURL = scanPathURL {
+                    adoptScanPath(pathURL, found: scanPathFound)
+                }
                 // Show what was filled in, rather than leaving it collapsed and
                 // apparently unchanged.
                 isCalibrationVisible = true
@@ -121,6 +169,74 @@ struct RawDimsSheet: View {
             panel.beginSheetModal(for: window, completionHandler: adopt)
         } else {
             adopt(panel.runModal())
+        }
+    }
+
+    // MARK: - The scan path
+
+    /// Looks for the path macSTEM saves beside the acquisition, without being
+    /// asked. A raster acquisition has none, and then this does nothing.
+    private func detectScanPath() {
+        guard scanPath == nil, scanPathNote == nil, let fileURL = fileURL,
+              let candidate = ScanPath.beside(rawFile: fileURL) else { return }
+        adoptScanPath(candidate, found: true)
+    }
+
+    private func loadScanPath() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType(filenameExtension: "npz") ?? .data]
+        panel.directoryURL = fileURL?.deletingLastPathComponent()
+        panel.prompt = "Use"
+        panel.message = "Choose the scan_positions.npz saved with this acquisition"
+
+        func chosen(_ response: NSApplication.ModalResponse) {
+            guard response == .OK, let url = panel.url else { return }
+            adoptScanPath(url, found: false)
+        }
+
+        if let window = hostWindow {
+            panel.beginSheetModal(for: window, completionHandler: chosen)
+        } else {
+            chosen(panel.runModal())
+        }
+    }
+
+    private func adoptScanPath(_ url: URL, found: Bool) {
+        scanPathURL = url
+        scanPathFound = found
+        do {
+            // Metadata the user loaded outranks the sidecar `ScanPath.read`
+            // finds for itself: they chose it, and it may well be the reason
+            // they chose it.
+            let path = try ScanPath.read(url: url,
+                                         canvas: importedMetadata.flatMap { ScanPath.Canvas($0) },
+                                         gridding: griddingChoice?.gridding ?? .automatic)
+
+            // A path from a different acquisition would reorder this one into
+            // noise, so the file it names is checked rather than assumed. Only
+            // when it names one: the name is a courtesy, not a guarantee.
+            if let named = path.rawFilename,
+               let mine = fileURL?.lastPathComponent, named != mine {
+                scanPath = nil
+                scanPathFailed = true
+                scanPathNote = "That path was recorded for \(named), not \(mine)."
+                return
+            }
+
+            scanPath = path
+            scanPathFailed = false
+            // The frame count is worth showing: it is what the scan size above
+            // has to agree with, since every frame in the file is one trigger.
+            scanPathNote = (found ? "Found beside the file — " : "")
+                + "\(path.summary), from \(path.destinations.count) frames"
+        } catch {
+            scanPath = nil
+            scanPathFailed = true
+            scanPathNote = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
         }
     }
 
@@ -197,6 +313,58 @@ struct RawDimsSheet: View {
                             .frame(width: 260)
                     }
 
+                    // A non-raster scan cannot be read as one: the frames are
+                    // in the order the beam visited them, which for a Hilbert
+                    // curve or a spiral is not the order of the image.
+                    VStack(spacing: 4) {
+                        Button(scanPath == nil ? "Scan Path\u{2026}"
+                                               : "Change Scan Path\u{2026}") {
+                            loadScanPath()
+                        }
+                        .padding(.top, 2)
+
+                        if let note = scanPathNote {
+                            Text(note)
+                                .font(.caption)
+                                .foregroundStyle(scanPathFailed ? Color.orange : Color.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(width: 260)
+                        }
+
+                        // Only where it changes anything: an off-grid path is
+                        // the one that has to be gridded, and the width of the
+                        // window trades resolution against the gaps a spiral
+                        // leaves between its arms.
+                        if let path = scanPath, !path.onGrid {
+                            Picker("Gridding", selection: Binding(
+                                get: { griddingChoice ?? GriddingChoice(path.gridding) },
+                                set: { choice in
+                                    griddingChoice = choice
+                                    if let url = scanPathURL {
+                                        adoptScanPath(url, found: scanPathFound)
+                                    }
+                                })) {
+                                ForEach(GriddingChoice.allCases) { choice in
+                                    Text(choice.rawValue).tag(choice)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .font(.caption)
+                            .frame(width: 260)
+                        }
+
+                        if scanPath != nil {
+                            Button("Read as a raster instead") {
+                                scanPath = nil
+                                scanPathFailed = false
+                                scanPathNote = nil
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
+                    }
+                    .onAppear { detectScanPath() }
+
                     // Not behind a disclosure triangle, and above the
                     // calibrations. The orientation is the one thing here that
                     // is wrong by default as often as it is right — it depends
@@ -243,7 +411,7 @@ struct RawDimsSheet: View {
             HStack {
                 Spacer()
                 Button("Cancel") { onCancel() }
-                Button("OK") { onOK(scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, importedMetadata) }
+                Button("OK") { onOK(scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, importedMetadata, scanPath) }
                     .keyboardShortcut(.defaultAction)
             }
         }

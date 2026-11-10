@@ -201,6 +201,11 @@ class STEMDataController: NSObject {
                               height: EMPADLayout.first.rows)
     
     var providedRawImageSize: IntSize? = nil
+
+    /// Where each frame of a RAW file was taken, when the acquisition recorded
+    /// it (`ScanPath`). Nil is the old behaviour and the common case: frame k
+    /// is probe position k, which is what a raster is.
+    var providedScanPath: ScanPath? = nil
     /// Set from the file when it records one, and applied as the data is read so
     /// that everything downstream sees physical values. Nil for formats that
     /// store calibrated values already.
@@ -246,6 +251,12 @@ class STEMDataController: NSObject {
     
     func setRawImageSize(width: Int, height: Int) {
         self.providedRawImageSize = IntSize(width: width, height: height)
+    }
+
+    /// The scan path the next RAW read should place its frames by, or nil to
+    /// read the file as a raster.
+    func setScanPath(_ path: ScanPath?) {
+        self.providedScanPath = path
     }
 
     func setRawTransforms(flipRows: Bool, flipCols: Bool, transpose: Bool) {
@@ -991,8 +1002,26 @@ class STEMDataController: NSObject {
         let totalPatternPixels = (height + additionalRows) * width
     
         
+        // Two counts, and with a non-raster scan path they are not the same
+        // number: the file holds one frame per trigger, while the scan holds
+        // one position per pixel of the path's image. Frames are read and
+        // placed; positions are allocated and displayed. A frame that is not at
+        // a position (the settling frame, the padding after the last point) is
+        // read and dropped, and a position with no frame stays blank.
+        // Only a RAW file has one, and it is settled here rather than in the
+        // background closure below: `providedScanPath` is set from the open
+        // panel, and a stale one must not reach the next file opened.
+        let scanPath: ScanPath? = isRaw ? self.providedScanPath : nil
+        let framesToRead = self.imageSize.width * self.imageSize.height
+        if let path = scanPath {
+            guard path.destinations.count == framesToRead else {
+                throw FileReadError.invalidDimensions
+            }
+            self.imageSize = path.extent
+        }
+
         let totalImages = self.imageSize.width * self.imageSize.height
-        guard totalImages > 0 else {
+        guard totalImages > 0, framesToRead > 0 else {
             throw FileReadError.invalidDimensions
         }
 
@@ -1010,7 +1039,7 @@ class STEMDataController: NSObject {
                                                   transpose: doTranspose)
 
         let batchSize = 64
-        let totalBatches = (totalImages + batchSize - 1) / batchSize
+        let totalBatches = (framesToRead + batchSize - 1) / batchSize
 
 
         let nc = NotificationCenter.default
@@ -1068,6 +1097,9 @@ class STEMDataController: NSObject {
 
             self.patternPointer?.deallocate()
             self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
+            if scanPath != nil {
+                self.patternPointer!.update(repeating: 0, count: patternPixels * totalImages)
+            }
 
             let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: detectorPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
@@ -1082,13 +1114,23 @@ class STEMDataController: NSObject {
             let outH = doTranspose ? width  : height
             let outW = doTranspose ? height : width
 
+            // A scan path that grids spreads one frame over several probe
+            // positions, so the frame is assembled here first and then added
+            // into each of them. Without one this is nil and frames are built
+            // straight into place, which is both faster and exact.
+            let spread = scanPath?.spread
+            let gridBuffer: UnsafeMutablePointer<Float32>? = spread != nil
+                ? UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+                : nil
+            defer { gridBuffer?.deallocate() }
+
             fileHandle.seek(toFileOffset: firstImageOffset)
-            let fracComplete = max(1, Int(Double(totalImages) * 0.05))
+            let fracComplete = max(1, Int(Double(framesToRead) * 0.05))
 
             for batchIndex in 0..<totalBatches {
                 if self.dwi?.isCancelled ?? false { return }
 
-                let imagesInBatch = min(batchSize, totalImages - batchIndex * batchSize)
+                let imagesInBatch = min(batchSize, framesToRead - batchIndex * batchSize)
                 let readSize = imagesInBatch * (totalPatternPixels) * elementSize
 
                 let batchData = fileHandle.readData(ofLength: readSize)
@@ -1118,9 +1160,23 @@ class STEMDataController: NSObject {
 
                 for img in 0..<imagesInBatch {
                     let globalIndex = batchIndex * batchSize + img
-                    if globalIndex >= totalImages { break }
+                    if globalIndex >= framesToRead { break }
 
-                    let outPointer = self.patternPointer! + globalIndex * patternPixels
+                    // Where this frame belongs. Without a scan path that is
+                    // where it already is; with one it is wherever the beam
+                    // was — which, once a kernel is involved, is more than one
+                    // position, so the frame goes to the scratch buffer and is
+                    // distributed below.
+                    let outPointer: UnsafeMutablePointer<Float32>
+                    if let gridBuffer = gridBuffer {
+                        outPointer = gridBuffer
+                    } else if let path = scanPath {
+                        let place = Int(path.destinations[globalIndex])
+                        guard place >= 0 else { continue }   // not at a position
+                        outPointer = self.patternPointer! + place * patternPixels
+                    } else {
+                        outPointer = self.patternPointer! + globalIndex * patternPixels
+                    }
                     let srcPointer = floatTempBuffer + img * (totalPatternPixels)
 
                     // Determine the source for row operations (possibly transposed)
@@ -1144,12 +1200,32 @@ class STEMDataController: NSObject {
                         }
                     }
 
+                    // Gridding: add this frame into every probe position its
+                    // kernel reaches, weighted by how near it fell. The
+                    // weights were accumulated per position when the path was
+                    // read, and divide back out once the file is through.
+                    if let spread = spread, let gridBuffer = gridBuffer {
+                        spread.place(frame: gridBuffer, index: globalIndex,
+                                     stride: patternPixels,
+                                     into: self.patternPointer!)
+                    }
+
                     if globalIndex % fracComplete == 0 {
                         DispatchQueue.main.async {
-                            nc.post(name: .taskProgressUpdated, object: Double(globalIndex)/Double(totalImages))
+                            // Against the frames, not the positions: with a
+                            // path whose canvas is larger than the trigger
+                            // rectangle the two differ, and the bar would stop
+                            // short of the end of a finished read.
+                            nc.post(name: .taskProgressUpdated, object: Double(globalIndex)/Double(framesToRead))
                         }
                     }
                 }
+            }
+
+            // The density compensation, once the last frame is in.
+            if let spread = spread {
+                spread.normalise(self.patternPointer!, stride: patternPixels,
+                                 positions: totalImages)
             }
 
             DispatchQueue.main.async(execute: DispatchWorkItem {
