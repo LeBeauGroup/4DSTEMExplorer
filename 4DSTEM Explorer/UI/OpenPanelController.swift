@@ -473,29 +473,38 @@ struct RawDimsSheet: View {
     /// The content's animation is the only clock, which is why the two cannot
     /// drift apart: there is only one of them.
     private func followContentSize() {
-        guard let window = hostWindow, let content = window.contentView else { return }
-        let swiftUIView = content.subviews.first ?? content
-
         let deadline = Date().addingTimeInterval(Self.resizeDuration + 0.1)
         let timer = Timer(timeInterval: 1.0 / 120.0, repeats: true) { tick in
-            swiftUIView.layoutSubtreeIfNeeded()
-            let target = swiftUIView.fittingSize
-            guard target.height > 0 else { return }
-
-            var frame = window.frame
-            let chrome = frame.height - content.frame.height
-            let height = target.height + chrome
-            if abs(height - frame.height) > 0.5 {
-                // The top edge stays put: AppKit positions a window from its
-                // bottom left, so height has to be taken off the origin too or
-                // the title bar walks up the screen.
-                frame.origin.y += frame.height - height
-                frame.size.height = height
-                window.setFrame(frame, display: true)
-            }
+            syncWindowToContent()
             if Date() >= deadline { tick.invalidate() }
         }
         RunLoop.main.add(timer, forMode: RunLoopMode.commonModes)
+    }
+
+    /// Sets the window to the height its content currently measures.
+    ///
+    /// Also driven by the content's own geometry, so a change that nothing
+    /// remembered to follow — a long note under the path picker once the
+    /// positions file is read, for one — still gets a window that fits it,
+    /// rather than one cut off at the height it opened with.
+    private func syncWindowToContent() {
+        guard let window = hostWindow, let content = window.contentView else { return }
+        let swiftUIView = content.subviews.first ?? content
+        swiftUIView.layoutSubtreeIfNeeded()
+        let target = swiftUIView.fittingSize
+        guard target.height > 0 else { return }
+
+        var frame = window.frame
+        let chrome = frame.height - content.frame.height
+        let height = target.height + chrome
+        if abs(height - frame.height) > 0.5 {
+            // The top edge stays put: AppKit positions a window from its
+            // bottom left, so height has to be taken off the origin too or
+            // the title bar walks up the screen.
+            frame.origin.y += frame.height - height
+            frame.size.height = height
+            window.setFrame(frame, display: true)
+        }
     }
 
     private func trimmed(_ value: Float) -> String {
@@ -619,6 +628,9 @@ struct RawDimsSheet: View {
         .frame(width: 340)
         .fixedSize(horizontal: false, vertical: true)
         .background(WindowReader { hostWindow = $0 })
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _ in
+            syncWindowToContent()
+        }
         .onChange(of: isCalibrationVisible) { _, _ in
             followContentSize()
         }
