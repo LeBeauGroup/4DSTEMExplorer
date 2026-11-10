@@ -190,6 +190,9 @@ final class CalibrationBatchRunner: ObservableObject {
                 ?? .empadDefault
             controller.setRawTransforms(flipRows: flips.flipY, flipCols: flips.flipX,
                                         transpose: flips.transpose)
+            // Raster unless the sidecar names another order. Nothing here can
+            // ask, and a guess would reorder the whole scan.
+            controller.setRawScanPath(seed?.metadata.resolvedScanPath() ?? .raster)
         }
 
         // Seeded first, so anything the measurement cannot supply survives.

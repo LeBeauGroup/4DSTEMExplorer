@@ -20,14 +20,19 @@
 //  Written out, with `C` the curl and `D` the divergence of the unrotated field,
 //  rotating the CoM vectors by θ gives
 //
-//      curl(θ) =  C·cos θ − D·sin θ
-//      div (θ) =  D·cos θ + C·sin θ
+//      curl(θ) =  C·cos θ + D·sin θ
+//      div (θ) =  D·cos θ − C·sin θ
 //
 //  — the two mix into each other exactly as a rotation of a vector would, which
 //  is what makes a single θ able to move all of the curl into the divergence.
 //  Minimising Σcurl² is then a closed-form problem, not a search:
 //
-//      tan 2θ = −2·Σ(C·D) / (Σ C² − Σ D²)
+//      tan 2θ = +2·Σ(C·D) / (Σ C² − Σ D²)
+//
+//  θ is counter-clockwise as the field is drawn, so it is negated on its way
+//  into every cos and sin below: rows run downwards, and the unnegated form
+//  turns the other way. See ACBFCoordinateTransform, which shares the
+//  convention.
 //
 //  There is no iteration and no starting guess. `curlVersusAngle` exists only so
 //  the minimum can be seen and judged, not to find it.
@@ -167,7 +172,7 @@ enum CurlMinimisation {
     /// Computed from the moments rather than by rotating and re-differentiating,
     /// which is both exact and independent of the scan size.
     private static func response(_ m: Moments, degrees: Double) -> (curl: Double, divergence: Double) {
-        let radians = degrees * .pi / 180
+        let radians = -degrees * .pi / 180
         let c = cos(radians), s = sin(radians)
         let curl = m.curlSquared * c * c - 2 * m.cross * c * s + m.divergenceSquared * s * s
         let div  = m.divergenceSquared * c * c + 2 * m.cross * c * s + m.curlSquared * s * s
@@ -193,7 +198,7 @@ enum CurlMinimisation {
     /// skew is the physical orientation.
     private static func divergenceSkewness(_ field: CoMField, degrees: Double) -> Double {
         guard let (curl, divergence) = derivatives(field), !curl.isEmpty else { return 0 }
-        let radians = degrees * .pi / 180
+        let radians = -degrees * .pi / 180
         let c = cos(radians), s = sin(radians)
         let n = Double(curl.count)
 
@@ -230,7 +235,9 @@ enum CurlMinimisation {
         // the maximum, so both are evaluated and the smaller kept. Cheaper and
         // more certain than reasoning about which branch atan2 chose.
         let doubled = atan2(-2 * m.cross, m.curlSquared - m.divergenceSquared)
-        let first = doubled / 2 * 180 / .pi
+        // Negated with the rest: the stationary angles come out of the textbook
+        // form, and every angle leaving this file is counter-clockwise as drawn.
+        let first = -doubled / 2 * 180 / .pi
         let candidates = [first, first + 90, first + 180, first + 270]
 
         var best = candidates[0]

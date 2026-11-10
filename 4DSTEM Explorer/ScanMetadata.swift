@@ -47,6 +47,27 @@ struct ScanMetadata {
     var scanCorrectionRowMajor: [Float]?
     /// Detector orientation when recorded: `[flip_y, flip_x, transpose]`.
     var detectorFlips: [Bool]?
+    /// The order the frames were written in, when the file names one.
+    ///
+    /// Only an order that can be named is read back — a sidecar has no room for
+    /// an explicit list of positions, and an unrecognised name is left as nil
+    /// rather than guessed at, so the panel's own choice stands.
+    var scanPath: ScanPath?
+    /// A path that cannot be named but can be recomputed, when the file is one
+    /// of macSTEM's and says enough to recompute it.
+    ///
+    /// This is how a Hilbert or interleaved scan gets its order without the
+    /// user choosing anything: the pattern and the size of the image it was
+    /// drawn on are both in the acquisition's own metadata, and the order
+    /// follows from them. See `MacSTEMScanPath`.
+    var macSTEMScanPath: MacSTEMScanPath?
+    /// Why the path could not be recomputed, when the file named a pattern and
+    /// recomputing it was not possible.
+    ///
+    /// Kept rather than discarded because it is the useful half of the answer:
+    /// "this is a cav spiral, so load its positions file" is something the user
+    /// can act on, where silence looks like an ordinary raster.
+    var macSTEMScanPathNote: String?
     /// The side, in probe positions, of the image a scan path was drawn on.
     ///
     /// Not the same number as the scan size: a path that is not a raster is
@@ -106,6 +127,11 @@ struct ScanMetadata {
             let set = zip(flips, names).filter { $0.0 }.map { $0.1 }
             parts.append("det flips: " + (set.isEmpty ? "none" : set.joined(separator: "+")))
         }
+        if let path = macSTEMScanPath {
+            parts.append("scan path: \(path.name), computed")
+        } else if let path = scanPath {
+            parts.append("scan path: \(path.name)")
+        }
         guard !parts.isEmpty else { return "No usable fields found." }
         var found = parts.joined(separator: ", ")
         if !sourceFormat.isEmpty { found = "\(sourceFormat): \(found)" }
@@ -115,6 +141,26 @@ struct ScanMetadata {
         if let derivation = scanStepDerivation { qualifications.append(derivation) }
         if !qualifications.isEmpty { found += " (" + qualifications.joined(separator: "; ") + ")" }
         return found
+    }
+
+    /// The order to read a RAW file in, as far as this metadata settles it.
+    ///
+    /// A recomputed path when the file holds one — it is the only way a scan
+    /// that cannot be named gets read correctly without the user choosing a
+    /// positions file — then an order the file names, and nil when it says
+    /// nothing, which a caller should read as a raster rather than as an error.
+    ///
+    /// Also nil if the recomputed path will not resolve, which means the
+    /// metadata is internally inconsistent. The panel reports that; a batch has
+    /// nowhere to report it to, and reading the scan as a raster is no worse
+    /// than refusing to read it at all.
+    func resolvedScanPath() -> ScanPath? {
+        if let computed = macSTEMScanPath,
+           let placement = try? computed.placement(width: computed.scanWidth,
+                                                   height: computed.scanHeight) {
+            return .explicit(placement)
+        }
+        return scanPath
     }
 
     var isEmpty: Bool {
@@ -173,7 +219,7 @@ struct ScanMetadata {
             throw ReadError.unrecognised(name)
         }
 
-        var metadata = ScanMetadata.interpret(fields)
+        var metadata = ScanMetadata.interpret(fields, source: name)
         metadata.sourceFormat = format
         metadata.sourceURL = url
         metadata.originalJSON = original
@@ -642,8 +688,12 @@ struct ScanMetadata {
     /// `mode="acquire"` block, and the preview comes first in the file.
     private static let previewQualifiers = ["search", "preview", "focus", "survey", "align", "tune"]
 
-    private static func interpret(_ fields: [Field]) -> ScanMetadata {
+    private static func interpret(_ fields: [Field], source: String = "") -> ScanMetadata {
         var metadata = ScanMetadata()
+
+        // Read first, because the scan path's own canvas is the authority on
+        // the raster and the field of view is divided by it below.
+        let macSTEM = ScanMetadata.macSTEM(fields, source: source)
 
         if let name = lookup(fields, ["rawfilename", "rawfilefilename", "rawfile",
                                       "datafilename", "filename"]),
@@ -679,6 +729,42 @@ struct ScanMetadata {
             metadata.scanWidth = size.width
             metadata.scanHeight = size.height
             metadata.scanSizeSource = "raw filename"
+        }
+
+        // The canvas a scan path was drawn on, which an off-grid path is
+        // gridded onto (`GriddedScan`). Both synonyms have to line up with
+        // whole components: a bare "n" would answer to the cooler's `pid_n` in
+        // the same file, and a plausible wrong number here puts every frame of
+        // a scan in the wrong place.
+        if let side = lookup(fields, ["scanpathn", "pathn", "scanpathside"]),
+           let value = side.numbers.first, value >= 2, value <= 65_536,
+           value == value.rounded() {
+            metadata.scanPathCanvasSide = Int(value)
+        }
+        if let field = lookup(fields, ["fieldofview", "scanfieldofview"]) {
+            let extents = field.numbers.filter { $0.isFinite && $0 > 0 }
+            if let x = extents.first {
+                metadata.fieldOfViewMetres = [x, extents.count > 1 ? extents[1] : x]
+            }
+        }
+
+        // A macSTEM path scan is drawn on a square canvas, and that canvas —
+        // not the rectangle of triggers the EMPAD wrote the frames over — is the
+        // scan. The two coincide for every even canvas, which is most of them;
+        // where they do not, the canvas is the one the image goes back onto.
+        metadata.macSTEMScanPathNote = macSTEM.note
+        if case .computed(let path)? = macSTEM.interpretation {
+            metadata.macSTEMScanPath = path
+            metadata.scanWidth = path.scanWidth
+            metadata.scanHeight = path.scanHeight
+            metadata.scanSizeSource = "the \(path.name) path"
+            // The RAW file's own name is still the independent record worth
+            // checking — against the trigger grid, which is what it counts.
+            if let size = fromFilename,
+               size.width != path.keptWidth || size.height != path.keptHeight {
+                metadata.scanSizeConflict = "the raw filename says \(size.width)×\(size.height),"
+                    + " where this path was written over \(path.keptWidth)×\(path.keptHeight) frames"
+            }
         }
 
         // The filename is an independent record of the same thing. When both
@@ -747,29 +833,80 @@ struct ScanMetadata {
         if let rotation = lookup(fields, ["scanrotation", "rotation", "scanrotationangle"],
                                  preferring: acquisitionQualifiers,
                                  rejecting: previewQualifiers)?.number {
-            metadata.scanRotationDegrees = Float(rotation)
+            // macSTEM's instrument interface is in radians throughout, and its
+            // metadata records what it set, unitless. Read as degrees a scan
+            // rotation of −1.4 rad comes out as −1.4°, which is both wrong and
+            // entirely plausible — the kind of number nobody looks at twice.
+            // Every other writer seen here uses degrees.
+            metadata.scanRotationDegrees = macSTEM.isMacSTEM
+                ? Float(rotation * 180 / .pi)
+                : Float(rotation)
         }
 
         metadata.scanCorrectionRowMajor = scanCorrection(fields)
         metadata.detectorFlips = detectorFlips(fields)
-
-        // The canvas a scan path was drawn on. Both synonyms have to line up
-        // with whole components: a bare "n" would answer to the cooler's
-        // `pid_n` in the same file, and a plausible wrong number here puts
-        // every frame of a scan in the wrong place.
-        if let side = lookup(fields, ["scanpathn", "pathn", "scanpathside"]),
-           let value = side.numbers.first, value >= 2, value <= 65_536,
-           value == value.rounded() {
-            metadata.scanPathCanvasSide = Int(value)
-        }
-        if let field = lookup(fields, ["fieldofview", "scanfieldofview"]) {
-            let extents = field.numbers.filter { $0.isFinite && $0 > 0 }
-            if let x = extents.first {
-                metadata.fieldOfViewMetres = [x, extents.count > 1 ? extents[1] : x]
-            }
+        // macSTEM names its own pattern, and for a plain raster or a serpentine
+        // that is a path the reader already has. Otherwise fall back to the
+        // synonym search, which covers every other writer.
+        if case .named(let path)? = macSTEM.interpretation {
+            metadata.scanPath = path
+        } else {
+            metadata.scanPath = scanPath(fields)
         }
 
         return metadata
+    }
+
+    /// What a macSTEM acquisition's own metadata says about the scan order.
+    ///
+    /// macSTEM identifies itself — `[instruments.scan_engine] service` — so
+    /// this is a claim the file makes rather than a guess from its shape, which
+    /// matters because being wrong about it reorders a whole scan.
+    private static func macSTEM(_ fields: [Field], source: String)
+            -> (isMacSTEM: Bool, interpretation: MacSTEMScanPath.Interpretation?, note: String?) {
+        guard let service = lookup(fields, ["scanengineservice"]),
+              normalise(service.text).contains("macstem") else {
+            return (false, nil, nil)
+        }
+        // The path table first: a path scan records its pattern in both places
+        // and only the table carries the canvas it was drawn on.
+        let pattern = lookup(fields, ["scanpathpattern"])?.text
+            ?? lookup(fields, ["scanenginepattern"])?.text
+        func integer(_ synonym: String) -> Int? {
+            return lookup(fields, [synonym])?.number.map { Int($0) }
+        }
+        do {
+            let read = try MacSTEMScanPath.interpretation(
+                pattern: pattern,
+                canvas: integer("scanpathn"),
+                kept: lookup(fields, ["scanpathkept"])?.numbers.map { Int($0) },
+                settle: integer("scanpathsettle"),
+                points: integer("scanpathpoints"),
+                source: source.isEmpty ? "the metadata" : source)
+            return (true, read, nil)
+        } catch {
+            let note = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+            return (true, nil, note)
+        }
+    }
+
+    /// The order the frames were written in, when the file names one.
+    ///
+    /// Deliberately a short synonym list. `scan_mode` is not in it: EMPAD
+    /// already uses `mode` to tell an acquisition block from a search block, so
+    /// a field by that name is more likely to say "acquire" than "snake", and
+    /// reading one as the other would reorder a whole scan on the strength of a
+    /// coincidence.
+    private static func scanPath(_ fields: [Field]) -> ScanPath? {
+        guard let field = lookup(fields, ["scanpath", "scanorder", "scanpattern",
+                                          "rasterorder", "scantrajectory",
+                                          "scandirection"],
+                                 preferring: acquisitionQualifiers,
+                                 rejecting: previewQualifiers) else {
+            return nil
+        }
+        return ScanPath(metadataName: field.text)
     }
 
     /// Detector orientation, `[flip_y, flip_x, transpose]`.

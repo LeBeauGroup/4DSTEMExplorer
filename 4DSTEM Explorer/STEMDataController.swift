@@ -136,6 +136,563 @@ struct DetectorFlips: Equatable {
     }
 }
 
+/// Where each stored frame belongs in the raster.
+///
+/// The result of resolving a `ScanPath` against a scan size, and what the read
+/// loop actually works from.
+struct ScanPlacement: Equatable {
+    /// `slots[k]` is the row-major scan position of the k-th stored frame, or
+    /// nil for a frame that was not taken at a scan position at all.
+    ///
+    /// That second case is real and not an error: a scan controller writes a
+    /// frame while the beam is settling or flying back, and the positions file
+    /// records it as NaN. Such a frame is read — it occupies its place in the
+    /// file and everything after it depends on that — and then discarded.
+    var slots: [Int?]
+    /// Scan positions that no frame landed on. They are left as zero.
+    var unfilled: Int
+    /// What this came from, for the panel and for the log.
+    var label: String
+    /// How each frame is spread over scan positions, for an off-grid path.
+    ///
+    /// Nil for every path that puts each frame on a position of its own, which
+    /// is all of them but the spirals: `slots` is then the whole answer and
+    /// the read copies. Set, the read accumulates each frame into every
+    /// position its kernel reaches and divides by the weight at the end, and
+    /// `slots` is only the nearest position, for counting. See `GriddedScan`.
+    ///
+    /// Declared last so the memberwise initialiser can leave it out.
+    var spread: GriddedScan.Spread? = nil
+
+    /// How many frames the file is expected to hold.
+    ///
+    /// The raster does not answer this. A scan with settling frames in it has
+    /// more frames than positions, and reading `width × height` of them would
+    /// stop short and leave the tail of the scan empty.
+    var frameCount: Int { return slots.count }
+
+    /// How many frames are placed, rather than discarded.
+    var placedCount: Int { return slots.reduce(0) { $1 == nil ? $0 : $0 + 1 } }
+
+    /// Nothing to do: the k-th frame is already the k-th scan position.
+    var isIdentity: Bool {
+        guard unfilled == 0, spread == nil else { return false }
+        for (index, slot) in slots.enumerated() where slot != index { return false }
+        return true
+    }
+}
+
+/// The order in which the stored frames were acquired across the raster.
+///
+/// A RAW file is a bare sequence of diffraction patterns. Nothing in it records
+/// which probe position each one came from, so the reader has to be told — and
+/// it used to assume one answer without asking: a row-major raster with every
+/// row written in the same direction. That is the common case, not the only
+/// one. A scan controller that does not fly back writes alternate rows in
+/// reverse, one stepping along the slow axis first writes columns, and a
+/// space-filling scan — a Hilbert curve, say — writes an order that cannot be
+/// named at all, only enumerated.
+///
+/// Getting it wrong is quiet, which is the reason this is worth choosing
+/// explicitly. A serpentine scan read as a raster still produces a complete
+/// image of the right size and the right statistics; every other row is simply
+/// mirrored. On a featureless region, or at a magnification where the scan is
+/// finer than the features, that can pass for the real thing.
+///
+/// The ordering is applied as the file is read, so everything downstream — the
+/// pattern at (i, j), the computed images, the plugins, the exports — sees a
+/// plain row-major raster and needs to know nothing about any of this. The
+/// cost is that changing the path means reading the file again, which is the
+/// same bargain the detector transforms already make.
+enum ScanPath: Equatable {
+    /// Row-major, every row in the same direction. The usual case, and what
+    /// the reader assumed before this was a choice.
+    case raster
+    /// Row-major, alternate rows reversed. Row 0 runs forwards.
+    case snake
+    /// Column-major, every column in the same direction.
+    case columnRaster
+    /// Column-major, alternate columns reversed. Column 0 runs downwards.
+    case columnSnake
+    /// An order that has to be enumerated, from a scan-positions file.
+    case explicit(ScanPlacement)
+
+    /// The four orders that can be named rather than enumerated.
+    static let namedCases: [ScanPath] = [.raster, .snake, .columnRaster, .columnSnake]
+
+    /// For the picker and the status line.
+    var name: String {
+        switch self {
+        case .raster:       return "Raster (row by row)"
+        case .snake:        return "Snake (alternate rows reversed)"
+        case .columnRaster: return "Raster (column by column)"
+        case .columnSnake:  return "Snake (alternate columns reversed)"
+        case .explicit(let placement):
+            return placement.label.isEmpty ? "From positions file" : placement.label
+        }
+    }
+
+    /// The value written to, and read back from, a metadata sidecar.
+    ///
+    /// Nil for an explicit order: it cannot be reconstructed from a name, and
+    /// writing a marker a reader cannot act on would be worse than writing
+    /// nothing — it would look like the path had been recorded.
+    var metadataName: String? {
+        switch self {
+        case .raster:       return "raster"
+        case .snake:        return "snake"
+        case .columnRaster: return "column_raster"
+        case .columnSnake:  return "column_snake"
+        case .explicit:     return nil
+        }
+    }
+
+    /// How many frames the file holds, when the path knows.
+    ///
+    /// Only an explicit path does. The named ones say nothing beyond the
+    /// raster, which the caller already has.
+    var frameCount: Int? {
+        switch self {
+        case .explicit(let placement): return placement.frameCount
+        default: return nil
+        }
+    }
+
+    /// Reads a path out of whatever a sidecar happened to call it.
+    ///
+    /// Matching is by substring on a normalised string rather than against a
+    /// fixed vocabulary, for the same reason the rest of the metadata reader
+    /// works by synonym: writers agree on the idea and disagree on the spelling.
+    /// A string naming no order at all returns nil, so an unrecognised value —
+    /// `hilbert`, which no name can express — leaves the choice where the user
+    /// put it instead of silently becoming a raster.
+    init?(metadataName raw: String) {
+        let text = raw.lowercased().filter { $0.isLetter }
+        guard !text.isEmpty else { return nil }
+
+        let serpentine = ["snake", "serpentine", "boustrophedon", "zigzag",
+                          "bidirectional", "backandforth"]
+        let columnwise = ["column", "columnmajor", "vertical", "fortran"]
+        let rowwise = ["raster", "row", "rowmajor", "horizontal", "unidirectional",
+                       "linear", "sequential"]
+
+        let isSerpentine = serpentine.contains { text.contains($0) }
+        let isColumnwise = columnwise.contains { text.contains($0) }
+
+        if isSerpentine {
+            self = isColumnwise ? .columnSnake : .snake
+        } else if isColumnwise {
+            self = .columnRaster
+        } else if rowwise.contains(where: { text.contains($0) }) {
+            self = .raster
+        } else {
+            return nil
+        }
+    }
+
+    /// Where each stored frame goes, over a raster of the given size.
+    ///
+    /// A named order is a full permutation by construction. An explicit one is
+    /// checked: an index outside the raster, or two frames claiming the same
+    /// position, means the path and the scan do not belong together, and
+    /// finding that out here is a great deal better than reading the file into
+    /// a scrambled image. Positions nothing lands on are permitted and counted
+    /// — a scan can genuinely miss one — and left as zero.
+    func placement(width: Int, height: Int) throws -> ScanPlacement {
+        guard width > 0, height > 0 else { throw Failure.emptyRaster }
+        let count = width * height
+
+        func named(_ slots: [Int]) -> ScanPlacement {
+            return ScanPlacement(slots: slots.map { Optional($0) }, unfilled: 0, label: name)
+        }
+
+        switch self {
+        case .raster:
+            return named(Swift.Array(0..<count))
+
+        case .snake:
+            return named((0..<count).map { k in
+                let y = k / width
+                let i = k % width
+                let x = y.isMultiple(of: 2) ? i : width - 1 - i
+                return y * width + x
+            })
+
+        case .columnRaster:
+            return named((0..<count).map { k in
+                let x = k / height
+                let y = k % height
+                return y * width + x
+            })
+
+        case .columnSnake:
+            return named((0..<count).map { k in
+                let x = k / height
+                let i = k % height
+                let y = x.isMultiple(of: 2) ? i : height - 1 - i
+                return y * width + x
+            })
+
+        case .explicit(let placement):
+            // A gridded path spreads frames over shared positions on purpose,
+            // and counted its own empty ones when it was gridded.
+            if let spread = placement.spread {
+                guard spread.totals.count == count else {
+                    throw Failure.outOfRange(position: spread.totals.count, limit: count)
+                }
+                return placement
+            }
+            var seen = [Bool](repeating: false, count: count)
+            for slot in placement.slots {
+                guard let slot = slot else { continue }
+                guard slot >= 0, slot < count else {
+                    throw Failure.outOfRange(position: slot, limit: count)
+                }
+                guard !seen[slot] else {
+                    throw Failure.repeated(position: slot, x: slot % width, y: slot / width)
+                }
+                seen[slot] = true
+            }
+            var checked = placement
+            checked.unfilled = seen.reduce(0) { $1 ? $0 : $0 + 1 }
+            return checked
+        }
+    }
+
+    enum Failure: LocalizedError, Equatable {
+        case emptyRaster
+        case noRaster
+        case outOfRange(position: Int, limit: Int)
+        case repeated(position: Int, x: Int, y: Int)
+        case noPositions(String)
+        case lopsided(String, x: Int, y: Int)
+        case tooFewPositions(String, found: Int)
+        case notAGrid(String, axis: String, found: Int, expected: Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .emptyRaster:
+                return "The scan has no positions in it."
+            case .noRaster:
+                return "Enter the scan size before choosing a positions file, or let the file fill it in."
+            case .outOfRange(let position, let limit):
+                return "The positions file puts a frame at scan position \(position), which is outside the scan — the last position is \(limit - 1)."
+            case .repeated(_, let x, let y):
+                return "The positions file puts two frames at (\(x), \(y)). Each scan position can hold only one."
+            case .noPositions(let name):
+                return "\(name) has no x and y arrays in it. A scan-positions file holds one position per frame of the raw file, in acquisition order."
+            case .lopsided(let name, let x, let y):
+                return "\(name) has \(x) x values and \(y) y values; a position needs both."
+            case .tooFewPositions(let name, let found):
+                return found == 0
+                    ? "\(name) records no frame as being at a scan position — every position in it is NaN."
+                    : "\(name) records only \(found) frame\(found == 1 ? "" : "s") as being at a scan position, which is not enough to work out the raster."
+            case .notAGrid(let name, let axis, let found, let expected):
+                return "\(name) spreads its frames over \(found) distinct \(axis) position\(found == 1 ? "" : "s"), but the scan is \(expected) wide along \(axis). The file and the scan size do not describe the same scan."
+            }
+        }
+    }
+}
+
+/// A scan-positions file: where every frame of a RAW scan was actually taken.
+///
+/// This is what acquisition writes alongside a scan whose order cannot be
+/// named — the `.npz` holding `x` and `y`, one entry per frame of the raw file
+/// in acquisition order, with the units, the raw file's name and the pattern's
+/// name as text members of the same archive. A NaN position marks a frame that
+/// was not at a scan position at all.
+///
+/// The positions are physical, relative to the centre of the field of view, in
+/// the scan frame and before any scan rotation. Nothing here needs them to be:
+/// the placement only depends on where each frame sits on the grid, which is
+/// why it is worked out by normalising the extent rather than by trusting the
+/// units. The units are read all the same, because the spacing they give is the
+/// scan step, and that is a calibration the user would otherwise type in.
+struct ScanPositions: Equatable {
+
+    /// Metres, in acquisition order. NaN where the frame was not at a scan
+    /// position.
+    var x: [Double]
+    var y: [Double]
+    /// The pattern's own name, when the file gives one — `hilbert`, `snake`.
+    /// Shown rather than interpreted: a name is not a placement, and the arrays
+    /// are the authority on where the frames went.
+    var pattern: String?
+    /// The raw file these positions belong to, when the file says. Checked
+    /// against the file being opened, because a positions file paired with the
+    /// wrong scan is the one mistake here that produces a plausible image.
+    var rawFile: String?
+    /// The file's own account of itself, if it has one.
+    var summaryText: String?
+    /// The positions file's name.
+    var label: String
+    /// The unit the positions were written in, as the file spells it.
+    ///
+    /// Declared last so the memberwise initialiser can leave it out: it is set
+    /// after the rest by `interpret`, which has to look it up separately.
+    var unit: String? = nil
+    /// The image the path was drawn on, from the `metadata.toml` beside the
+    /// positions file, when there is one. Only an off-grid path needs it: it
+    /// is the only way to turn the metres such a path records into probe
+    /// positions. See `GriddedScan.Canvas`.
+    var canvas: GriddedScan.Canvas? = nil
+
+    var frameCount: Int { return x.count }
+
+    /// Frames that were at a scan position.
+    var placedCount: Int {
+        var total = 0
+        for index in 0..<x.count where x[index].isFinite && y[index].isFinite { total += 1 }
+        return total
+    }
+
+    // MARK: Reading
+
+    /// The member names the x and y arrays answer to.
+    ///
+    /// `x`/`y` first, as written by the acquisition this exists for, then the
+    /// spellings a script is likely to have used instead.
+    private static let xNames = ["x", "x_m", "xs", "pos_x", "positions_x", "scan_x", "px"]
+    private static let yNames = ["y", "y_m", "ys", "pos_y", "positions_y", "scan_y", "py"]
+
+    static func read(contentsOf url: URL) throws -> ScanPositions {
+        let name = url.lastPathComponent
+        let arrays = try NumpyReader.arrays(contentsOf: url)
+        var positions = try interpret(arrays, label: name)
+        positions.canvas = GriddedScan.Canvas.beside(file: url)
+        return positions
+    }
+
+    // MARK: Off the grid
+
+    /// The positions gridded onto the canvas, when they are off the probe
+    /// lattice — a round or cav spiral, a fibonacci sweep.
+    ///
+    /// Nil for a path on the lattice, which `placement` places exactly, one
+    /// frame to a position, and nil without a canvas, which leaves an off-grid
+    /// file to fail the grid check with its own explanation.
+    func offGridScan() throws -> GriddedScan? {
+        guard let canvas = canvas else { return nil }
+        // Gridded in metres, which is what the canvas measures in.
+        let metres = (nanometresPerUnit ?? 1e9) * 1e-9
+        let scan = try GriddedScan.grid(x: x.map { $0 * metres }, y: y.map { $0 * metres },
+                                        canvas: canvas, pattern: pattern ?? "",
+                                        rawFilename: rawFile, name: label)
+        return scan.onGrid ? nil : scan
+    }
+
+    static func interpret(_ arrays: [NumpyReader.Array], label: String) throws -> ScanPositions {
+        func numeric(_ names: [String]) -> [Double]? {
+            for wanted in names {
+                if let hit = arrays.first(where: { $0.name.lowercased() == wanted && !$0.numbers.isEmpty }) {
+                    return hit.numbers
+                }
+            }
+            return nil
+        }
+        func text(_ names: [String]) -> String? {
+            for wanted in names {
+                if let hit = arrays.first(where: { $0.name.lowercased() == wanted }),
+                   let value = hit.scalarString, !value.isEmpty {
+                    return value
+                }
+            }
+            return nil
+        }
+
+        var xs = numeric(xNames)
+        var ys = numeric(yNames)
+
+        // A single two-column array, which is how a script that did not write
+        // separate members would have stored the same thing.
+        if xs == nil || ys == nil {
+            let candidates = ["positions", "position", "xy", "coords", "coordinates",
+                              "scan_positions", "points"]
+            for wanted in candidates {
+                guard let hit = arrays.first(where: { $0.name.lowercased() == wanted }),
+                      hit.shape.count == 2, !hit.numbers.isEmpty else { continue }
+                let (rows, columns) = (hit.shape[0], hit.shape[1])
+                if columns == 2 {
+                    xs = (0..<rows).map { hit.numbers[$0 * 2] }
+                    ys = (0..<rows).map { hit.numbers[$0 * 2 + 1] }
+                } else if rows == 2 {
+                    xs = Swift.Array(hit.numbers[0..<columns])
+                    ys = Swift.Array(hit.numbers[columns..<(2 * columns)])
+                } else {
+                    continue
+                }
+                break
+            }
+        }
+
+        guard let x = xs, let y = ys else { throw ScanPath.Failure.noPositions(label) }
+        guard x.count == y.count else {
+            throw ScanPath.Failure.lopsided(label, x: x.count, y: y.count)
+        }
+        guard !x.isEmpty else { throw ScanPath.Failure.noPositions(label) }
+
+        // Whatever the file says it measured in. Only the spacing depends on
+        // it, and an unrecognised unit leaves the spacing unreported rather
+        // than reported wrongly.
+        let unit = text(["units", "unit", "length_unit"])
+
+        var positions = ScanPositions(x: x, y: y,
+                                      pattern: text(["pattern", "scan_pattern", "path",
+                                                     "scan_path", "order"]),
+                                      rawFile: text(["raw_file", "rawfile", "raw_filename",
+                                                     "data_file", "filename"]),
+                                      summaryText: text(["description", "notes", "comment"]),
+                                      label: label)
+        positions.unit = unit
+        return positions
+    }
+
+    /// Nanometres per unit of the stored positions, when the unit is one this
+    /// recognises.
+    private var nanometresPerUnit: Double? {
+        guard let unit = unit?.lowercased()
+            .trimmingCharacters(in: .whitespaces) else { return nil }
+        switch unit {
+        case "m", "metre", "meter", "metres", "meters":     return 1e9
+        case "mm", "millimetre", "millimeter":              return 1e6
+        case "um", "µm", "\u{03bc}m", "micron", "microns", "micrometre", "micrometer":
+            return 1e3
+        case "nm", "nanometre", "nanometer":                return 1
+        case "a", "å", "ang", "angstrom", "angstroms", "\u{212b}":
+            return 0.1
+        case "pm", "picometre", "picometer":                return 1e-3
+        default:                                            return nil
+        }
+    }
+
+    // MARK: The grid
+
+    /// The distinct coordinates along one axis, and the spacing between them.
+    ///
+    /// Clustered rather than compared exactly. The positions come back from a
+    /// scan controller as whatever the arithmetic produced, so the values on
+    /// one column of the grid agree to about a part in 10^8 and not to the last
+    /// bit, and counting exact duplicates would find a thousand columns where
+    /// there are a hundred.
+    private static func axis(_ values: [Double]) -> (count: Int, step: Double, minimum: Double)? {
+        let finite = values.filter { $0.isFinite }.sorted()
+        guard let first = finite.first, let last = finite.last else { return nil }
+        let extent = last - first
+        guard extent > 0 else { return (1, 0, first) }
+
+        // Anything closer than this is the same grid line seen twice.
+        let tolerance = extent * 1e-6
+        var distinct = [first]
+        for value in finite where value - distinct[distinct.count - 1] > tolerance {
+            distinct.append(value)
+        }
+        guard distinct.count > 1 else { return (1, 0, first) }
+        return (distinct.count, extent / Double(distinct.count - 1), first)
+    }
+
+    /// The raster the positions imply, when they imply one.
+    ///
+    /// Preferred over this: the `raw_file` name, which states the raster
+    /// outright in the `scan_x128_y128` convention the rest of the application
+    /// already reads. This is the fallback for a file that does not name one.
+    func inferredRaster() -> (width: Int, height: Int)? {
+        // An off-grid path is drawn on its canvas, not on the rectangle of
+        // triggers the raw file's name records: a 128-canvas spiral is written
+        // as 128×100 frames and is still a 128×128 scan.
+        if let canvas = canvas, (try? offGridScan()) != nil {
+            return (canvas.side, canvas.side)
+        }
+        if let raw = rawFile, let size = ScanMetadata.dimensions(fromFilename: raw) {
+            return size
+        }
+        guard let xAxis = Self.axis(x), let yAxis = Self.axis(y),
+              xAxis.count > 1 || yAxis.count > 1 else { return nil }
+        return (xAxis.count, yAxis.count)
+    }
+
+    /// The scan step the positions imply, in nanometres per probe position.
+    ///
+    /// Nil unless the file named a unit this recognises and the grid has more
+    /// than one line along the axis — a step cannot be measured from a single
+    /// position, and a wrong one is worse than none.
+    func inferredScanStepNanometres() -> Double? {
+        // Off the grid there are no grid lines to measure; the canvas pitch is
+        // the step.
+        if let canvas = canvas, (try? offGridScan()) != nil {
+            return canvas.pitchX * 1e9
+        }
+        guard let scale = nanometresPerUnit,
+              let xAxis = Self.axis(x), xAxis.count > 1, xAxis.step > 0 else { return nil }
+        return xAxis.step * scale
+    }
+
+    /// Where every frame goes on a raster of the given size.
+    ///
+    /// Each position is turned into a grid index by normalising it against the
+    /// extent the positions themselves cover, rather than by dividing by a
+    /// nominal step. The scan's corners are in the file, so the extent is
+    /// exact; a nominal step is not, and over a hundred-odd columns a relative
+    /// error of 10^-3 in it is enough to walk the last column into the next row.
+    func placement(width: Int, height: Int) throws -> ScanPlacement {
+        guard width > 0, height > 0 else { throw ScanPath.Failure.emptyRaster }
+
+        // Off the lattice: gridded onto the canvas instead, and only onto the
+        // canvas, which is the scan.
+        if let scan = try offGridScan() {
+            guard scan.extent.width == width else {
+                throw ScanPath.Failure.notAGrid(label, axis: "x", found: scan.extent.width,
+                                                expected: width)
+            }
+            guard scan.extent.height == height else {
+                throw ScanPath.Failure.notAGrid(label, axis: "y", found: scan.extent.height,
+                                                expected: height)
+            }
+            let named = pattern.map { "\($0) (\(label))" } ?? label
+            return ScanPlacement(slots: scan.destinations.map { $0 >= 0 ? Int($0) : nil },
+                                 unfilled: scan.blank,
+                                 label: "\(named), gridded",
+                                 spread: scan.spread)
+        }
+
+        guard let xAxis = Self.axis(x), let yAxis = Self.axis(y) else {
+            throw ScanPath.Failure.tooFewPositions(label, found: 0)
+        }
+        let placed = placedCount
+        guard placed > 0 else { throw ScanPath.Failure.tooFewPositions(label, found: 0) }
+
+        // The file's own grid has to be the one asked for. Checked rather than
+        // assumed: a positions file from a different scan is the mistake that
+        // would otherwise produce a complete, plausible and wrong image.
+        guard xAxis.count == width else {
+            throw ScanPath.Failure.notAGrid(label, axis: "x", found: xAxis.count, expected: width)
+        }
+        guard yAxis.count == height else {
+            throw ScanPath.Failure.notAGrid(label, axis: "y", found: yAxis.count, expected: height)
+        }
+
+        var slots = [Int?](repeating: nil, count: x.count)
+        for frame in 0..<x.count {
+            let px = x[frame], py = y[frame]
+            guard px.isFinite, py.isFinite else { continue }     // not at a scan position
+            let column = width == 1 ? 0
+                : Int(((px - xAxis.minimum) / xAxis.step).rounded())
+            let row = height == 1 ? 0
+                : Int(((py - yAxis.minimum) / yAxis.step).rounded())
+            guard column >= 0, column < width, row >= 0, row < height else {
+                throw ScanPath.Failure.outOfRange(position: row * width + column,
+                                                  limit: width * height)
+            }
+            slots[frame] = row * width + column
+        }
+
+        let placement = ScanPlacement(slots: slots, unfilled: 0,
+                                      label: pattern.map { "\($0) (\(label))" } ?? label)
+        // Run through the common check, which counts the positions nothing
+        // landed on and refuses two frames claiming one.
+        return try ScanPath.explicit(placement).placement(width: width, height: height)
+    }
+}
+
 struct Calibrations{
     let scan_step:Float?          // nm per probe position
     let diff_step:Float?          // mrad per detector pixel
@@ -158,19 +715,28 @@ struct Calibrations{
     /// out describing what is on screen rather than a guess. A measurement that
     /// finds the detector mirrored relative to the scan can correct it.
     let detectorFlips:DetectorFlips?
+    /// The order the frames were read in, when it was not a plain raster.
+    ///
+    /// Held here, alongside the detector orientation, because it is the same
+    /// kind of fact: not a measured quantity but a statement about how the file
+    /// was interpreted, which an export has to carry or the next reader will
+    /// interpret it differently.
+    let scanPath:ScanPath?
     /// Measured aberration coefficients, Krivanek (n, m), ångström, detector
     /// frame. Empty when nothing has measured them.
     let aberrations:[Aberration]
 
     init(scan_step: Float?, diff_step: Float?, voltage: Float? = nil,
          scanRotationDegrees: Float? = nil, scanCorrection: ScanCorrection? = nil,
-         detectorFlips: DetectorFlips? = nil, aberrations: [Aberration] = []) {
+         detectorFlips: DetectorFlips? = nil, scanPath: ScanPath? = nil,
+         aberrations: [Aberration] = []) {
         self.scan_step = scan_step
         self.diff_step = diff_step
         self.voltage = voltage
         self.scanRotationDegrees = scanRotationDegrees
         self.scanCorrection = scanCorrection
         self.detectorFlips = detectorFlips
+        self.scanPath = scanPath
         self.aberrations = aberrations
     }
 }
@@ -201,11 +767,6 @@ class STEMDataController: NSObject {
                               height: EMPADLayout.first.rows)
     
     var providedRawImageSize: IntSize? = nil
-
-    /// Where each frame of a RAW file was taken, when the acquisition recorded
-    /// it (`ScanPath`). Nil is the old behaviour and the common case: frame k
-    /// is probe position k, which is what a raster is.
-    var providedScanPath: ScanPath? = nil
     /// Set from the file when it records one, and applied as the data is read so
     /// that everything downstream sees physical values. Nil for formats that
     /// store calibrated values already.
@@ -218,6 +779,9 @@ class STEMDataController: NSObject {
     var rawFlipRows: Bool = true
     var rawFlipCols: Bool = false
     var rawTranspose: Bool = false
+    /// The order the stored frames map onto the raster in. Applied as the file
+    /// is read, so a non-raster scan arrives already unscrambled.
+    var rawScanPath: ScanPath = .raster
     
     var patternPixels:Int{
         get{
@@ -253,17 +817,22 @@ class STEMDataController: NSObject {
         self.providedRawImageSize = IntSize(width: width, height: height)
     }
 
-    /// The scan path the next RAW read should place its frames by, or nil to
-    /// read the file as a raster.
-    func setScanPath(_ path: ScanPath?) {
-        self.providedScanPath = path
-    }
-
     func setRawTransforms(flipRows: Bool, flipCols: Bool, transpose: Bool) {
         self.rawFlipRows = flipRows
         self.rawFlipCols = flipCols
         self.rawTranspose = transpose
     }
+
+    func setRawScanPath(_ path: ScanPath) {
+        self.rawScanPath = path
+    }
+
+    /// The order the frames currently in memory were placed in.
+    ///
+    /// Recorded by the read path for the same reason `appliedDetectorFlips` is:
+    /// what the loader did is a fact about the buffer, and deriving it a second
+    /// time somewhere else is how the two come to disagree.
+    private(set) var appliedScanPath: ScanPath = .raster
 
     /// A DM dimension, whatever integer width the file wrote it as.
     ///
@@ -889,7 +1458,15 @@ class STEMDataController: NSObject {
                 // The raster comes from whatever the caller was given — a
                 // sidecar, or the scan_xN_yN convention in the name — and with
                 // it the choice is a division rather than a guess.
-                let scanPixels = (providedRawImageSize.map { $0.width * $0.height })
+                //
+                // What the division actually needs is the number of frames in
+                // the file, which is the raster only when every frame is at a
+                // scan position. A positions file states the frame count, so it
+                // takes precedence: with settling frames in the file, dividing
+                // by the raster gives a non-integral number of bytes per frame
+                // and the layout is rejected for being the wrong one.
+                let scanPixels = rawScanPath.frameCount
+                    ?? (providedRawImageSize.map { $0.width * $0.height })
                     ?? ScanMetadata.dimensions(fromFilename: url.lastPathComponent)
                         .map { $0.width * $0.height }
                     ?? 0
@@ -1002,26 +1579,8 @@ class STEMDataController: NSObject {
         let totalPatternPixels = (height + additionalRows) * width
     
         
-        // Two counts, and with a non-raster scan path they are not the same
-        // number: the file holds one frame per trigger, while the scan holds
-        // one position per pixel of the path's image. Frames are read and
-        // placed; positions are allocated and displayed. A frame that is not at
-        // a position (the settling frame, the padding after the last point) is
-        // read and dropped, and a position with no frame stays blank.
-        // Only a RAW file has one, and it is settled here rather than in the
-        // background closure below: `providedScanPath` is set from the open
-        // panel, and a stale one must not reach the next file opened.
-        let scanPath: ScanPath? = isRaw ? self.providedScanPath : nil
-        let framesToRead = self.imageSize.width * self.imageSize.height
-        if let path = scanPath {
-            guard path.destinations.count == framesToRead else {
-                throw FileReadError.invalidDimensions
-            }
-            self.imageSize = path.extent
-        }
-
         let totalImages = self.imageSize.width * self.imageSize.height
-        guard totalImages > 0, framesToRead > 0 else {
+        guard totalImages > 0 else {
             throw FileReadError.invalidDimensions
         }
 
@@ -1038,8 +1597,55 @@ class STEMDataController: NSObject {
         self.appliedDetectorFlips = DetectorFlips(flipY: doFlipRows, flipX: doFlipCols,
                                                   transpose: doTranspose)
 
+        // Where each frame goes.
+        //
+        // Restricted to RAW, which is the only format the panel offers a scan
+        // path for. The transforms above are instance state that any format
+        // inherits from whatever was opened last; a scan path must not be,
+        // because it is tied to one file's raster. Left to leak, a snake path
+        // chosen for an 80×80 scan would either scramble the next DM file or —
+        // more likely, its raster being a different size — refuse to open it
+        // at all, for a reason nothing on screen would explain.
+        //
+        // Resolved here, on the calling thread, so a path that does not fit the
+        // scan is thrown from `openFile` like any other bad geometry rather than
+        // surfacing from a background queue half way through a read.
+        let scanPath: ScanPath = isRaw ? self.rawScanPath : .raster
+        self.appliedScanPath = scanPath
+        // Nil for a plain raster, and resolved not at all in that case. A
+        // raster's placement is the identity, so building it would mean
+        // allocating and then walking an array of one Int per scan position —
+        // a million of them for a 1024x1024 scan — to discover that the k-th
+        // frame is the k-th position, which is where the read starts from
+        // anyway.
+        let placement: ScanPlacement?
+        if scanPath == .raster {
+            placement = nil
+        } else {
+            let resolved = try scanPath.placement(width: self.imageSize.width,
+                                                  height: self.imageSize.height)
+            placement = resolved.isIdentity ? nil : resolved
+        }
+
+        // How many frames to read, which is not the same as how many scan
+        // positions there are.
+        //
+        // A positions file knows: it has one entry per frame of the raw file,
+        // settling and fly-back frames included, and those make the file longer
+        // than the raster. Reading `width × height` of them would stop short,
+        // leaving the end of the scan empty, and — because the surplus frames
+        // are interleaved rather than appended — put everything after the first
+        // of them in the wrong place.
+        let storedFrames = placement?.frameCount ?? totalImages
+
+        if let placement = placement {
+            NSLog("[RAW] %@ — scan path %@: %d frame(s), %d placed, %d scan position(s) left empty",
+                  url.lastPathComponent, placement.label, placement.frameCount,
+                  placement.placedCount, placement.unfilled)
+        }
+
         let batchSize = 64
-        let totalBatches = (framesToRead + batchSize - 1) / batchSize
+        let totalBatches = (storedFrames + batchSize - 1) / batchSize
 
 
         let nc = NotificationCenter.default
@@ -1097,9 +1703,30 @@ class STEMDataController: NSObject {
 
             self.patternPointer?.deallocate()
             self.patternPointer = UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels * totalImages)
-            if scanPath != nil {
-                self.patternPointer!.update(repeating: 0, count: patternPixels * totalImages)
+
+            // Zeroed only when some scan position will not be written to.
+            //
+            // `allocate` hands back uninitialised memory, which a raster read
+            // overwrites in full. A positions file need not: a scan can miss a
+            // position, and what that position would otherwise show is whatever
+            // the allocator had lying there — not a black pixel but arbitrary
+            // floats, including the previous dataset's. The memset is a pass
+            // over the buffer, which is why it is skipped when the placement
+            // covers everything.
+            if let placement = placement, placement.unfilled > 0 || placement.spread != nil {
+                self.patternPointer!.initialize(repeating: 0,
+                                                count: patternPixels * totalImages)
             }
+
+            // An off-grid path spreads one frame over several scan positions,
+            // so the frame is assembled here first and then added into each of
+            // them. Nil for every other path, whose frames are built straight
+            // into place, which is both faster and exact.
+            let spread = placement?.spread
+            let gridBuffer: UnsafeMutablePointer<Float32>? = spread != nil
+                ? UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
+                : nil
+            defer { gridBuffer?.deallocate() }
 
             let floatTempBuffer = UnsafeMutablePointer<Float32>.allocate(capacity: detectorPixels * batchSize)
             defer { floatTempBuffer.deallocate() }
@@ -1114,23 +1741,13 @@ class STEMDataController: NSObject {
             let outH = doTranspose ? width  : height
             let outW = doTranspose ? height : width
 
-            // A scan path that grids spreads one frame over several probe
-            // positions, so the frame is assembled here first and then added
-            // into each of them. Without one this is nil and frames are built
-            // straight into place, which is both faster and exact.
-            let spread = scanPath?.spread
-            let gridBuffer: UnsafeMutablePointer<Float32>? = spread != nil
-                ? UnsafeMutablePointer<Float32>.allocate(capacity: patternPixels)
-                : nil
-            defer { gridBuffer?.deallocate() }
-
             fileHandle.seek(toFileOffset: firstImageOffset)
-            let fracComplete = max(1, Int(Double(framesToRead) * 0.05))
+            let fracComplete = max(1, Int(Double(storedFrames) * 0.05))
 
             for batchIndex in 0..<totalBatches {
                 if self.dwi?.isCancelled ?? false { return }
 
-                let imagesInBatch = min(batchSize, framesToRead - batchIndex * batchSize)
+                let imagesInBatch = min(batchSize, storedFrames - batchIndex * batchSize)
                 let readSize = imagesInBatch * (totalPatternPixels) * elementSize
 
                 let batchData = fileHandle.readData(ofLength: readSize)
@@ -1160,23 +1777,32 @@ class STEMDataController: NSObject {
 
                 for img in 0..<imagesInBatch {
                     let globalIndex = batchIndex * batchSize + img
-                    if globalIndex >= framesToRead { break }
+                    if globalIndex >= storedFrames { break }
 
-                    // Where this frame belongs. Without a scan path that is
-                    // where it already is; with one it is wherever the beam
-                    // was — which, once a kernel is involved, is more than one
-                    // position, so the frame goes to the scratch buffer and is
-                    // distributed below.
-                    let outPointer: UnsafeMutablePointer<Float32>
-                    if let gridBuffer = gridBuffer {
-                        outPointer = gridBuffer
-                    } else if let path = scanPath {
-                        let place = Int(path.destinations[globalIndex])
-                        guard place >= 0 else { continue }   // not at a position
-                        outPointer = self.patternPointer! + place * patternPixels
+                    // The one place the scan path acts.
+                    //
+                    // No two frames share a slot — that was checked before the
+                    // read started — so the writes landing out of order is of
+                    // no consequence. A frame the positions file marks as not
+                    // being at a scan position has no slot at all: it has to be
+                    // read, because the frames after it lie beyond it in the
+                    // file, and then it is dropped.
+                    let slot: Int
+                    if let placement = placement {
+                        guard let destination = placement.slots[globalIndex] else {
+                            if globalIndex % fracComplete == 0 {
+                                DispatchQueue.main.async {
+                                    nc.post(name: .taskProgressUpdated,
+                                            object: Double(globalIndex)/Double(storedFrames))
+                                }
+                            }
+                            continue
+                        }
+                        slot = destination
                     } else {
-                        outPointer = self.patternPointer! + globalIndex * patternPixels
+                        slot = globalIndex
                     }
+                    let outPointer = gridBuffer ?? (self.patternPointer! + slot * patternPixels)
                     let srcPointer = floatTempBuffer + img * (totalPatternPixels)
 
                     // Determine the source for row operations (possibly transposed)
@@ -1200,23 +1826,18 @@ class STEMDataController: NSObject {
                         }
                     }
 
-                    // Gridding: add this frame into every probe position its
+                    // Gridding: add this frame into every scan position its
                     // kernel reaches, weighted by how near it fell. The
-                    // weights were accumulated per position when the path was
-                    // read, and divide back out once the file is through.
+                    // weights were totalled per position when the path was
+                    // gridded, and divide back out once the file is through.
                     if let spread = spread, let gridBuffer = gridBuffer {
                         spread.place(frame: gridBuffer, index: globalIndex,
-                                     stride: patternPixels,
-                                     into: self.patternPointer!)
+                                     stride: patternPixels, into: self.patternPointer!)
                     }
 
                     if globalIndex % fracComplete == 0 {
                         DispatchQueue.main.async {
-                            // Against the frames, not the positions: with a
-                            // path whose canvas is larger than the trigger
-                            // rectangle the two differ, and the bar would stop
-                            // short of the end of a finished read.
-                            nc.post(name: .taskProgressUpdated, object: Double(globalIndex)/Double(framesToRead))
+                            nc.post(name: .taskProgressUpdated, object: Double(globalIndex)/Double(storedFrames))
                         }
                     }
                 }

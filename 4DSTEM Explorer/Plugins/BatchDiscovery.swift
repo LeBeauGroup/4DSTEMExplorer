@@ -191,7 +191,8 @@ enum BatchDiscovery {
             voltage: metadata.voltageKilovolts,
             scanRotationDegrees: metadata.scanRotationDegrees,
             scanCorrection: metadata.scanCorrectionRowMajor.flatMap { ScanCorrection(rowMajor: $0) },
-            detectorFlips: metadata.detectorFlips.flatMap { DetectorFlips(triple: $0) })
+            detectorFlips: metadata.detectorFlips.flatMap { DetectorFlips(triple: $0) },
+            scanPath: metadata.resolvedScanPath())
     }
 
     /// Whether a file can be opened without asking the user anything.

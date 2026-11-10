@@ -1,48 +1,25 @@
 //
-//  ScanPath.swift
+//  GriddedScan.swift
 //  4DSTEM Explorer
 //
-//  Where every frame of an EMPAD RAW file was taken.
+//  Gridding an off-grid scan onto the probe lattice.
 //
-//  An EMPAD writes frames in the order it was triggered and nothing else: the
-//  file is a stack, not a map. For a plain raster that is the same thing, since
-//  frame k is probe position k. For any other scan — macSTEM drives Hilbert
-//  curves, interleaved sub-rasters, spirals — it is not, and read as a raster
-//  the scan comes out as noise with the right histogram.
+//  A path that visits each probe position once — raster, serpentine, Hilbert,
+//  interleaved — places each frame on its own position, which `ScanPositions`
+//  and `ScanPlacement` handle exactly. A path that does not — a round or cav
+//  spiral, a fibonacci or Lissajous sweep — records where the beam actually
+//  was, in metres, on no grid at all. Those are gridded onto the canvas the
+//  path was drawn on, by the recipe every scanned-probe field settled on:
+//  spread each sample through a kernel, accumulate the weights beside the
+//  data, divide at the end. See `Gridding` and `Spread`. The canvas itself is
+//  in `metadata.toml` (`scan_path.n` and `field_of_view`), not in the
+//  positions archive — see `Canvas`.
 //
-//  macSTEM saves the answer beside the data, as `scan_positions.npz`, and says
-//  what it means in its own `description` field:
-//
-//      Position of every frame of the raw file, in acquisition order; NaN: not
-//      at a scan position (frame 0, an extra trigger, and any padding after the
-//      path). Relative to the centre of the field of view, in the scan frame
-//      (before scan rotation; see metadata.toml).
-//
-//  Per frame, in acquisition order, is exactly the indexing a reader needs, so
-//  this is read rather than recomputed from the pattern's name. That matters
-//  more than it looks: the trigger sequence has a settling frame at the front
-//  and padding at the back, neither of which is a probe position, so frame k
-//  is *not* the path's point k. The positions already account for it; a
-//  reimplementation of the pattern would have to rediscover it.
-//
-//  Two shapes of scan arrive here, and they need different arithmetic:
-//
-//  - A path that visits each probe position once — hilbert, interleaved, a
-//    serpentine — records positions that sit exactly on a pixel grid. The grid
-//    can be recovered from the positions alone, so these read on their own.
-//  - A path that does not — a round or cav spiral, a fibonacci or Lissajous
-//    sweep — records where the beam actually was, in metres, on no grid at all.
-//    Those are gridded onto the canvas the path was drawn on, by the same
-//    recipe every scanned-probe field settled on: spread each sample through a
-//    kernel, accumulate the weights beside the data, divide at the end. See
-//    `Gridding`. The canvas itself is in `metadata.toml` (`scan_path.n` and
-//    `field_of_view`), not in the archive — see `Canvas`.
-//
-//  Neither is the same thing as the shape of the file. macSTEM triggers a
-//  path's points out over whatever rectangle of triggers holds them, so a
-//  128-canvas spiral can be written to disk as 128×100 frames and still
-//  reconstruct as a 128×128 image — a disc inscribed in a square. The frame
-//  count and the position count are separate numbers throughout.
+//  Not the same thing as the shape of the file. macSTEM triggers a path's
+//  points out over whatever rectangle of triggers holds them, so a 128-canvas
+//  spiral can be written to disk as 128×100 frames and still reconstruct as a
+//  128×128 image — a disc inscribed in a square. The frame count and the
+//  position count are separate numbers throughout.
 //
 //  Copyright © 2017 The LeBeau Group. All rights reserved.
 //
@@ -50,27 +27,15 @@
 import Foundation
 import Accelerate
 
-enum ScanPathError: LocalizedError {
-    case unreadable(String)
-    case notAnArchive(String)
-    case compressed(String)
+enum GriddedScanError: LocalizedError {
     case missingPositions(String)
-    case unsupportedArray(String, String)
     case offGrid(String)
     case outsideCanvas(String)
 
     var errorDescription: String? {
         switch self {
-        case .unreadable(let name):
-            return "\(name) could not be read."
-        case .notAnArchive(let name):
-            return "\(name) is not an NPZ archive."
-        case .compressed(let name):
-            return "\(name) is a compressed NPZ, which cannot be read yet. Save it with numpy.savez rather than savez_compressed."
         case .missingPositions(let name):
             return "\(name) holds no x and y positions."
-        case .unsupportedArray(let name, let detail):
-            return "\(name) stores positions as \(detail), which is not supported."
         case .offGrid(let name):
             return "\(name) records positions that do not fall on a pixel grid — a spiral or other off-grid pattern. Placing those needs the field of view and path size from the acquisition's metadata.toml, which was not found beside it. Load Metadata… first, then choose the path again."
         case .outsideCanvas(let detail):
@@ -81,7 +46,7 @@ enum ScanPathError: LocalizedError {
 
 /// The scan path of one acquisition: for every frame of the RAW file, the
 /// probe position or positions it belongs at.
-struct ScanPath {
+struct GriddedScan {
 
     /// The scan the path covers, in probe positions.
     let extent: IntSize
@@ -199,7 +164,7 @@ struct ScanPath {
     }
 
     /// Where each frame's pattern goes, and what each position is divided by.
-    struct Spread {
+    struct Spread: Equatable {
         /// Frame `k` contributes to `cells[starts[k] ..< starts[k + 1]]` with
         /// the weights at the same offsets. One entry past the last frame.
         let starts: [Int32]
@@ -276,7 +241,7 @@ struct ScanPath {
     /// needed — the positions are the grid — but for anything off-grid it is
     /// the only way to turn metres into probe positions, so it is read from the
     /// `metadata.toml` macSTEM writes in the same folder.
-    struct Canvas {
+    struct Canvas: Equatable {
         let side: Int
         let pitchX: Double
         let pitchY: Double
@@ -317,47 +282,25 @@ struct ScanPath {
         }
     }
 
-    // MARK: - Reading
+    // MARK: - Gridding a scan
 
-    /// Reads `scan_positions.npz`.
+    /// Grids recorded positions onto the canvas the path was drawn on.
     ///
     /// - Parameters:
-    ///   - url: the archive.
-    ///   - canvas: the image the path was drawn on, when the acquisition's
-    ///     metadata records it. Given, positions are placed on it, which is the
-    ///     only thing that works for an off-grid pattern. Omitted, the
-    ///     `metadata.toml` beside the archive is tried, and failing that the
-    ///     grid is recovered from the positions themselves — which needs the
-    ///     path to be on a grid in the first place.
+    ///   - x, y: per frame of the RAW file, in acquisition order, in metres;
+    ///     NaN for a frame not at a scan position.
+    ///   - canvas: the image the path was drawn on, from the acquisition's
+    ///     metadata. It is the only thing that turns metres into probe
+    ///     positions for an off-grid pattern.
     ///   - gridding: how to turn a position into probe positions. The default
     ///     decides from the path.
-    static func read(url: URL, canvas: Canvas? = nil,
-                     gridding: Gridding = .automatic) throws -> ScanPath {
-        let name = url.lastPathComponent
-        // As `ScanMetadata.read` does: the archive is reached through whatever
-        // the open panel handed over, which may be a security-scoped URL.
-        let needsScope = url.startAccessingSecurityScopedResource()
-        defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
-
-        guard let data = try? Data(contentsOf: url) else {
-            throw ScanPathError.unreadable(name)
-        }
-        let bytes = [UInt8](data)
-        let members = try NPZArchive.members(bytes, name: name)
-
-        guard let xRaw = members["x.npy"], let yRaw = members["y.npy"] else {
-            throw ScanPathError.missingPositions(name)
-        }
-        let x = try NPYArray.doubles(xRaw, name: name)
-        let y = try NPYArray.doubles(yRaw, name: name)
+    static func grid(x: [Double], y: [Double], canvas: Canvas,
+                     pattern: String = "", rawFilename: String? = nil, name: String,
+                     gridding: Gridding = .automatic) throws -> GriddedScan {
         guard x.count == y.count, !x.isEmpty else {
-            throw ScanPathError.missingPositions(name)
+            throw GriddedScanError.missingPositions(name)
         }
-
-        let pattern = members["pattern.npy"].flatMap { NPYArray.string($0) } ?? ""
-        let rawFilename = members["raw_file.npy"].flatMap { NPYArray.string($0) }
-
-        let described = canvas ?? Canvas.beside(file: url)
+        let described: Canvas? = canvas
         let grid: Grid
         if let described = described {
             grid = Grid(canvas: described)
@@ -440,12 +383,12 @@ struct ScanPath {
         // collapses the whole scan into one pixel.
         if described != nil {
             guard placed * 100 >= positions * 99 else {
-                throw ScanPathError.outsideCanvas(
+                throw GriddedScanError.outsideCanvas(
                     "\(positions - placed) of \(positions) positions fall outside "
                     + "\(grid.width)×\(grid.height)")
             }
             guard claimed.count > 1 else {
-                throw ScanPathError.outsideCanvas(
+                throw GriddedScanError.outsideCanvas(
                     "every position lands in the same pixel, so the field of view "
                     + "and the positions are not in the same units")
             }
@@ -459,7 +402,7 @@ struct ScanPath {
         let spread = isBijection ? nil : Spread(starts: starts, cells: cells,
                                                 weights: weights, totals: totals)
 
-        return ScanPath(extent: IntSize(width: grid.width, height: grid.height),
+        return GriddedScan(extent: IntSize(width: grid.width, height: grid.height),
                         destinations: destinations,
                         spread: spread,
                         pattern: pattern,
@@ -470,17 +413,6 @@ struct ScanPath {
                         skipped: x.count - placed,
                         filled: filled,
                         overwritten: overwritten)
-    }
-
-    /// The archive macSTEM writes beside a RAW file, if it is there.
-    ///
-    /// Matched by name when the archive records one, so the path of one
-    /// acquisition is not quietly applied to another sitting in the same folder.
-    static func beside(rawFile url: URL) -> URL? {
-        let candidate = url.deletingLastPathComponent()
-            .appendingPathComponent("scan_positions.npz")
-        guard FileManager.default.fileExists(atPath: candidate.path) else { return nil }
-        return candidate
     }
 }
 
@@ -496,7 +428,7 @@ private struct Kernel {
     /// 1 / I₀(β), folded in so the peak of the window is 1.
     let normalisation: Double
 
-    init(_ gridding: ScanPath.Gridding) {
+    init(_ gridding: GriddedScan.Gridding) {
         switch gridding {
         case .kaiserBessel(let width) where width > 1:
             // β from the width, after Beatty, Nishimura and Pauly's expression
@@ -608,13 +540,13 @@ private struct Grid {
     /// noise rather than from a real pixel spacing gives a grid millions of
     /// positions across, and allocating one frame per position would take the
     /// machine down long before the arithmetic was questioned.
-    private static let largestSide = ScanPath.Canvas.largestSide
+    private static let largestSide = GriddedScan.Canvas.largestSide
 
     /// The grid the acquisition's own metadata describes.
     ///
     /// Positions are relative to the centre of the field of view, so position
     /// zero is half a canvas to the left of it.
-    init(canvas: ScanPath.Canvas) {
+    init(canvas: GriddedScan.Canvas) {
         self.width = canvas.side
         self.height = canvas.side
         self.stepX = canvas.pitchX
@@ -636,7 +568,7 @@ private struct Grid {
         let finiteX = x.filter { $0.isFinite }
         let finiteY = y.filter { $0.isFinite }
         guard !finiteX.isEmpty, !finiteY.isEmpty else {
-            throw ScanPathError.missingPositions(name)
+            throw GriddedScanError.missingPositions(name)
         }
 
         let step = try Grid.pitch(of: finiteX, or: finiteY, name: name)
@@ -644,7 +576,7 @@ private struct Grid {
         let spanX = (finiteX.max()! - minX) / step
         let spanY = (finiteY.max()! - minY) / step
         guard spanX < Double(Grid.largestSide), spanY < Double(Grid.largestSide) else {
-            throw ScanPathError.offGrid(name)
+            throw GriddedScanError.offGrid(name)
         }
 
         self.width = Int(spanX) + 1
@@ -654,7 +586,7 @@ private struct Grid {
         self.originX = minX
         self.originY = minY
         guard fits(x: finiteX, y: finiteY) else {
-            throw ScanPathError.offGrid(name)
+            throw GriddedScanError.offGrid(name)
         }
     }
 
@@ -671,7 +603,7 @@ private struct Grid {
             }
             if smallest > 0, smallest < .greatestFiniteMagnitude { return smallest }
         }
-        throw ScanPathError.offGrid(name)
+        throw GriddedScanError.offGrid(name)
     }
 
     /// Whether every position lands on this grid.

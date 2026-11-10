@@ -255,6 +255,13 @@ them can be over-read:
 - **The reported rotation is the rotation of the fitted map, not the scan
   rotation.** When the raster is sheared the two differ, because a polar
   decomposition attributes part of an asymmetric shear to rotation.
+- **Every angle is counter-clockwise as the image is drawn; a negative angle
+  turns clockwise.** This is worth stating because the textbook rotation matrix
+  does the opposite here: image rows run downwards, so turning +x towards +y is
+  right towards down. The three plugins that report or apply an angle — acBF,
+  ScanRotation and Calibration — all negate on the way in and out, and the
+  `scanRotationDegrees` calibration key is in this convention. An angle read
+  from an acquisition file is in whatever convention the instrument wrote it.
 
 ### Handing a calibration back
 

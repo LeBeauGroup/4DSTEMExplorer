@@ -91,11 +91,6 @@ final class DataViewModel: NSObject, ObservableObject {
     /// acquisition records a great deal this application does not model, and a
     /// calibration written from the modelled fields alone would drop the rest.
     @Published private(set) var importedMetadata: ScanMetadata?
-
-    /// The scan path chosen for the RAW file being opened, if the acquisition
-    /// recorded one. Kept here, like `importedMetadata`, rather than threaded
-    /// through the dimensions tuple that several callers share.
-    @Published private(set) var selectedScanPath: ScanPath?
     @Published var status: String = "Idle"
     @Published var loadErrorMessage: String?
     @Published var progress: Double = 0.0
@@ -253,6 +248,10 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var focusedPanel: FocusedPanel = .image
     @Published var pattern_mat:Matrix? = nil
     @Published var patternLogScaleEnabled: Bool = false
+    /// User-set display ranges (in displayed units — after log scaling for the
+    /// pattern). nil means automatic scaling.
+    @Published var patternRange: ClosedRange<Float>?
+    @Published var scanRange: ClosedRange<Float>?
     /// Most recent computed-image matrix. Kept so plugins can post-process the
     /// displayed result; not @Published because nothing observes it.
     var lastScanMatrix:Matrix? = nil
@@ -1030,41 +1029,7 @@ final class DataViewModel: NSObject, ObservableObject {
         }
     }
 
-    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping ((w: Int, h: Int, scan_step: Float?, diff_step: Float?, voltage: Float?, flipRows: Bool, flipCols: Bool, transpose: Bool)?) -> Void) {
-        // Helper to parse strings like "80x80", "256×128", "64 X 32"
-        func parseXY(_ text: String) -> (Int, Int)? {
-            // Normalize input: trim, lowercase, unify separators, and be tolerant to spaces
-            var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            s = s.lowercased()
-            // Replace common unicode multiplication signs with 'x'
-            s = s.replacingOccurrences(of: "×", with: "x")
-            s = s.replacingOccurrences(of: "✕", with: "x")
-            s = s.replacingOccurrences(of: "✖", with: "x")
-            s = s.replacingOccurrences(of: "✗", with: "x")
-            // Remove common labels if present
-            s = s.replacingOccurrences(of: "pixels", with: "")
-            s = s.replacingOccurrences(of: "px", with: "")
-
-            // Try patterns in order: with 'x' or '*', then space-separated
-            let patterns = [
-                #"^\s*(\d+)\s*[x*]\s*(\d+)\s*$"#, // 80x80, 80*80, 80 x 80
-                #"^\s*(\d+)\s+(\d+)\s*$"#           // 80 80
-            ]
-            for pattern in patterns {
-                if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                    let ns = s as NSString
-                    if let m = regex.firstMatch(in: s, options: [], range: NSRange(location: 0, length: ns.length)),
-                       m.numberOfRanges >= 3,
-                       let r1 = Range(m.range(at: 1), in: s),
-                       let r2 = Range(m.range(at: 2), in: s),
-                       let w = Int(s[r1]), let h = Int(s[r2]), w > 0, h > 0 {
-                        return (w, h)
-                    }
-                }
-            }
-            return nil
-        }
-
+    private func promptForRawDimensions(suggested: (w: Int?, h: Int?), completion: @escaping (RawOpenChoice?) -> Void) {
         // Build default suggestion string
         var defaultString: String = ""
         if let w = suggested.w, let h = suggested.h {
@@ -1072,12 +1037,6 @@ final class DataViewModel: NSObject, ObservableObject {
         } else {
             defaultString = "80x80"
         }
-
-        // State holders for the sheet lifecycle
-        var result: (Int, Int, Float?, Float?, Float?, Bool, Bool, Bool)? = nil
-
-        // SwiftUI content
-        
 
         // Create an NSPanel hosting the SwiftUI content
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 260),
@@ -1117,27 +1076,20 @@ final class DataViewModel: NSObject, ObservableObject {
                 panel.close()
                 DispatchQueue.main.async { completion(nil) }
             }
-        }, onOK: { [weak self] scan_dims, scan_step, diff_step, voltage, flipRows, flipCols, transpose, metadata, scanPath in
-            // Recorded here rather than threaded through the completion tuple,
-            // which several other callers share.
-            self?.importedMetadata = metadata
-            self?.selectedScanPath = scanPath
-            if let xy = parseXY(scan_dims) {
-                let scan_step = Float(scan_step) ?? nil
-                let diff_step = Float(diff_step) ?? nil
-                let voltage = Float(voltage) ?? nil
-                result = (xy.0, xy.1, scan_step, diff_step, voltage, flipRows, flipCols, transpose)
-                if let parent = panel.sheetParent {
-                    parent.endSheet(panel, returnCode: .OK)
-                    DispatchQueue.main.async { completion(result) }
-                } else {
-                    NSApp.stopModal(withCode: .OK)
-                    panel.close()
-                    DispatchQueue.main.async { completion(result) }
-                }
+        }, onOK: { [weak self] choice in
+            // Recorded here rather than carried on through the load, which does
+            // not need it.
+            self?.importedMetadata = choice.metadata
+            // The panel does its own validation now — the scan size and the
+            // scan path both have to hold together before it will close — so
+            // anything arriving here is already usable.
+            if let parent = panel.sheetParent {
+                parent.endSheet(panel, returnCode: .OK)
             } else {
-                NSSound.beep()
+                NSApp.stopModal(withCode: .OK)
+                panel.close()
             }
+            DispatchQueue.main.async { completion(choice) }
         }))
         // The window takes its size from the content rather than the other way
         // round, so the panel grows and shrinks as the calibrations disclosure
@@ -1328,32 +1280,28 @@ final class DataViewModel: NSObject, ObservableObject {
         }
         if extension_ == "raw" {
             let suggested = suggestRawDimensions(from: url)
-            promptForRawDimensions(suggested: suggested) { [weak self] dims in
+            promptForRawDimensions(suggested: suggested) { [weak self] choice in
                 guard let self = self else { return }
-                if let dims = dims {
-                    self.dataController.setRawImageSize(width: dims.w, height: dims.h)
-                    // From the panel that just ran, so it belongs to this file:
-                    // every RAW open goes through that panel, and a path that
-                    // was not chosen arrives as nil. Anything that is not a RAW
-                    // file ignores this outright — see `loadData`, which has to,
-                    // since nothing here runs before an EMD or ARINA open.
-                    self.dataController.setScanPath(self.selectedScanPath)
-                    self.dataController.setRawTransforms(flipRows: dims.flipRows, flipCols: dims.flipCols, transpose: dims.transpose)
-                    // The orientation the file is about to be read with is the
-                    // orientation the metadata should record, so it is captured
-                    // here rather than inferred later.
-                    self.calibrations = Calibrations(scan_step: dims.scan_step,
-                                                     diff_step: dims.diff_step,
-                                                     voltage: dims.voltage,
-                                                     detectorFlips: DetectorFlips(
-                                                        flipY: dims.flipRows,
-                                                        flipX: dims.flipCols,
-                                                        transpose: dims.transpose))
-                    self.continueOpen(afterPromptFor: url)
-                } else {
+                guard let choice = choice else {
                     self.isLoading = false
                     self.status = "Cancelled"
+                    return
                 }
+                self.dataController.setRawImageSize(width: choice.scanWidth,
+                                                    height: choice.scanHeight)
+                self.dataController.setRawTransforms(flipRows: choice.flips.flipY,
+                                                     flipCols: choice.flips.flipX,
+                                                     transpose: choice.flips.transpose)
+                self.dataController.setRawScanPath(choice.scanPath)
+                // The orientation and the order the file is about to be read
+                // with are what the metadata should record, so they are
+                // captured here rather than inferred later.
+                self.calibrations = Calibrations(scan_step: Float(choice.scanStep),
+                                                 diff_step: Float(choice.diffStep),
+                                                 voltage: Float(choice.voltage),
+                                                 detectorFlips: choice.flips,
+                                                 scanPath: choice.scanPath)
+                self.continueOpen(afterPromptFor: url)
             }
             return
         }
@@ -1612,6 +1560,30 @@ final class DataViewModel: NSObject, ObservableObject {
     }
     
     
+/// True when the scan image is a single scalar map whose range can be set
+    /// by hand (not a colour-wheel or blended multi-detector image).
+    var scanRangeAdjustable: Bool {
+        guard selectedDetectorIDs.count <= 1 else { return false }
+        switch calculationMode {
+        case .integrate: return true
+        case .com: return comAxis != .color
+        case .dpc: return dpcAxis != .color
+        }
+    }
+
+    /// True when the automatic scan range is the 2–98% percentile (uncoloured
+    /// detector) rather than min to max (tinted detector).
+    var scanAutoIsQuantile: Bool {
+        let c = NSColor(detectorColor).usingColorSpace(.sRGB) ?? NSColor(detectorColor)
+        return c.redComponent >= 0.999 && c.greenComponent >= 0.999 && c.blueComponent >= 0.999
+    }
+
+    /// Redraws the scan image from an existing matrix with the current range.
+    func rerenderScanImage(_ mat: Matrix) -> NSImage? {
+        guard let img = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange) else { return nil }
+        return scaleStrideImage(img, stride)
+    }
+
 func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
@@ -1679,7 +1651,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         }
 
         if tempImage == nil {
-            tempImage = makeColoredImage(from: mat, tintColor: NSColor(detectorColor))
+            tempImage = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange)
         }
         
         if let tempImage = tempImage {
@@ -1936,7 +1908,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
             let avgMatrix = self.dataController.averagePattern(rect: rect)
             let displayMatrix = patternDisplayMatrix(from: avgMatrix)
             
-            if let avgImg = makeImage(from: displayMatrix){
+            if let avgImg = makeImage(from: displayMatrix, range: patternRange){
                 return (avgImg, avgMatrix)
             }
             return nil
@@ -1953,7 +1925,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         
         if let m = self.dataController.pattern(i, j) {
             let displayMatrix = patternDisplayMatrix(from: m)
-            if let pattern = makeImage(from: displayMatrix){
+            if let pattern = makeImage(from: displayMatrix, range: patternRange){
                 
                 return (pattern, m)
             }
@@ -1963,7 +1935,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         
     }
 
-    private func patternDisplayMatrix(from matrix: Matrix) -> Matrix {
+    func patternDisplayMatrix(from matrix: Matrix) -> Matrix {
         guard patternLogScaleEnabled else { return matrix }
 
         let data = matrix.real
@@ -1981,12 +1953,12 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         return Matrix(array: result, matrix.rows, matrix.columns)
     }
     
-    func makeImage(from m:Matrix)->NSImage? {
+    func makeImage(from m:Matrix, range: ClosedRange<Float>? = nil)->NSImage? {
 
         let width = m.columns
         let height = m.rows
 
-        if let cgImg = m.uInt8ImageRep()?.cgImage{
+        if let cgImg = m.uInt8ImageRep(range: range)?.cgImage{
             return NSImage(cgImage: cgImg, size: NSSize(width: width, height: height))
         }
 
@@ -1994,7 +1966,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
 
     }
 
-    private func makeColoredImage(from m: Matrix, tintColor: NSColor) -> NSImage? {
+    private func makeColoredImage(from m: Matrix, tintColor: NSColor, range: ClosedRange<Float>? = nil) -> NSImage? {
         let width = m.columns
         let height = m.rows
         guard width > 0, height > 0 else { return nil }
@@ -2006,11 +1978,11 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         let srgb = tintColor.usingColorSpace(.sRGB) ?? tintColor
         srgb.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
         if cr >= 0.999 && cg >= 0.999 && cb >= 0.999 {
-            return makeImage(from: m)
+            return makeImage(from: m, range: range)
         }
 
-        let minVal = data.min() ?? 0
-        let maxVal = data.max() ?? 1
+        let minVal = range?.lowerBound ?? data.min() ?? 0
+        let maxVal = range?.upperBound ?? data.max() ?? 1
         let range = maxVal - minVal
         let invRange: Float = range > 0 ? 1.0 / range : 1.0
         let fr = Float(cr), fg = Float(cg), fb = Float(cb)

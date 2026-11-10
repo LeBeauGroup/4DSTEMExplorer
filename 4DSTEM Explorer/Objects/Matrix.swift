@@ -481,11 +481,11 @@ class Matrix: CustomStringConvertible, NSCopying{
         return bitmapRep
     }
     
-    func uInt8ImageRep()->NSBitmapImageRep?{
+    func uInt8ImageRep(range: ClosedRange<Float>? = nil)->NSBitmapImageRep?{
         
         var out = [UInt8].init()
         if self.count > 0 {
-            let bounds = try! self.quantiles([0.02, 0.98])
+            let bounds: [Float] = range.map { [$0.lowerBound, $0.upperBound] } ?? (try! self.quantiles([0.02, 0.98]))
             
             out = [UInt8].init(repeating: 0, count: real.count)
         

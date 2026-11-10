@@ -2,463 +2,318 @@
 //  ScanPathTests.swift
 //  4DSTEM ExploreTests
 //
-//  Reading the scan path macSTEM saves beside an EMPAD acquisition.
-//
-//  The fixture is a real `numpy.savez` archive — a 4x4 serpentine with a
-//  settling frame at the front — written by numpy and embedded here, so the ZIP
-//  and .npy parsing is tested against what numpy actually emits rather than
-//  against this reader's idea of it.
-//
-//  The numbers in the acquisition test were taken from the positions with
-//  numpy, independently of this code, and are what a regression in the grid
-//  arithmetic would move.
+//  The order the frames of a RAW file map onto the raster. Entirely arithmetic,
+//  and quiet when it is wrong — a serpentine scan read as a raster comes out
+//  complete and the right size, with every other row mirrored — which is why
+//  the placements are pinned here rather than eyeballed on screen.
 //
 //  Copyright © 2017 The LeBeau Group. All rights reserved.
 //
 
 import Testing
 import Foundation
-import CoreGraphics
-import ImageIO
-import UniformTypeIdentifiers
 @testable import _DSTEM_Explorer
 
-@Suite("EMPAD scan path")
+@Suite("Scan path")
 struct ScanPathTests {
 
-    /// A 4x4 serpentine from numpy: frame 0 is the settling frame (NaN), then
-    /// row 0 left to right, row 1 right to left, and so on.
-    private static let serpentineNPZ =
-        "UEsDBBQAAAAAAAAAIQDdBoJGCAEAAAgBAAAFABQAeC5ucHkBABAACAEAAAAAAAAIAQAAAAAAAJNO" +
-        "VU1QWQEAdgB7J2Rlc2NyJzogJzxmOCcsICdmb3J0cmFuX29yZGVyJzogRmFsc2UsICdzaGFwZSc6" +
-        "ICgxNywpLCB9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAKAAAAAAAA+H+V1iboCy4hvpXWJugLLhG+AAAAAAAAAACV1iboCy4RPpXWJugL" +
-        "LhE+AAAAAAAAAACV1iboCy4RvpXWJugLLiG+ldYm6AsuIb6V1iboCy4RvgAAAAAAAAAAldYm6Asu" +
-        "ET6V1iboCy4RPgAAAAAAAAAAldYm6AsuEb6V1iboCy4hvlBLAwQUAAAAAAAAACEAV7kn/QgBAAAI" +
-        "AQAABQAUAHkubnB5AQAQAAgBAAAAAAAACAEAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8Zjgn" +
-        "LCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoMTcsKSwgfSAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCgAAAAAAAPh/ldYm" +
-        "6AsuIb6V1iboCy4hvpXWJugLLiG+ldYm6AsuIb6V1iboCy4RvpXWJugLLhG+ldYm6AsuEb6V1ibo" +
-        "Cy4RvgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAldYm6AsuET6V1iboCy4RPpXWJugL" +
-        "LhE+ldYm6AsuET5QSwMEFAAAAAAAAAAhAONxNqKEAAAAhAAAAAkAFAB1bml0cy5ucHkBABAAhAAA" +
-        "AAAAAACEAAAAAAAAAJNOVU1QWQEAdgB7J2Rlc2NyJzogJzxVMScsICdmb3J0cmFuX29yZGVyJzog" +
-        "RmFsc2UsICdzaGFwZSc6ICgpLCB9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAKbQAAAFBLAwQUAAAAAAAAACEAf7FTwqgAAACoAAAA" +
-        "CwAUAHBhdHRlcm4ubnB5AQAQAKgAAAAAAAAAqAAAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8" +
-        "VTEwJywgJ2ZvcnRyYW5fb3JkZXInOiBGYWxzZSwgJ3NoYXBlJzogKCksIH0gICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCnMAAABlAAAA" +
-        "cgAAAHAAAABlAAAAbgAAAHQAAABpAAAAbgAAAGUAAABQSwMEFAAAAAAAAAAhADsajgG4AAAAuAAA" +
-        "AAwAFAByYXdfZmlsZS5ucHkBABAAuAAAAAAAAAC4AAAAAAAAAJNOVU1QWQEAdgB7J2Rlc2NyJzog" +
-        "JzxVMTQnLCAnZm9ydHJhbl9vcmRlcic6IEZhbHNlLCAnc2hhcGUnOiAoKSwgfSAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKcwAAAGMA" +
-        "AABhAAAAbgAAAF8AAAB4AAAANAAAAF8AAAB5AAAANAAAAC4AAAByAAAAYQAAAHcAAABQSwECFAMU" +
-        "AAAAAAAAACEA3QaCRggBAAAIAQAABQAAAAAAAAAAAAAAgAEAAAAAeC5ucHlQSwECFAMUAAAAAAAA" +
-        "ACEAV7kn/QgBAAAIAQAABQAAAAAAAAAAAAAAgAE/AQAAeS5ucHlQSwECFAMUAAAAAAAAACEA43E2" +
-        "ooQAAACEAAAACQAAAAAAAAAAAAAAgAF+AgAAdW5pdHMubnB5UEsBAhQDFAAAAAAAAAAhAH+xU8Ko" +
-        "AAAAqAAAAAsAAAAAAAAAAAAAAIABPQMAAHBhdHRlcm4ubnB5UEsBAhQDFAAAAAAAAAAhADsajgG4" +
-        "AAAAuAAAAAwAAAAAAAAAAAAAAIABIgQAAHJhd19maWxlLm5weVBLBQYAAAAABQAFABABAAAYBQAA" +
-        "AAA="
-
-    private func fixture() throws -> URL {
-        let data = try #require(Data(base64Encoded: ScanPathTests.serpentineNPZ))
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("scan_positions_\(UUID().uuidString).npz")
-        try data.write(to: url)
-        return url
+    /// 4 wide, 3 high, which is lopsided in both directions and so catches a
+    /// width used where a height was meant.
+    private func slots(_ path: ScanPath, _ w: Int = 4, _ h: Int = 3) throws -> [Int?] {
+        return try path.placement(width: w, height: h).slots
     }
 
-    @Test("a serpentine's frames are placed along alternating rows")
-    func serpentine() throws {
-        let url = try fixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url)
-        #expect(path.extent.width == 4)
-        #expect(path.extent.height == 4)
-        #expect(path.destinations == [-1, 0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12])
-        #expect(path.placed == 16)
-        #expect(path.skipped == 1)
+    @Test("a raster is the identity")
+    func raster() throws {
+        #expect(try slots(.raster) == (0..<12).map { Optional($0) })
+        #expect(try ScanPath.raster.placement(width: 5, height: 4).isIdentity)
     }
 
-    @Test("the archive's own description of itself is read")
-    func names() throws {
-        let url = try fixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url)
-        #expect(path.pattern == "serpentine")
-        #expect(path.rawFilename == "scan_x4_y4.raw")
+    @Test("a snake reverses the odd rows")
+    func snake() throws {
+        #expect(try slots(.snake) == [0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11].map { Optional($0) })
+        #expect(try !ScanPath.snake.placement(width: 5, height: 4).isIdentity)
     }
 
-    @Test("a settling frame is not a probe position")
-    func settlingFrameIsSkipped() throws {
-        let url = try fixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url)
-        // The frame count and the position count are the same, so a raster
-        // reading would place all 17 and be wrong by one everywhere.
-        #expect(path.destinations.count == 17)
-        #expect(path.destinations[0] == -1)
-        #expect(path.isRaster == false)
+    @Test("a column order walks down the columns")
+    func columns() throws {
+        #expect(try slots(.columnRaster) == [0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11].map { Optional($0) })
+        #expect(try slots(.columnSnake) == [0, 4, 8, 9, 5, 1, 2, 6, 10, 11, 7, 3].map { Optional($0) })
     }
 
-    @Test("every position is covered exactly once")
-    func coversTheGridOnce() throws {
-        let url = try fixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url)
-        let placed = path.destinations.filter { $0 >= 0 }.map { Int($0) }
-        #expect(Set(placed).count == placed.count)
-        #expect(Set(placed) == Set(0..<16))
-    }
-
-    @Test("a file that is not an archive is refused rather than misread")
-    func rejectsNonArchive() throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("not_an_npz_\(UUID().uuidString).npz")
-        try Data("this is not a zip".utf8).write(to: url)
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        #expect(throws: ScanPathError.self) { _ = try ScanPath.read(url: url) }
-    }
-
-    // MARK: - Off-grid patterns
-
-    /// A round spiral from numpy: 60 points on an 8x8 canvas, triggered out
-    /// over a 10x7 rectangle — 70 frames, a settling frame at the front and
-    /// nine of padding at the back. Nothing about it sits on a pixel grid, and
-    /// the file it came from is not square, which is the pair that has to work.
-    private static let spiralNPZ =
-        "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" +
-        "J3NoYXBlJzogKCksIH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgIAptAAAAUEsDBBQAAAAAAAAAIQBC/XEKvAAAALwAAAAMABQAcmF3" +
-        "X2ZpbGUubnB5AQAQALwAAAAAAAAAvAAAAAAAAACTTlVNUFkBAHYAeydkZXNjcic6ICc8VTE1Jywg" +
-        "J2ZvcnRyYW5fb3JkZXInOiBGYWxzZSwgJ3NoYXBlJzogKCksIH0gICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgCnMAAABjAAAAYQAAAG4A" +
-        "AABfAAAAeAAAADEAAAAwAAAAXwAAAHkAAAA3AAAALgAAAHIAAABhAAAAdwAAAFBLAwQUAAAAAAAA" +
-        "ACEAYjtyYLAAAACwAAAACwAUAHBhdHRlcm4ubnB5AQAQALAAAAAAAAAAsAAAAAAAAACTTlVNUFkB" +
-        "AHYAeydkZXNjcic6ICc8VTEyJywgJ2ZvcnRyYW5fb3JkZXInOiBGYWxzZSwgJ3NoYXBlJzogKCks" +
-        "IH0gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgCnIAAABvAAAAdQAAAG4AAABkAAAAIAAAAHMAAABwAAAAaQAAAHIAAABhAAAAbAAAAFBL" +
-        "AwQUAAAAAAAAACEAgOtDh+wBAADsAQAADwAUAGRlc2NyaXB0aW9uLm5weQEAEADsAQAAAAAAAOwB" +
-        "AAAAAAAAk05VTVBZAQB2AHsnZGVzY3InOiAnPFU5MScsICdmb3J0cmFuX29yZGVyJzogRmFsc2Us" +
-        "ICdzaGFwZSc6ICgpLCB9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg" +
-        "ICAgICAgICAgICAgICAgICAgIApQAAAAbwAAAHMAAABpAAAAdAAAAGkAAABvAAAAbgAAACAAAABv" +
-        "AAAAZgAAACAAAABlAAAAdgAAAGUAAAByAAAAeQAAACAAAABmAAAAcgAAAGEAAABtAAAAZQAAACAA" +
-        "AABvAAAAZgAAACAAAAB0AAAAaAAAAGUAAAAgAAAAcgAAAGEAAAB3AAAAIAAAAGYAAABpAAAAbAAA" +
-        "AGUAAAAsAAAAIAAAAGkAAABuAAAAIAAAAGEAAABjAAAAcQAAAHUAAABpAAAAcwAAAGkAAAB0AAAA" +
-        "aQAAAG8AAABuAAAAIAAAAG8AAAByAAAAZAAAAGUAAAByAAAAOwAAACAAAABOAAAAYQAAAE4AAAA6" +
-        "AAAAIAAAAG4AAABvAAAAdAAAACAAAABhAAAAdAAAACAAAABhAAAAIAAAAHMAAABjAAAAYQAAAG4A" +
-        "AAAgAAAAcAAAAG8AAABzAAAAaQAAAHQAAABpAAAAbwAAAG4AAAAuAAAAUEsBAhQDFAAAAAAAAAAh" +
-        "AJI+Z9qwAgAAsAIAAAUAAAAAAAAAAAAAAIABAAAAAHgubnB5UEsBAhQDFAAAAAAAAAAhAGu6Gc6w" +
-        "AgAAsAIAAAUAAAAAAAAAAAAAAIAB5wIAAHkubnB5UEsBAhQDFAAAAAAAAAAhAONxNqKEAAAAhAAA" +
-        "AAkAAAAAAAAAAAAAAIABzgUAAHVuaXRzLm5weVBLAQIUAxQAAAAAAAAAIQBC/XEKvAAAALwAAAAM" +
-        "AAAAAAAAAAAAAACAAY0GAAByYXdfZmlsZS5ucHlQSwECFAMUAAAAAAAAACEAYjtyYLAAAACwAAAA" +
-        "CwAAAAAAAAAAAAAAgAGHBwAAcGF0dGVybi5ucHlQSwECFAMUAAAAAAAAACEAgOtDh+wBAADsAQAA" +
-        "DwAAAAAAAAAAAAAAgAF0CAAAZGVzY3JpcHRpb24ubnB5UEsFBgAAAAAGAAYATQEAAKEKAAAAAA=="
-
-    private func spiralFixture() throws -> URL {
-        let data = try #require(Data(base64Encoded: ScanPathTests.spiralNPZ))
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("spiral_positions_\(UUID().uuidString).npz")
-        try data.write(to: url)
-        return url
-    }
-
-    /// The canvas the spiral was drawn on, as metadata.toml would give it.
-    private func spiralCanvas() throws -> ScanPath.Canvas {
-        return try #require(ScanPath.Canvas(side: 8,
-                                            fieldOfViewMetres: [8.0e-9, 8.0e-9]))
-    }
-
-    @Test("an off-grid path is refused rather than guessed at")
-    func offGridNeedsACanvas() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        // No metadata beside it and none supplied: the positions give no pitch
-        // to recover, and inventing one would reorder the scan into nonsense.
-        #expect(throws: ScanPathError.self) { _ = try ScanPath.read(url: url) }
-    }
-
-    @Test("a spiral is gridded onto the canvas its metadata describes")
-    func spiralIsGridded() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas())
-        #expect(path.onGrid == false)
-        #expect(path.gridding == .kaiserBessel(width: 2))
-        #expect(path.pattern == "round spiral")
-
-        // Counted from the positions with numpy, independently of this code.
-        #expect(path.extent.width == 8)
-        #expect(path.extent.height == 8)
-        #expect(path.placed == 60)
-        #expect(path.filled == 50)
-        #expect(path.blank == 14)
-
-        let spread = try #require(path.spread)
-        #expect(spread.cells.count == 243)
-        let weights = spread.weights.reduce(0) { $0 + Double($1) }
-        #expect(abs(weights - 90.844547) < 1e-3)
-        // Every weight is accounted for in the divisors, or the normalisation
-        // would not undo the kernel.
-        let totals = spread.totals.reduce(0) { $0 + Double($1) }
-        #expect(abs(totals - weights) < 1e-3)
-    }
-
-    @Test("a non-square trigger rectangle reconstructs as the square canvas")
-    func nonSquareFile() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas())
-        // 70 frames came off the detector — a 10x7 rectangle of triggers — and
-        // they belong in an 8x8 image. The two counts are not the same number
-        // and neither one may be used for the other.
-        #expect(path.destinations.count == 70)
-        #expect(path.extent.width * path.extent.height == 64)
-        #expect(path.rawFilename == "scan_x10_y7.raw")
-    }
-
-    @Test("nearest-position gridding averages the frames that share one")
-    func nearestAverages() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas(),
-                                     gridding: .nearest)
-        #expect(path.filled == 31)
-        #expect(path.overwritten == 29)
-        // A spiral starts at the centre, so its first frames all land on the
-        // one position and have to be averaged rather than overwritten.
-        #expect(Array(path.destinations.prefix(6)) == [-1, 36, 36, 36, 36, 36])
-        let spread = try #require(path.spread)
-        // Ten of the sixty frames land on the middle position, and the divisor
-        // is what turns them into an average of ten rather than whichever one
-        // happened to be read last.
-        #expect(spread.totals[36] == 10)
-        #expect(path.needsAccumulation)
-    }
-
-    @Test("a grid path is placed exactly, and never gridded")
-    func gridPathIsNotBlurred() throws {
-        let url = try fixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url)
-        // The serpentine *is* the probe lattice. A window over it would spread
-        // every frame across its neighbours for nothing, so the automatic
-        // choice has to come out as the exact one.
-        #expect(path.onGrid)
-        #expect(path.gridding == .nearest)
-        #expect(path.spread == nil)
-        #expect(path.needsAccumulation == false)
-        #expect(path.filled == 16)
-        #expect(path.blank == 0)
-    }
-
-    @Test("the spread accumulates and divides back to a weighted average")
-    func spreadIsAWeightedAverage() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas())
-        let spread = try #require(path.spread)
-
-        // Walked exactly as the reader walks it, with frame k standing in for
-        // a pattern of constant value k, so each position should come out as
-        // the weighted mean of the frames that reached it. What this pins is
-        // the contract the reader depends on: that `starts` indexes `cells`
-        // and `weights` together, frame by frame.
-        var accumulated = [Double](repeating: 0, count: 64)
-        for frame in 0..<path.destinations.count {
-            let first = Int(spread.starts[frame])
-            let last = Int(spread.starts[frame + 1])
-            for contribution in first..<last {
-                accumulated[Int(spread.cells[contribution])]
-                    += Double(spread.weights[contribution]) * Double(frame)
+    @Test("every named order fills the raster exactly once")
+    func namedOrdersArePermutations() throws {
+        // The property the read loop relies on: nothing is overwritten and
+        // nothing is left holding whatever the allocator had in it.
+        for path in ScanPath.namedCases {
+            for (w, h) in [(1, 1), (1, 7), (7, 1), (5, 4), (4, 5), (16, 16), (3, 8)] {
+                let placement = try path.placement(width: w, height: h)
+                let landed = placement.slots.compactMap { $0 }
+                #expect(placement.frameCount == w * h)
+                #expect(Set(landed).count == w * h)
+                #expect(placement.unfilled == 0)
             }
         }
-        for position in 0..<64 where spread.totals[position] >= ScanPath.Spread.floor {
-            accumulated[position] /= Double(spread.totals[position])
-        }
-
-        // Computed from the positions with numpy, independently of this code.
-        #expect(abs(Double(spread.totals[36]) - 11.166958) < 1e-4)
-        #expect(abs(accumulated[36] - 7.083178) < 1e-4)
-        #expect(abs(accumulated[35] - 12.510596) < 1e-4)
-        #expect(abs(accumulated[28] - 17.247200) < 1e-4)
-        // The corners of a square canvas are outside a round spiral, so they
-        // are untouched rather than extrapolated into.
-        #expect(spread.totals[0] == 0)
-        #expect(spread.totals[63] == 0)
     }
 
-    @Test("a field of view in the wrong units is refused, not applied")
-    func rejectsMismatchedCanvas() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        // Nanometres where the positions are metres: every position collapses
-        // into the middle pixel, which is a plausible-looking scan of nothing.
-        let wrong = try #require(ScanPath.Canvas(side: 8,
-                                                 fieldOfViewMetres: [8.0, 8.0]))
-        #expect(throws: ScanPathError.self) {
-            _ = try ScanPath.read(url: url, canvas: wrong)
+    @Test("a snake is its own inverse")
+    func snakeIsAnInvolution() throws {
+        // Cheapest check that the row reversal is symmetric rather than off by
+        // one: applying it twice has to return to the start.
+        for (w, h) in [(5, 4), (8, 3), (1, 6), (6, 1)] {
+            let d = try ScanPath.snake.placement(width: w, height: h).slots.map { $0! }
+            #expect((0..<(w * h)).allSatisfy { d[d[$0]] == $0 })
         }
     }
 
-    // MARK: - Looking at it
+    @Test("an empty raster is refused")
+    func emptyRaster() {
+        #expect(throws: ScanPath.Failure.emptyRaster) {
+            try ScanPath.raster.placement(width: 0, height: 4)
+        }
+    }
 
-    /// Reconstructs a scan from one value per frame, through the reader's own
-    /// `place` and `normalise` rather than a copy of them, and writes it out
-    /// as a PNG so the result can be looked at and not just asserted on.
-    ///
-    /// One value per frame stands in for a whole diffraction pattern: placing
-    /// and then integrating the detector is the same arithmetic as integrating
-    /// and then placing, both being linear, so a virtual image built this way
-    /// is exactly the one the app would show.
-    @discardableResult
-    private func reconstruct(_ path: ScanPath, values: (Int) -> Float,
-                             png name: String? = nil) throws -> [Float] {
-        let positions = path.extent.width * path.extent.height
-        var image = [Float](repeating: 0, count: positions)
-        image.withUnsafeMutableBufferPointer { buffer in
-            if let spread = path.spread {
-                for frame in 0..<path.destinations.count {
-                    var value = values(frame)
-                    spread.place(frame: &value, index: frame, stride: 1,
-                                 into: buffer.baseAddress!)
+    // MARK: Sidecar names
+
+    @Test("a sidecar name is read by what it says, not by an exact match")
+    func metadataNames() {
+        #expect(ScanPath(metadataName: "raster") == .raster)
+        #expect(ScanPath(metadataName: "row-major") == .raster)
+        #expect(ScanPath(metadataName: "Serpentine") == .snake)
+        #expect(ScanPath(metadataName: "ZigZag") == .snake)
+        #expect(ScanPath(metadataName: "boustrophedon") == .snake)
+        #expect(ScanPath(metadataName: "column-major") == .columnRaster)
+        #expect(ScanPath(metadataName: "vertical serpentine") == .columnSnake)
+    }
+
+    @Test("a name that describes no order is left alone")
+    func unrecognisedNames() {
+        // `hilbert` is the case this whole feature exists for, and the one that
+        // must not be guessed at: read as a raster it would produce a complete,
+        // plausible, scrambled image. Nil leaves the user's own choice standing.
+        #expect(ScanPath(metadataName: "hilbert") == nil)
+        #expect(ScanPath(metadataName: "spiral") == nil)
+        #expect(ScanPath(metadataName: "") == nil)
+        #expect(ScanPath(metadataName: "acquire") == nil)
+    }
+
+    @Test("a named order survives a sidecar round trip")
+    func roundTrip() {
+        for path in ScanPath.namedCases {
+            #expect(ScanPath(metadataName: path.metadataName!) == path)
+        }
+    }
+
+    @Test("an explicit order has no sidecar name")
+    func explicitHasNoName() {
+        // Writing one would look like the path had been recorded, when a
+        // reader could not act on it.
+        let placement = ScanPlacement(slots: [0], unfilled: 0, label: "t")
+        #expect(ScanPath.explicit(placement).metadataName == nil)
+    }
+}
+
+@Suite("Scan positions")
+struct ScanPositionsTests {
+
+    /// A 3×2 snake with a settling frame at the start of each row: the shape of
+    /// file this exists for, small enough to write out by hand.
+    private func synthetic(step: Double = 2) -> ScanPositions {
+        var x: [Double] = [], y: [Double] = []
+        for row in 0..<2 {
+            x.append(.nan); y.append(.nan)
+            let columns = row % 2 == 0 ? Array(0..<3) : Array((0..<3).reversed())
+            for column in columns {
+                x.append(Double(column) * step)
+                y.append(Double(row) * step)
+            }
+        }
+        return ScanPositions(x: x, y: y, pattern: "snake", rawFile: "scan_x3_y2.raw",
+                             summaryText: nil, label: "synthetic", unit: "nm")
+    }
+
+    @Test("a frame that was not at a scan position is read and discarded")
+    func settlingFramesAreDropped() throws {
+        let placement = try synthetic().placement(width: 3, height: 2)
+        // The settling frames keep their place in the file — everything after
+        // them lies beyond them on disk — and are then dropped.
+        #expect(placement.slots == [nil, 0, 1, 2, nil, 5, 4, 3])
+        #expect(placement.frameCount == 8)
+        #expect(placement.placedCount == 6)
+        #expect(placement.unfilled == 0)
+    }
+
+    @Test("the raster and the step come from the file")
+    func geometryIsRead() {
+        let positions = synthetic(step: 2)
+        #expect(positions.inferredRaster()?.width == 3)
+        #expect(positions.inferredRaster()?.height == 2)
+        #expect(positions.inferredScanStepNanometres() == 2)
+    }
+
+    @Test("the step is reported in nanometres whatever the file measured in")
+    func unitsAreHonoured() {
+        // The positions this reads are written in metres; a step reported in
+        // those would be 5e-10 nm/px, which is not a calibration anyone means.
+        var metres = synthetic(step: 2e-9)
+        metres.unit = "m"
+        #expect(metres.inferredScanStepNanometres() == 2)
+
+        var unknown = synthetic(step: 2)
+        unknown.unit = "furlongs"
+        #expect(unknown.inferredScanStepNanometres() == nil)
+    }
+
+    @Test("a positions file from a different scan is refused")
+    func mismatchedRasterIsRefused() {
+        // The mistake that would otherwise produce a complete, plausible and
+        // entirely wrong image.
+        #expect(throws: ScanPath.Failure.self) {
+            try synthetic().placement(width: 6, height: 1)
+        }
+    }
+
+    @Test("two frames on one scan position is refused")
+    func collisionsAreRefused() {
+        let doubled = ScanPositions(x: [0, 0], y: [0, 0], pattern: nil, rawFile: nil,
+                                    summaryText: nil, label: "doubled", unit: "nm")
+        #expect(throws: ScanPath.Failure.self) {
+            try doubled.placement(width: 1, height: 1)
+        }
+    }
+
+    @Test("a file recording no positions at all is refused")
+    func allNaNIsRefused() {
+        let blank = ScanPositions(x: [.nan, .nan], y: [.nan, .nan], pattern: nil,
+                                  rawFile: nil, summaryText: nil, label: "blank", unit: nil)
+        #expect(throws: ScanPath.Failure.self) {
+            try blank.placement(width: 1, height: 1)
+        }
+    }
+
+    @Test("a scan position nothing landed on is counted, not refused")
+    func unvisitedPositionsAreCounted() throws {
+        // A scan can genuinely miss a position — the real 128×128 Hilbert scan
+        // this was built against misses exactly one. The position is left as
+        // zero and reported, rather than the load failing.
+        let gappy = ScanPositions(x: [0, 2, 0], y: [0, 0, 2], pattern: nil, rawFile: nil,
+                                  summaryText: nil, label: "gappy", unit: "nm")
+        let placement = try gappy.placement(width: 2, height: 2)
+        #expect(placement.unfilled == 1)
+        #expect(placement.slots == [0, 1, 2].map { Optional($0) })
+    }
+
+    @Test("positions are read out of a two-column array as well as separate ones")
+    func twoColumnLayout() throws {
+        let xy = NumpyReader.Array(name: "positions", shape: [4, 2],
+                                   numbers: [0, 0, 1, 0, 1, 1, 0, 1], strings: [])
+        let positions = try ScanPositions.interpret([xy], label: "xy.npz")
+        #expect(positions.frameCount == 4)
+        #expect(try positions.placement(width: 2, height: 2).slots
+                == [0, 1, 3, 2].map { Optional($0) })
+    }
+
+    @Test("an archive with no positions in it says so")
+    func noPositions() {
+        let stray = NumpyReader.Array(name: "exposure", shape: [1], numbers: [0.1], strings: [])
+        #expect(throws: ScanPath.Failure.self) {
+            try ScanPositions.interpret([stray], label: "other.npz")
+        }
+    }
+}
+
+/// An off-grid path — a spiral, a fibonacci sweep — gridded onto the canvas the
+/// metadata describes, instead of being refused as not a grid.
+@Suite("Off-grid scan path")
+struct OffGridScanPathTests {
+
+    /// A fibonacci disc on a 16-pixel canvas, 16 nm across, in metres and
+    /// relative to the centre, as macSTEM records one; the first frame is a
+    /// settling frame (NaN), as in a real file.
+    private func fibonacci(points: Int = 180) -> ScanPositions {
+        var x: [Double] = [.nan], y: [Double] = [.nan]
+        let golden = Double.pi * (3 - 5.0.squareRoot())
+        for k in 0..<points {
+            let r = 7.5e-9 * (Double(k) + 0.5).squareRoot() / Double(points).squareRoot()
+            x.append(r * cos(Double(k) * golden))
+            y.append(r * sin(Double(k) * golden))
+        }
+        var positions = ScanPositions(x: x, y: y, pattern: "fibonacci",
+                                      rawFile: "scan_x16_y12.raw", summaryText: nil,
+                                      label: "scan_positions.npz")
+        positions.unit = "m"
+        positions.canvas = GriddedScan.Canvas(side: 16, fieldOfViewMetres: [16e-9, 16e-9])
+        return positions
+    }
+
+    @Test("an off-grid path is gridded over the canvas, not the trigger rectangle")
+    func gridded() throws {
+        let positions = fibonacci()
+        #expect(positions.inferredRaster()! == (16, 16))
+        #expect(abs(positions.inferredScanStepNanometres()! - 1.0) < 1e-9)
+
+        let placement = try positions.placement(width: 16, height: 16)
+        #expect(placement.spread != nil)
+        #expect(placement.frameCount == 181)
+        #expect(placement.slots[0] == nil)              // the settling frame
+        #expect(placement.placedCount == 180)
+        #expect(!placement.isIdentity)
+        // A disc on a square canvas leaves the corners empty, and no more.
+        #expect(placement.unfilled > 0 && placement.unfilled < 16 * 16 / 2)
+        // And it survives the common check, which would refuse shared positions
+        // from any other path.
+        #expect(try ScanPath.explicit(placement).placement(width: 16, height: 16) == placement)
+    }
+
+    @Test("an off-grid path over the wrong raster is refused, not squeezed")
+    func wrongRaster() {
+        #expect(throws: ScanPath.Failure.self) {
+            try fibonacci().placement(width: 16, height: 12)
+        }
+    }
+
+    @Test("without a canvas an off-grid path still fails the grid check")
+    func noCanvas() {
+        var positions = fibonacci()
+        positions.canvas = nil
+        #expect(throws: ScanPath.Failure.self) {
+            try positions.placement(width: 16, height: 16)
+        }
+    }
+
+    @Test("an on-grid path with a canvas is still placed exactly, one frame to a position")
+    func onGridStaysExact() throws {
+        var x: [Double] = [], y: [Double] = []
+        for row in 0..<16 { for column in 0..<16 {
+            x.append((Double(column) - 8) * 1e-9); y.append((Double(row) - 8) * 1e-9)
+        } }
+        var positions = ScanPositions(x: x, y: y, pattern: "raster", rawFile: nil,
+                                      summaryText: nil, label: "grid.npz")
+        positions.unit = "m"
+        positions.canvas = GriddedScan.Canvas(side: 16, fieldOfViewMetres: [16e-9, 16e-9])
+        let placement = try positions.placement(width: 16, height: 16)
+        #expect(placement.spread == nil)
+        #expect(placement.isIdentity)
+    }
+
+    @Test("gridding a uniform scan gives back the same value everywhere it reached")
+    func densityCompensation() throws {
+        let placement = try fibonacci(points: 600).placement(width: 16, height: 16)
+        let spread = try #require(placement.spread)
+        let stride = 3
+        var buffer = [Float](repeating: 0, count: 16 * 16 * stride)
+        let frame = [Float](repeating: 2.5, count: stride)
+        buffer.withUnsafeMutableBufferPointer { out in
+            frame.withUnsafeBufferPointer { one in
+                for k in 0..<placement.frameCount where placement.slots[k] != nil {
+                    spread.place(frame: one.baseAddress!, index: k, stride: stride,
+                                 into: out.baseAddress!)
                 }
-                spread.normalise(buffer.baseAddress!, stride: 1, positions: positions)
-            } else {
-                for frame in 0..<path.destinations.count
-                where path.destinations[frame] >= 0 {
-                    buffer[Int(path.destinations[frame])] = values(frame)
-                }
+                spread.normalise(out.baseAddress!, stride: stride, positions: 16 * 16)
             }
         }
-        if let name = name {
-            let url = try write(image, width: path.extent.width,
-                                height: path.extent.height, scale: 16, name: name)
-            print("wrote \(url.path)")
-        }
-        return image
+        let reached = buffer.filter { $0 != 0 }
+        #expect(!reached.isEmpty)
+        #expect(reached.allSatisfy { abs($0 - 2.5) < 1e-4 })
     }
-
-    /// A grey PNG, magnified so a small canvas is legible.
-    private func write(_ values: [Float], width: Int, height: Int,
-                       scale: Int, name: String) throws -> URL {
-        let low = values.filter { $0 != 0 }.min() ?? 0
-        let high = values.max() ?? 1
-        let span = max(high - low, .leastNormalMagnitude)
-        var pixels = [UInt8](repeating: 0, count: width * scale * height * scale)
-        for y in 0..<(height * scale) {
-            for x in 0..<(width * scale) {
-                let value = values[(y / scale) * width + (x / scale)]
-                pixels[y * width * scale + x] = value == 0 ? 0
-                    : UInt8(max(0, min(255, ((value - low) / span) * 200 + 55)))
-            }
-        }
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(name).png")
-        let provider = try #require(CGDataProvider(data: Data(pixels) as CFData))
-        let image = try #require(CGImage(
-            width: width * scale, height: height * scale, bitsPerComponent: 8,
-            bitsPerPixel: 8, bytesPerRow: width * scale,
-            space: CGColorSpaceCreateDeviceGray(),
-            bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider,
-            decode: nil, shouldInterpolate: false, intent: .defaultIntent))
-        let destination = try #require(CGImageDestinationCreateWithURL(
-            url as CFURL, UTType.png.identifier as CFString, 1, nil))
-        CGImageDestinationAddImage(destination, image, nil)
-        #expect(CGImageDestinationFinalize(destination))
-        return url
-    }
-
-    @Test("gridding a flat field gives back a flat field")
-    func griddingPreservesAConstantField() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas())
-        let image = try reconstruct(path, values: { _ in 7 },
-                                    png: "scanpath-constant")
-
-        // The one property the whole scheme rests on: whatever the weights
-        // are, dividing by their sum has to give the value back. If it does
-        // not, the kernel is printing its own shape onto every flat region of
-        // every spiral — a ring pattern that looks like sample contrast.
-        let spread = try #require(path.spread)
-        for position in 0..<image.count
-        where spread.totals[position] >= ScanPath.Spread.floor {
-            #expect(abs(image[position] - 7) < 1e-4)
-        }
-        // And it is a real reconstruction, not an empty one.
-        #expect(image.filter { $0 != 0 }.count == path.filled)
-    }
-
-    @Test("the kernel keeps to its own window")
-    func griddingStaysLocal() throws {
-        let url = try spiralFixture()
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let path = try ScanPath.read(url: url, canvas: try spiralCanvas())
-        // Frames landing on the left half carry 1, the right half 0, so the
-        // reconstruction is a step with the kernel's own width across it.
-        let image = try reconstruct(path, values: { frame in
-            let place = Int(path.destinations[frame])
-            return place >= 0 && place % 8 < 4 ? 1 : 0
-        }, png: "scanpath-step")
-
-        let spread = try #require(path.spread)
-        for position in 0..<image.count
-        where spread.totals[position] >= ScanPath.Spread.floor {
-            let column = position % 8
-            // A two-pixel window reaches one position either side of the seam,
-            // so columns 3 and 4 may be mixed and nothing further out may be.
-            if column <= 2 { #expect(image[position] > 0.999) }
-            if column >= 5 { #expect(image[position] < 0.001) }
-            #expect(image[position] >= -0.001 && image[position] <= 1.001)
-        }
-    }
-
-    // Four real acquisitions — hilbert, interleaved, fibonacci and cav spiral,
-    // 70,912 frames in all — were checked frame by frame against numpy while
-    // this was written, and every destination matched. None of that runs from
-    // here: the test host is an app bundle, and reading a scan off an external
-    // volume or the Desktop from one waits on a macOS privacy prompt that never
-    // arrives under xcodebuild, so the suite hung rather than failed. Those
-    // checks belong in a command-line binary built against these same files.
 }
