@@ -475,9 +475,24 @@ struct ScanPositions: Equatable {
         guard let canvas = canvas else { return nil }
         // Gridded in metres, which is what the canvas measures in.
         let metres = (nanometresPerUnit ?? 1e9) * 1e-9
-        let scan = try GriddedScan.grid(x: x.map { $0 * metres }, y: y.map { $0 * metres },
+        let scan: GriddedScan
+        do {
+            scan = try GriddedScan.grid(x: x.map { $0 * metres }, y: y.map { $0 * metres },
                                         canvas: canvas, pattern: pattern ?? "",
                                         rawFilename: rawFile, name: label)
+        } catch let error as GriddedScanError {
+            guard case .outsideCanvas = error else { throw error }
+            // A lattice that does not sit on the canvas's pixel pitch — 128
+            // points spread edge to edge over the field of view, which is a
+            // pitch of FOV/127, not FOV/128 — is still a lattice, and is
+            // placed exactly from its own axes. Only a path that is neither
+            // on the canvas nor a lattice is a genuine mismatch.
+            if let xAxis = Self.axis(x), let yAxis = Self.axis(y),
+               xAxis.count * yAxis.count == frameCount {
+                return nil
+            }
+            throw error
+        }
         return scan.onGrid ? nil : scan
     }
 
