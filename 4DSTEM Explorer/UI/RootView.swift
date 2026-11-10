@@ -467,7 +467,7 @@ struct RootView: View {
                 if let vm = virtual_mat, model.scanRangeAdjustable {
                     let white = model.scanAutoIsQuantile
                     HistogramRangeControl(
-                        source: { vm.real },
+                        source: { model.scanValuesForScaling(vm) },
                         sourceID: AnyHashable([ObjectIdentifier(vm).hashValue, white ? 1 : 0]),
                         autoQuantiles: white ? 0.02...0.98 : nil,
                         range: $model.scanRange)

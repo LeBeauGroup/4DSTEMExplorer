@@ -797,6 +797,12 @@ class STEMDataController: NSObject {
     /// The order the stored frames map onto the raster in. Applied as the file
     /// is read, so a non-raster scan arrives already unscrambled.
     var rawScanPath: ScanPath = .raster
+
+    /// Which scan positions hold data, row-major, when some do not (the
+    /// corners outside a spiral). Nil when every position is filled. Display
+    /// scaling leaves the empty ones out, since their zeros are not
+    /// measurements.
+    var scanFilledMask: [Bool]? = nil
     
     var patternPixels:Int{
         get{
@@ -1657,6 +1663,20 @@ class STEMDataController: NSObject {
         // are interleaved rather than appended — put everything after the first
         // of them in the wrong place.
         let storedFrames = placement?.frameCount ?? totalImages
+
+        if let placement = placement, placement.unfilled > 0 || placement.spread != nil {
+            var filled = [Bool](repeating: false, count: self.imageSize.width * self.imageSize.height)
+            if let spread = placement.spread {
+                for (i, t) in spread.totals.enumerated() where i < filled.count && t >= GriddedScan.Spread.floor {
+                    filled[i] = true
+                }
+            } else {
+                for case let slot? in placement.slots where slot < filled.count { filled[slot] = true }
+            }
+            self.scanFilledMask = filled
+        } else {
+            self.scanFilledMask = nil
+        }
 
         if let placement = placement {
             NSLog("[RAW] %@ — scan path %@: %d frame(s), %d placed, %d scan position(s) left empty",

@@ -1578,9 +1578,35 @@ final class DataViewModel: NSObject, ObservableObject {
         return c.redComponent >= 0.999 && c.greenComponent >= 0.999 && c.blueComponent >= 0.999
     }
 
+    /// The scan image's values with empty scan positions (outside a spiral)
+    /// left out. Everything when the scan is full or the matrix is subsampled.
+    func scanValuesForScaling(_ m: Matrix) -> [Float] {
+        let data = m.real
+        guard let mask = dataController.scanFilledMask, mask.count == data.count else { return data }
+        var out = [Float]()
+        out.reserveCapacity(data.count)
+        for i in 0..<data.count where mask[i] { out.append(data[i]) }
+        return out
+    }
+
+    /// The automatic range over filled positions only; nil when there is
+    /// nothing to exclude, which leaves the usual scaling untouched.
+    func maskedAutoScanRange(_ m: Matrix) -> ClosedRange<Float>? {
+        guard let mask = dataController.scanFilledMask, mask.count == m.real.count else { return nil }
+        let v = scanValuesForScaling(m).filter { $0.isFinite }
+        guard !v.isEmpty else { return nil }
+        if scanAutoIsQuantile {
+            let sorted = v.sorted()
+            let at = { (p: Float) in sorted[min(sorted.count - 1, Int(p * Float(sorted.count - 1)))] }
+            let lo = at(0.02), hi = at(0.98)
+            return lo...max(hi, lo)
+        }
+        return v.min()!...v.max()!
+    }
+
     /// Redraws the scan image from an existing matrix with the current range.
     func rerenderScanImage(_ mat: Matrix) -> NSImage? {
-        guard let img = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange) else { return nil }
+        guard let img = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange ?? maskedAutoScanRange(mat)) else { return nil }
         return scaleStrideImage(img, stride)
     }
 
@@ -1651,7 +1677,7 @@ func computeScanImage(interactive: Bool = false)-> (NSImage, Matrix)? {
         }
 
         if tempImage == nil {
-            tempImage = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange)
+            tempImage = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange ?? maskedAutoScanRange(mat))
         }
         
         if let tempImage = tempImage {
