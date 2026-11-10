@@ -17,7 +17,7 @@
 //      α = k·λ    rad        scattering angle
 //      C_nm       Å          aberration coefficients
 //      χ          rad        the aberration function
-//      shift      Å          image displacement, = ∇_k χ / 2π
+//      shift      Å          the correction applied, = ∇_k χ / 2π
 //
 //  This is an independent implementation of the standard aberration expansion
 //  and of the bright-field transfer used by aberration-corrected BF. It was
@@ -220,8 +220,20 @@ struct ACBFAberrationFunction {
         return total
     }
 
-    /// The image displacement produced by these aberrations at one detector
-    /// coordinate, in Å. This is ∇_k χ / 2π — the quantity tcBF shifts by.
+    /// The correction these aberrations call for at one detector coordinate, in
+    /// Å: ∇_k χ / 2π, which is the amount tcBF translates that virtual image by.
+    ///
+    /// Note the sense, since it decides the sign of every coefficient reported.
+    /// A probe carrying exp(−iχ) puts the sub-beam at angle α at +∇χ/2π in the
+    /// specimen plane — stationary phase — so the virtual image from that
+    /// detector pixel reads the object at R + ∇χ/2π, and its content is
+    /// displaced by *minus* this. Translating each image by +∇χ/2π therefore
+    /// removes the displacement rather than doubling it, and the coefficients
+    /// that align a stack are the aberrations themselves, not their negatives.
+    ///
+    /// For defocus that works out as the sub-beam landing at +C1·α, so the
+    /// crossover is C1 above the specimen: positive C1 is overfocus, which is
+    /// what the control says it is.
     func shift(kx: Double, ky: Double, coefficients: [Double]) -> (dx: Double, dy: Double) {
         let basis = shiftBasis(kx: kx, ky: ky)
         var dx = 0.0, dy = 0.0
@@ -332,7 +344,15 @@ struct ACBFCoordinateTransform: Equatable {
     var flipRows: Bool = false
     var flipColumns: Bool = false
     var transpose: Bool = false
-    /// Counter-clockwise, in degrees.
+    /// Counter-clockwise as the pattern and the scan are drawn, in degrees.
+    /// A negative angle turns clockwise.
+    ///
+    /// Which is why the angle is negated on its way into the matrix below. The
+    /// unnegated form is the textbook counter-clockwise rotation, and it turns
+    /// the other way here: +y is the pattern's row offset and rows run
+    /// downwards, so turning +x towards +y is right towards down. The same
+    /// negation appears in the scan-rotation and lattice plugins, which share
+    /// this convention.
     var rotationDegrees: Double = 0
 
     /// Maps one detector coordinate into the scan frame.
@@ -342,7 +362,7 @@ struct ACBFCoordinateTransform: Equatable {
         if flipColumns { x = -x }
         if transpose { swap(&x, &y) }
         if includeRotation && rotationDegrees != 0 {
-            let theta = rotationDegrees * Double.pi / 180
+            let theta = -rotationDegrees * Double.pi / 180
             let c = cos(theta), s = sin(theta)
             let rotatedX = x * c - y * s
             let rotatedY = x * s + y * c
@@ -359,7 +379,7 @@ struct ACBFCoordinateTransform: Equatable {
         guard rotationDegrees != 0 else { return coefficients }
         var out = coefficients
         for key in orders.keys where key.width == 2 {
-            let theta = Double(key.m) * rotationDegrees * Double.pi / 180
+            let theta = -Double(key.m) * rotationDegrees * Double.pi / 180
             let c = cos(theta), s = sin(theta)
             let a = coefficients[key.offset]
             let b = coefficients[key.offset + 1]

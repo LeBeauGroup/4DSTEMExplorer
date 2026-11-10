@@ -23,11 +23,15 @@
 		AAF19B000000000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000061 /* SettingsView.swift */; };
 		AAF19B000000000000000062 /* DetectorRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000062 /* DetectorRadii.swift */; };
 		AAF19B000000000000000070 /* EMPADLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000070 /* EMPADLayout.swift */; };
+		AAF19B000000000000000081 /* MicroscopeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000081 /* MicroscopeSettingsView.swift */; };
+		AAF19B000000000000000080 /* MicroscopeLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000080 /* MicroscopeLibrary.swift */; };
 		AAF19B000000000000000073 /* ArinaOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000073 /* ArinaOptionsSheet.swift */; };
 		AAF19B000000000000000072 /* ArinaReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000072 /* ArinaReader.swift */; };
 		AAF19B000000000000000071 /* BitShuffleLZ4.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000071 /* BitShuffleLZ4.swift */; };
+		AAF19B000000000000000074 /* GriddedScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000074 /* GriddedScan.swift */; };
 		AAF19B000000000000000063 /* Aberration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000063 /* Aberration.swift */; };
 		AAF19B000000000000000064 /* NumpyWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000064 /* NumpyWriter.swift */; };
+		AAF19B000000000000000065 /* NumpyReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000065 /* NumpyReader.swift */; };
 		AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000005 /* CalibrationWindow.swift */; };
 		AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000004 /* ScanRotationMeasurement.swift */; };
 		AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000003 /* CurlMinimisation.swift */; };
@@ -56,6 +60,7 @@
 		AAF1000000000000000000B8 /* PluginLiveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000A8 /* PluginLiveWindow.swift */; };
 		AAF1000000000000000000D2 /* EMDReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000C2 /* EMDReader.swift */; };
 		AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E1 /* ScanMetadata.swift */; };
+		AAF19B000000000000000066 /* MacSTEMScanPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF19A000000000000000066 /* MacSTEMScanPath.swift */; };
 		AAF1000000000000000000F2 /* PluginCitations.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E2 /* PluginCitations.swift */; };
 		AAF1000000000000000000F3 /* PluginBibTeX.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF1000000000000000000E3 /* PluginBibTeX.swift */; };
 		AAF192000000000000000001 /* THIRD-PARTY-LICENSES.txt in Resources */ = {isa = PBXBuildFile; fileRef = AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */; };
@@ -83,6 +88,7 @@
 		BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */; };
 		BD5D94602EF346F600EE1173 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D945F2EF346F600EE1173 /* RootView.swift */; };
 		BD5D94622EF3477A00EE1173 /* DataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94612EF3477A00EE1173 /* DataViewModel.swift */; };
+		BDA0C0DE2F0000000000A001 /* HistogramRangeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDA0C0DE2F0000000000A002 /* HistogramRangeControl.swift */; };
 		BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5D94632EF3480500EE1173 /* PixelBufferView.swift */; };
 		BD91DC5B2EF361CF0065E76D /* FourDSTEMMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */; };
 		BD91DC5D2EF362A30065E76D /* OpenPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */; };
@@ -138,11 +144,15 @@
 		AAF19A000000000000000061 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = "4DSTEM Explorer/UI/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000062 /* DetectorRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DetectorRadii.swift; path = "4DSTEM Explorer/Objects/DetectorRadii.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000070 /* EMPADLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EMPADLayout.swift; path = "4DSTEM Explorer/Objects/EMPADLayout.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000081 /* MicroscopeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MicroscopeSettingsView.swift; path = "4DSTEM Explorer/UI/MicroscopeSettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000080 /* MicroscopeLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MicroscopeLibrary.swift; path = "4DSTEM Explorer/MicroscopeLibrary.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000073 /* ArinaOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ArinaOptionsSheet.swift; path = "4DSTEM Explorer/UI/ArinaOptionsSheet.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000072 /* ArinaReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ArinaReader.swift; path = "4DSTEM Explorer/ArinaReader.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000071 /* BitShuffleLZ4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BitShuffleLZ4.swift; path = "4DSTEM Explorer/Objects/BitShuffleLZ4.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000074 /* GriddedScan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GriddedScan.swift; path = "4DSTEM Explorer/GriddedScan.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000063 /* Aberration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Aberration.swift; path = "4DSTEM Explorer/Objects/Aberration.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000064 /* NumpyWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NumpyWriter.swift; path = "4DSTEM Explorer/Plugins/NumpyWriter.swift"; sourceTree = SOURCE_ROOT; };
+		AAF19A000000000000000065 /* NumpyReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NumpyReader.swift; path = "4DSTEM Explorer/Plugins/NumpyReader.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000005 /* CalibrationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalibrationWindow.swift; path = "4DSTEM Explorer/UI/CalibrationWindow.swift"; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000004 /* ScanRotationMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScanRotationMeasurement.swift; path = PluginSDK/Examples/ScanRotation/ScanRotationMeasurement.swift; sourceTree = SOURCE_ROOT; };
 		AAF19A000000000000000003 /* CurlMinimisation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurlMinimisation.swift; path = PluginSDK/Examples/ScanRotation/CurlMinimisation.swift; sourceTree = SOURCE_ROOT; };
@@ -189,6 +199,7 @@
 		AAF1000000000000000000A8 /* PluginLiveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginLiveWindow.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000C2 /* EMDReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMDReader.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000E1 /* ScanMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanMetadata.swift; sourceTree = "<group>"; };
+		AAF19A000000000000000066 /* MacSTEMScanPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSTEMScanPath.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000E2 /* PluginCitations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginCitations.swift; sourceTree = "<group>"; };
 		AAF1000000000000000000E3 /* PluginBibTeX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginBibTeX.swift; sourceTree = "<group>"; };
 		AAF191000000000000000001 /* THIRD-PARTY-LICENSES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "THIRD-PARTY-LICENSES.txt"; sourceTree = "<group>"; };
@@ -222,6 +233,7 @@
 		BD5D945D2EF346F100EE1173 /* FourDSTEMExplorerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMExplorerApp.swift; sourceTree = "<group>"; };
 		BD5D945F2EF346F600EE1173 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BD5D94612EF3477A00EE1173 /* DataViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataViewModel.swift; sourceTree = "<group>"; };
+		BDA0C0DE2F0000000000A002 /* HistogramRangeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistogramRangeControl.swift; sourceTree = "<group>"; };
 		BD5D94632EF3480500EE1173 /* PixelBufferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelBufferView.swift; sourceTree = "<group>"; };
 		BD91DC5A2EF361CF0065E76D /* FourDSTEMMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourDSTEMMenuCommands.swift; sourceTree = "<group>"; };
 		BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelController.swift; sourceTree = "<group>"; };
@@ -308,6 +320,7 @@
 				A51FEFBF1FEC491B00A8A5EC /* STEMDataController.swift */,
 				AAF1000000000000000000C2 /* EMDReader.swift */,
 				AAF1000000000000000000E1 /* ScanMetadata.swift */,
+				AAF19A000000000000000066 /* MacSTEMScanPath.swift */,
 				AAF197000000000000000001 /* EMPADMetadataWriter.swift */,
 				BD9FD2BE2E31684000AF63D1 /* DigitalMicrographReader.swift */,
 				A560204E2E38106B00BD8CB8 /* BinaryReader.swift */,
@@ -365,6 +378,7 @@
 				BD1BA3812F1025B00055669F /* ZoomableImageView.swift */,
 				BD5D945F2EF346F600EE1173 /* RootView.swift */,
 				A5D5D9682F466E6300A638C3 /* DetectorOverlay.swift */,
+				BDA0C0DE2F0000000000A002 /* HistogramRangeControl.swift */,
 				BD5D94632EF3480500EE1173 /* PixelBufferView.swift */,
 				BD91DC5C2EF362A30065E76D /* OpenPanelController.swift */,
 				AAF193000000000000000001 /* AboutWindow.swift */,
@@ -404,11 +418,15 @@
 				AAF19A000000000000000061 /* SettingsView.swift */,
 				AAF19A000000000000000062 /* DetectorRadii.swift */,
 				AAF19A000000000000000070 /* EMPADLayout.swift */,
+				AAF19A000000000000000081 /* MicroscopeSettingsView.swift */,
+				AAF19A000000000000000080 /* MicroscopeLibrary.swift */,
 				AAF19A000000000000000073 /* ArinaOptionsSheet.swift */,
 				AAF19A000000000000000072 /* ArinaReader.swift */,
 				AAF19A000000000000000071 /* BitShuffleLZ4.swift */,
+				AAF19A000000000000000074 /* GriddedScan.swift */,
 				AAF19A000000000000000063 /* Aberration.swift */,
 				AAF19A000000000000000064 /* NumpyWriter.swift */,
+				AAF19A000000000000000065 /* NumpyReader.swift */,
 				AAF19A000000000000000005 /* CalibrationWindow.swift */,
 				AAF19A000000000000000004 /* ScanRotationMeasurement.swift */,
 				AAF19A000000000000000003 /* CurlMinimisation.swift */,
@@ -684,11 +702,15 @@
 				AAF19B000000000000000061 /* SettingsView.swift in Sources */,
 				AAF19B000000000000000062 /* DetectorRadii.swift in Sources */,
 				AAF19B000000000000000070 /* EMPADLayout.swift in Sources */,
+				AAF19B000000000000000081 /* MicroscopeSettingsView.swift in Sources */,
+				AAF19B000000000000000080 /* MicroscopeLibrary.swift in Sources */,
 				AAF19B000000000000000073 /* ArinaOptionsSheet.swift in Sources */,
 				AAF19B000000000000000072 /* ArinaReader.swift in Sources */,
 				AAF19B000000000000000071 /* BitShuffleLZ4.swift in Sources */,
+				AAF19B000000000000000074 /* GriddedScan.swift in Sources */,
 				AAF19B000000000000000063 /* Aberration.swift in Sources */,
 				AAF19B000000000000000064 /* NumpyWriter.swift in Sources */,
+				AAF19B000000000000000065 /* NumpyReader.swift in Sources */,
 				AAF19B000000000000000005 /* CalibrationWindow.swift in Sources */,
 				AAF19B000000000000000004 /* ScanRotationMeasurement.swift in Sources */,
 				AAF19B000000000000000003 /* CurlMinimisation.swift in Sources */,
@@ -736,12 +758,14 @@
 				AAF300000000000000000011 /* StringDataset.swift in Sources */,
 				AAF1000000000000000000D2 /* EMDReader.swift in Sources */,
 				AAF1000000000000000000F1 /* ScanMetadata.swift in Sources */,
+				AAF19B000000000000000066 /* MacSTEMScanPath.swift in Sources */,
 				AAF198000000000000000001 /* EMPADMetadataWriter.swift in Sources */,
 				A560204F2E38106E00BD8CB8 /* BinaryReader.swift in Sources */,
 				BD5CD28E2D99B967008260D9 /* MRCReader.swift in Sources */,
 				BD1BA3822F1026020055669F /* ZoomableImageView.swift in Sources */,
 				BD5D945E2EF346F100EE1173 /* FourDSTEMExplorerApp.swift in Sources */,
 				A5219B111FF3E618006D4044 /* Constants.swift in Sources */,
+				BDA0C0DE2F0000000000A001 /* HistogramRangeControl.swift in Sources */,
 				BD5D94642EF3480500EE1173 /* PixelBufferView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -935,6 +959,7 @@
 					"$(LIBAEC_PREFIX)/lib/libaec.a",
 					"-lz",
 				);
+				OTHER_SWIFT_FLAGS = "-Xcc -DACCELERATE_NEW_LAPACK";
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";
@@ -978,6 +1003,7 @@
 					"$(LIBAEC_PREFIX)/lib/libaec.a",
 					"-lz",
 				);
+				OTHER_SWIFT_FLAGS = "-Xcc -DACCELERATE_NEW_LAPACK";
 				PRODUCT_BUNDLE_IDENTIFIER = lebeaugroup.stemexplorer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "4DSTEM Explorer/HDF5Kit/HDF5Kit-Bridging-Header.h";

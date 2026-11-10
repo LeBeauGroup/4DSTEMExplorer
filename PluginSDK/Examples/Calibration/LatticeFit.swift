@@ -91,7 +91,12 @@ struct CalibrationDecomposition {
 
     /// The full map from pixels to physical units.
     let transform: Matrix2
-    /// Rotation of the map, in degrees, counter-clockwise.
+    /// Rotation of the map, in degrees, counter-clockwise as the map is drawn.
+    /// A negative angle turns clockwise.
+    ///
+    /// Negated out of `atan2`, which gives the textbook angle from +x towards
+    /// +y — and that is clockwise here, rows running downwards. Shared with
+    /// ACBFCoordinateTransform and the scan-rotation plugin.
     let rotationDegrees: Double
     /// Geometric mean pixel size, in whatever unit the known lattice used.
     let meanPixelSize: Double
@@ -160,7 +165,7 @@ struct CalibrationDecomposition {
         guard let inverseS = S.inverse else { return nil }
         let R = T.times(inverseS)
 
-        rotationDegrees = atan2(R.b, R.a) * 180 / .pi
+        rotationDegrees = -atan2(R.b, R.a) * 180 / .pi
         meanPixelSize = (s1 * s2).squareRoot()
         principalPixelSizes = (s1, s2)
         principalAxisDegrees = atan2(uy, ux) * 180 / .pi

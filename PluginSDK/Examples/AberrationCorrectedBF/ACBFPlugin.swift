@@ -140,7 +140,7 @@ public final class ACBFPlugin: NSObject, FDSPlugin {
 
             FDSParameter.number("rotation", label: "Scan rotation (deg)", defaultValue: 0,
                                 minimum: -180, maximum: 180,
-                                help: "Angle between the detector and scan frames. Only observable through an anisotropic aberration — a pure defocus looks the same at every rotation."),
+                                help: "Angle between the detector and scan frames, counter-clockwise as both are drawn; negative turns clockwise. Only observable through an anisotropic aberration — a pure defocus looks the same at every rotation."),
             FDSParameter.toggle("flipRows", label: "Flip rows", defaultValue: false),
             FDSParameter.toggle("flipColumns", label: "Flip columns", defaultValue: false),
             FDSParameter.toggle("transpose", label: "Transpose", defaultValue: false),

@@ -227,6 +227,7 @@ final class PluginBatchRunner: ObservableObject {
             controller.setRawImageSize(width: raw.width, height: raw.height)
             controller.setRawTransforms(flipRows: raw.flips.flipY, flipCols: raw.flips.flipX,
                                         transpose: raw.flips.transpose)
+            controller.setRawScanPath(raw.scanPath)
             controller.calibrations = raw.calibrations
         }
 
@@ -414,7 +415,8 @@ final class PluginBatchRunner: ObservableObject {
     /// perfectly valid dataset of the wrong shape, and nothing downstream could
     /// tell.
     private func rawGeometry(for url: URL)
-        -> (width: Int, height: Int, flips: DetectorFlips, calibrations: Calibrations?)? {
+        -> (width: Int, height: Int, flips: DetectorFlips, scanPath: ScanPath,
+            calibrations: Calibrations?)? {
 
         for candidate in PluginBatchNaming.sidecarCandidates(for: url) {
             guard FileManager.default.fileExists(atPath: candidate.path),
@@ -423,20 +425,27 @@ final class PluginBatchRunner: ObservableObject {
                   width > 0, height > 0 else { continue }
             let flips = metadata.detectorFlips.flatMap { DetectorFlips(triple: $0) }
                 ?? .empadDefault
+            // A raster when the sidecar is silent, which is both the common case
+            // and the only thing a batch could assume. Otherwise whatever the
+            // sidecar settles: an order it names, or one recomputed from a
+            // macSTEM pattern — which is how a Hilbert scan goes through a
+            // batch at all, there being no one here to choose a positions file.
+            let scanPath = metadata.resolvedScanPath() ?? .raster
             let calibrations = Calibrations(
                 scan_step: metadata.scanStepNanometres,
                 diff_step: metadata.diffractionStepMilliradians,
                 voltage: metadata.voltageKilovolts,
                 scanRotationDegrees: metadata.scanRotationDegrees,
                 scanCorrection: metadata.scanCorrectionRowMajor.flatMap { ScanCorrection(rowMajor: $0) },
-                detectorFlips: flips)
-            return (width, height, flips, calibrations)
+                detectorFlips: flips,
+                scanPath: scanPath)
+            return (width, height, flips, scanPath, calibrations)
         }
 
         if let size = ScanMetadata.dimensions(fromFilename: url.lastPathComponent) {
             // The name gives a raster and nothing else, so the calibration stays
             // empty and any plugin needing one will say so.
-            return (size.width, size.height, .empadDefault, nil)
+            return (size.width, size.height, .empadDefault, .raster, nil)
         }
         return nil
     }

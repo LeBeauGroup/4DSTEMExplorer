@@ -132,6 +132,22 @@ enum EMPADMetadataWriter {
         if let flips = calibrations?.detectorFlips {
             set("det_flips", flips.triple)
         }
+        // The scan path, but only when it is not a raster.
+        //
+        // Both halves of that matter. Written, it stops the next reader
+        // assuming a raster and interlacing the scan. Omitted for a raster, it
+        // keeps the promise `set` exists to keep — that re-exporting an
+        // unchanged calibration reproduces the file it came from — since a
+        // raster is what a reader assumes when the field is absent, and adding
+        // it would mark every such export as changed.
+        //
+        // An explicit order has no `metadataName` and so is not written at all.
+        // A sidecar has no room for one, and a name a reader cannot act on
+        // would be worse than silence: it would look like the path was recorded.
+        if let path = calibrations?.scanPath, let name = path.metadataName,
+           path != .raster {
+            set("scan_path", name)
+        }
 
         // Aberrations, as measured by the acBF plugin.
         //

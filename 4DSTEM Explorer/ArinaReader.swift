@@ -131,6 +131,17 @@ enum ArinaReader {
     private static let dataGroup = "/entry/data"
     private static let detectorGroup = "/entry/instrument/detector"
 
+    // MARK: - Opening
+
+    /// Opens `url` read-only, or returns a negative handle.
+    ///
+    /// The flag arrives through `hdf5_acc_rdonly()` in the bridging header
+    /// rather than `H5F_ACC_RDONLY`, which Swift cannot see on HDF5 before
+    /// 2.0; the reason is written out there.
+    private static func openReadOnly(_ url: URL) -> hid_t {
+        return H5Fopen(url.path, hdf5_acc_rdonly(), 0)
+    }
+
     // MARK: - Recognition
 
     /// Whether this file is an ARINA master.
@@ -147,7 +158,7 @@ enum ArinaReader {
         let quiet = HDF5Silence()
         defer { quiet.restore() }
 
-        let file = H5Fopen(url.path, UInt32(H5F_ACC_RDONLY), 0)
+        let file = openReadOnly(url)
         guard file >= 0 else { return false }
         defer { H5Fclose(file) }
         guard H5Lexists(file, dataGroup, 0) > 0 else { return false }
@@ -173,7 +184,7 @@ enum ArinaReader {
                         factor: Int = 1,
                         reduction: ArinaReduction = .stride) throws -> ArinaDataset {
 
-        let file = H5Fopen(url.path, UInt32(H5F_ACC_RDONLY), 0)
+        let file = openReadOnly(url)
         guard file >= 0 else { throw ArinaError.notReadable(url.lastPathComponent) }
         defer { H5Fclose(file) }
 
@@ -254,7 +265,7 @@ enum ArinaReader {
                      into destination: UnsafeMutablePointer<Float>,
                      progress: (Double) -> Bool) throws {
 
-        let file = H5Fopen(url.path, UInt32(H5F_ACC_RDONLY), 0)
+        let file = openReadOnly(url)
         guard file >= 0 else { throw ArinaError.notReadable(url.lastPathComponent) }
         defer { H5Fclose(file) }
 
@@ -299,9 +310,14 @@ enum ArinaReader {
                 }
                 if raw.count < Int(storage) { raw = [UInt8](repeating: 0, count: Int(storage)) }
 
+                // Through the bridging header as well: the chunk read has no
+                // one spelling that compiles against both HDF5 1.14 and 2.x.
+                // The buffer's own size goes with it so that the 2.x call can
+                // refuse to overrun it.
                 var filters: UInt32 = 0
                 let status = raw.withUnsafeMutableBytes { buffer -> herr_t in
-                    H5Dread_chunk1(handle, 0, &offset, &filters, buffer.baseAddress)
+                    hdf5_read_chunk(handle, 0, &offset, &filters,
+                                    buffer.baseAddress, buffer.count)
                 }
                 guard status >= 0 else {
                     throw ArinaError.decodeFailed(frame: global, underlying: "HDF5 refused the chunk")

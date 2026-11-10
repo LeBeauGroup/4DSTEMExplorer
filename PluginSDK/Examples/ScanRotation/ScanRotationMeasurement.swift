@@ -335,7 +335,8 @@ final class ScanRotationEngine {
     func map(_ field: CoMField, solution: ScanRotationSolution,
              wantCurl: Bool) -> (values: [Float], rows: Int, columns: Int, message: String) {
 
-        let radians = solution.rotationDegrees * .pi / 180
+        // Negated, as everywhere: the angle is counter-clockwise as drawn.
+        let radians = -solution.rotationDegrees * .pi / 180
         let c = cos(radians), s = sin(radians)
         let source = solution.transposed
             ? CoMField(x: field.y, y: field.x, rows: field.rows, columns: field.columns)

@@ -16,12 +16,14 @@ import SwiftUI
 
 struct SettingsView: View {
     var body: some View {
-        // No TabView. There is one pane, and a tab bar holding a single tab
-        // draws either nothing or an odd one-item toolbar depending on the
-        // system — neither of which helps anyone. Wrap this in a TabView on the
-        // day there is a second pane to switch to.
-        UpdateSettingsView()
-            .frame(width: 460)
+        // There is a second pane now, so the tab bar earns its place.
+        TabView {
+            UpdateSettingsView()
+                .frame(width: 460)
+                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
+            MicroscopeSettingsView()
+                .tabItem { Label("Microscopes", systemImage: "scope") }
+        }
     }
 }
 

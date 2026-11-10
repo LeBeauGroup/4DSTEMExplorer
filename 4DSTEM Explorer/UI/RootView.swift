@@ -45,6 +45,7 @@ struct RootView: View {
 
     @State private var virtual_image:NSImage?
     @State private var pattern_image:NSImage?
+    @AppStorage("patternColormap") private var patternColormapName: String = Colormap.gray.rawValue
     @State private var patternHoverInfo: PatternHoverInfo?
     @State private var needs_update:Bool = false
     @Binding var selectionMode: InteractiveMarkerView.SelectionMode
@@ -239,7 +240,13 @@ struct RootView: View {
                     if let pi = pattern_image {
                         
                         // TODO: remove w,h input and just grab from pattern
-                        PatternView(pattern: pi)
+                        PatternView(pattern: pi, colormap: Colormap(rawValue: patternColormapName) ?? .gray)
+                            .contextMenu {
+                                Picker("Color Map", selection: $patternColormapName) {
+                                    ForEach(Colormap.allCases) { Text($0.rawValue).tag($0.rawValue) }
+                                }
+                                .pickerStyle(.inline)
+                            }
                         
                         ForEach(model.detectors.filter { model.selectedDetectorIDs.contains($0.id) }) { detector in
                             DetectorOverlay(
@@ -427,10 +434,60 @@ struct RootView: View {
                 Toggle("Log scale", isOn: $model.patternLogScaleEnabled)
                     .disabled(pattern_image == nil)
                     .onChange(of: model.patternLogScaleEnabled) { _, _ in
+                        model.patternRange = nil   // units changed
                         refreshPatternDisplay()
                     }
+
+                rangeControl
             }
         }
+    }
+
+    /// Histogram with draggable black/white points for the pattern or the
+    /// scan image.
+    @ViewBuilder
+    private var rangeControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(model.focusedPanel == .image ? "Image" : "Pattern")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            switch model.focusedPanel {
+            case .pattern:
+                if let pm = pattern_mat {
+                    HistogramRangeControl(
+                        source: { model.patternDisplayMatrix(from: pm).real },
+                        sourceID: AnyHashable([ObjectIdentifier(pm).hashValue, model.patternLogScaleEnabled ? 1 : 0]),
+                        autoQuantiles: 0.02...0.98,
+                        range: $model.patternRange)
+                } else {
+                    Text("No pattern").font(.caption).foregroundStyle(.secondary)
+                }
+            case .image:
+                if let vm = virtual_mat, model.scanRangeAdjustable {
+                    let white = model.scanAutoIsQuantile
+                    HistogramRangeControl(
+                        source: { model.scanValuesForScaling(vm) },
+                        sourceID: AnyHashable([ObjectIdentifier(vm).hashValue, white ? 1 : 0]),
+                        autoQuantiles: white ? 0.02...0.98 : nil,
+                        range: $model.scanRange)
+                } else {
+                    Text("Range not adjustable for this image")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .onChange(of: model.patternRange) { _, _ in
+            // Re-render from the matrix already in hand rather than re-reading it.
+            if let pm = pattern_mat,
+               let img = model.makeImage(from: model.patternDisplayMatrix(from: pm), range: model.patternRange) {
+                pattern_image = img
+            }
+        }
+        .onChange(of: model.scanRange) { _, _ in
+            if let vm = virtual_mat, let img = model.rerenderScanImage(vm) { virtual_image = img }
+        }
+        .onChange(of: model.calculationMode) { _, _ in model.scanRange = nil }
     }
 
     private var computedImagePanel: some View {
@@ -603,7 +660,7 @@ struct RootView: View {
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .toolbar(removing: .sidebarToggle)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
+            .navigationSplitViewColumnWidth(min: 310, ideal: 330, max: 480)
         } detail: {
             computedImagePanel
                 .padding(12)
@@ -652,7 +709,7 @@ struct RootView: View {
     private var reservedControlSpace: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Outer: ")
+                Text("Outer: ").fixedSize()
                 Slider(value: .constant(0.0), in: 0...1)
                 Text("0 (pix)").frame(minWidth: 24, alignment: .trailing)
             }
@@ -739,12 +796,14 @@ struct RootView: View {
 
                 Divider()
 
-                Picker("Shape", selection: $model.detectorShape) {
+                Picker(selection: $model.detectorShape) {
                     Text("Point").tag(DetectorShape.point)
                         .help("A single detector pixel at the crosshair. Drag it on the pattern, or nudge it with the arrow keys.")
                     Text("BF").tag(DetectorShape.bf)
                     Text("ADF").tag(DetectorShape.adf)
                     Text("AF").tag(DetectorShape.af)
+                } label: {
+                    Text("Shape").fixedSize()
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: model.detectorShape) { old, new in
@@ -760,7 +819,7 @@ struct RootView: View {
 
                 if model.detectorShape == .bf || model.detectorShape == .af {
                     HStack {
-                        Text("Outer: ")
+                        Text("Outer: ").fixedSize()
                         Slider(
                             value: Binding<Double>(
                                 get: { Double(model.detectorOuterRadius) },
@@ -792,7 +851,7 @@ struct RootView: View {
                 }
                 if model.detectorShape == .adf || model.detectorShape == .af {
                     HStack {
-                        Text("Inner: ")
+                        Text("Inner: ").fixedSize()
                         Slider(
                             value: Binding<Double>(
                                 get: { Double(model.detectorInnerRadius) },
