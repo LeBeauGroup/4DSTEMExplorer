@@ -1511,7 +1511,12 @@ class STEMDataController: NSObject {
                 // Only validate when we know image dimensions
                 if imagePixels > 0 {
                     let basePixelsPerImage = (self.patternSize.height + additionalRows) * self.patternSize.width
-                    let totalPixels = basePixelsPerImage * imagePixels
+                    // A path with settling or fly-back frames, or one gridded
+                    // from an off-grid spiral, stores more frames than the scan
+                    // has positions, so the file is as long as the path says,
+                    // not as the raster does.
+                    let storedImages = rawScanPath.frameCount ?? imagePixels
+                    let totalPixels = basePixelsPerImage * storedImages
 
                     let candidates = DataType.rawCandidates
                     var matched = false
