@@ -104,6 +104,13 @@ struct FourDSTEMMenuCommands: Commands {
         
 
         // Detector menu
+        CommandMenu("View") {
+            Button(model.showScaleBars ? "Hide Scalebars" : "Show Scalebars") {
+                model.showScaleBars.toggle()
+            }
+            .keyboardShortcut("b")
+        }
+
         CommandMenu("Detector") {
             // Shape
             Button("Bright Field") {

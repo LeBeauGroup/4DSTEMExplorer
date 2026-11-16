@@ -97,6 +97,9 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastProgressTick: Int = 0
     @Published var stride:Int = 1
+    /// Whether the scale bars are drawn over the scan image and the pattern.
+    /// Toggled from the View menu.
+    @Published var showScaleBars: Bool = true
     @Published var scanImage: NSImage?
     @Published var imageWidth: Int = 0
     @Published var imageHeight: Int = 0
