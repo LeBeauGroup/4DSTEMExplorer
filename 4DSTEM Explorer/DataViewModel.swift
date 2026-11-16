@@ -492,11 +492,23 @@ final class DataViewModel: NSObject, ObservableObject {
                               backing: .buffered, defer: false)
         window.title = "Calibration"
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: CalibrationWindowView(
+        let hosting = NSHostingView(rootView: CalibrationWindowView(
             model: windowModel,
             onClose: { [weak self] in
                 self?.calibrationWindow?.close()
             }))
+        // Keep the window's resize limits ours, not the SwiftUI content's.
+        // NSHostingView defaults to .standardBounds, which pushes the view's
+        // own size limits — here a minimum with no maximum — onto the window
+        // and pins its maximum size, so a window created `.resizable` cannot
+        // actually be dragged larger. Clearing the options and setting the
+        // window's own min/max explicitly (as the plugin and About windows
+        // do) keeps it freely resizable.
+        hosting.sizingOptions = []
+        window.contentView = hosting
+        window.contentMinSize = NSSize(width: 560, height: 520)
+        window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                       height: CGFloat.greatestFiniteMagnitude)
         window.center()
         window.makeKeyAndOrderFront(nil)
         calibrationWindow = window
