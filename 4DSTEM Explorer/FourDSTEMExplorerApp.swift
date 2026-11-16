@@ -306,6 +306,14 @@ struct FourDSTEMExplorerApp: App {
     var body: some Scene {
         Window("4DSTEM Explorer", id: "main") {
             RootView(zoomScale: $zoomScale, selectionMode: $selectionMode, showDetector: $showDetector, calculationMode: $calculationMode)
+                // Tell the window the content may be *any* size, so it can be
+                // dragged taller as well as wider. Only `maxWidth`/`maxHeight`
+                // are set — deliberately no `minHeight`/`idealHeight`, which on
+                // an earlier attempt forced the window taller than the screen
+                // and pushed its titlebar under the menubar. With no ideal the
+                // window still opens at the layout's natural size and simply
+                // becomes resizable upward from there.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .background(MainWindowRegistrationView())
