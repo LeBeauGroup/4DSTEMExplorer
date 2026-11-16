@@ -232,7 +232,7 @@ struct RootView: View {
         return String(format: "%.4g", Double(value))
     }
 
-    private var patternPanel: some View {
+    private func patternPanel(imageSide: CGFloat) -> some View {
         GroupBox("Pattern") {
             VStack(alignment: .leading, spacing: 8) {
                 GeometryReader { geo in
@@ -425,6 +425,12 @@ struct RootView: View {
                     patternOffsetStart = .zero
                 }
                 .aspectRatio(1.0, contentMode: .fit)
+                // Square image sized by the caller: a column-wide square when
+                // the window is tall enough, smaller when it is short. Driving
+                // the height from an explicit value (rather than pinning the
+                // whole panel with .fixedSize) is what lets the sidebar — and
+                // so the window — be made shorter than the full screen.
+                .frame(height: imageSide)
 
                 Text(patternHoverText)
                     .font(.caption)
@@ -641,24 +647,38 @@ struct RootView: View {
             // thing that should decide it: the pattern is square, so a square
             // as wide as the column is exactly the size it wants. Spare height
             // then has only one place to go, which is the detector panel.
-            VStack(alignment: .leading, spacing: 10) {
-                patternPanel
-                    // Its ideal height is a square as wide as the column, which
-                    // is the only size a square pattern should be: it then
-                    // matches the width of the panel below and stays put at
-                    // every window height. Capping the height instead — the
-                    // previous attempt at this — made the square shrink to the
-                    // cap and left it visibly narrower than the controls.
-                    .fixedSize(horizontal: false, vertical: true)
-                detectorSettings
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // The pattern is a square as wide as the column, with the detector
+            // panel taking the spare height below it. It must also be able to
+            // *shrink*, though: when it was pinned to the square with
+            // .fixedSize, the sidebar's minimum height (square + detector
+            // controls) grew taller than a laptop screen, so the window could
+            // not be made shorter than full-screen height.
+            //
+            // Measuring the column here lets the square be a true column-wide
+            // one when the window is tall (never narrower than the controls —
+            // the failure of an earlier fixed-value cap) while giving it room
+            // to compress when the window is short. `reserved` is roughly the
+            // height the controls below the image and the detector panel want;
+            // when the window is shorter than a full square plus that, the
+            // square gives way instead of pinning the whole window tall.
+            GeometryReader { geo in
+                let reserved: CGFloat = 360
+                let side = max(80, min(geo.size.width - 20, geo.size.height - reserved))
+                VStack(alignment: .leading, spacing: 10) {
+                    patternPanel(imageSide: side)
+                    detectorSettings
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                // No top padding: a full-height sidebar already insets its
+                // content clear of the titlebar, and adding to that is what
+                // opened the gap below the window buttons.
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            // No top padding: a full-height sidebar already insets its content
-            // clear of the titlebar, and adding to that is what opened the gap
-            // below the window buttons.
-            .padding(.horizontal, 10)
-            .padding(.bottom, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // A floor well below any laptop screen: the window can be made much
+            // shorter than before, but not uselessly small.
+            .frame(minHeight: 420)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 310, ideal: 330, max: 480)
         } detail: {
