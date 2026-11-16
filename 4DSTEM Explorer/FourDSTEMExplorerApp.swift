@@ -233,6 +233,22 @@ private final class WindowRegistrationView: NSView {
     }
 }
 
+/// Sets the window's represented document to the open file, so the titlebar
+/// shows the filename, a document proxy icon, and the right-click / ⌘-click
+/// path popup. When no file is open the view is left untouched and the window
+/// keeps its plain app title.
+private struct RepresentedDocument: ViewModifier {
+    let url: URL?
+
+    func body(content: Content) -> some View {
+        if let url {
+            content.navigationDocument(url)
+        } else {
+            content
+        }
+    }
+}
+
 private struct ExternalFileOpenRegistration: ViewModifier {
     @Environment(\.openWindow) private var openWindow
     let model: DataViewModel
@@ -293,7 +309,12 @@ struct FourDSTEMExplorerApp: App {
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .background(MainWindowRegistrationView())
-                .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
+                // Show the open file's name in the titlebar, with a document
+                // proxy icon and the standard right-click / ⌘-click path popup.
+                // `.navigationDocument` sets the window's represented URL, which
+                // is what AppKit uses to drive both. Falls back to the plain
+                // app title when nothing is loaded.
+                .modifier(RepresentedDocument(url: model.selectedURL))
                 .modifier(ExternalFileOpenRegistration(model: model, recentFiles: recentFiles))
                 .alert("Unable to Load File", isPresented: Binding(
                     get: { model.loadErrorMessage != nil },
