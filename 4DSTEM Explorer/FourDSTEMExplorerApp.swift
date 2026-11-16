@@ -440,6 +440,14 @@ struct FourDSTEMExplorerApp: App {
                     pluginManager.reload()
                 }
         }
+        // Treat the content's size as a *minimum* only, not a fixed size. The
+        // default resizability for a `Window` scene is `.contentSize`, which
+        // pins the window's height to whatever the content currently wants —
+        // so the window could grow sideways (the detail pane has no maximum
+        // width) but not vertically. `.contentMinSize` keeps the content's
+        // minimum as the floor and lets the user drag the window taller or
+        // shorter freely.
+        .windowResizability(.contentMinSize)
         .defaultLaunchBehavior(.presented)
         .commands {
             FourDSTEMMenuCommands(model: model,
