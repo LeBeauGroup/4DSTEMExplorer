@@ -75,62 +75,6 @@ struct RawOpenChoice {
     var metadata: ScanMetadata?
 }
 
-/// The scan-path choices as the picker sees them.
-///
-/// Separate from `ScanPath` because a picker needs a stable, hashable tag for
-/// each row, and the explicit case carries an order that changes as files are
-/// chosen — tagging rows with the value itself would reset the selection every
-/// time the order did.
-enum ScanPathKind: Hashable, CaseIterable, Identifiable {
-    /// Worked out from the acquisition's own metadata. First, because when it
-    /// is available it is the answer — and it is the row the panel selects
-    /// itself, so it reads better at the top than buried under four orders the
-    /// scan is known not to be.
-    case computed
-    case raster
-    case snake
-    case columnRaster
-    case columnSnake
-    case custom
-
-    var id: Self { self }
-
-    /// Short enough for a menu; the explanation is in the footnote below it.
-    var title: String {
-        switch self {
-        case .computed:     return "From the acquisition metadata"
-        case .raster:       return "Raster — row by row"
-        case .snake:        return "Snake — alternate rows reversed"
-        case .columnRaster: return "Raster — column by column"
-        case .columnSnake:  return "Snake — alternate columns reversed"
-        case .custom:       return "From a positions file\u{2026}"
-        }
-    }
-
-    init(_ path: ScanPath) {
-        switch path {
-        case .raster:       self = .raster
-        case .snake:        self = .snake
-        case .columnRaster: self = .columnRaster
-        case .columnSnake:  self = .columnSnake
-        case .explicit:     self = .custom
-        }
-    }
-
-    /// The path this row means, for every row but the two that have no meaning
-    /// until something has been read.
-    var namedPath: ScanPath? {
-        switch self {
-        case .raster:       return .raster
-        case .snake:        return .snake
-        case .columnRaster: return .columnRaster
-        case .columnSnake:  return .columnSnake
-        case .computed:     return nil
-        case .custom:       return nil
-        }
-    }
-}
-
 struct RawDimsSheet: View {
     @State var scan_dims: String
     @State var diff_step: String
@@ -148,7 +92,11 @@ struct RawDimsSheet: View {
     @State private var importedMetadata: ScanMetadata?
     @State private var hostWindow: NSWindow?
 
-    @State private var pathKind: ScanPathKind = .raster
+    /// A named scan order the acquisition's own metadata declared (e.g. a
+    /// snake), honoured automatically. There is no manual order picker any
+    /// more: the scan is read in raster order unless a positions file is loaded
+    /// or the metadata says otherwise.
+    @State private var metadataNamedPath: ScanPath?
     /// The chosen positions file, held unresolved: it is only a placement once
     /// there is a raster to check it against, and although the file can usually
     /// supply that raster itself, the user is free to disagree with it.
@@ -210,11 +158,22 @@ struct RawDimsSheet: View {
     /// for the note under the picker and for the OK button, which must not
     /// start a read with a path that cannot place every frame.
     private func resolvedPath() -> Result<ScanPath, Error> {
-        if let named = pathKind.namedPath { return .success(named) }
-        if pathKind == .computed {
-            guard let computed = computed else {
-                return .failure(MacSTEMScanPath.Failure.notRead)
+        // A loaded positions file wins; then a path the metadata can reproduce;
+        // then a named order the metadata declared; otherwise the ordinary
+        // raster. There is no manual picker: the only way to depart from raster
+        // is to load a positions file (or have the metadata specify the order).
+        if let positions = positions {
+            guard let dims = Self.parseScanDimensions(scan_dims) else {
+                return .failure(ScanPath.Failure.noRaster)
             }
+            do {
+                return .success(.explicit(try positions.placement(width: dims.width,
+                                                                  height: dims.height)))
+            } catch {
+                return .failure(error)
+            }
+        }
+        if let computed = computed {
             guard let dims = Self.parseScanDimensions(scan_dims) else {
                 return .failure(ScanPath.Failure.noRaster)
             }
@@ -225,54 +184,16 @@ struct RawDimsSheet: View {
                 return .failure(error)
             }
         }
-        guard let positions = positions else {
-            return .failure(ScanPath.Failure.noPositions("No positions file"))
-        }
-        guard let dims = Self.parseScanDimensions(scan_dims) else {
-            return .failure(ScanPath.Failure.noRaster)
-        }
-        do {
-            return .success(.explicit(try positions.placement(width: dims.width,
-                                                              height: dims.height)))
-        } catch {
-            return .failure(error)
-        }
+        if let named = metadataNamedPath { return .success(named) }
+        return .success(.raster)
     }
 
-    /// Restates the note under the picker from the current file and raster.
+    /// Restates the note under the Load button from the current file and raster.
     private func refreshPathNote() {
-        guard pathKind == .custom || pathKind == .computed else {
-            pathNote = nil
-            pathFailed = false
-            return
-        }
-
         var lines: [String] = []
         var worrying = false
 
-        if pathKind == .computed {
-            guard let computed = computed else {
-                pathNote = MacSTEMScanPath.Failure.notRead.errorDescription
-                pathFailed = false
-                return
-            }
-            // Said plainly, because a recomputed order is a claim about the
-            // data rather than a reading of it: what was computed, from what,
-            // and over how many frames.
-            lines.append("\(computed.name), computed from \(computed.source)"
-                         + " \u{2014} \(computed.canvas)\u{00D7}\(computed.canvas) scan,"
-                         + " \(computed.keptWidth * computed.keptHeight) frames")
-            if computed.settle > 0 {
-                lines.append("\(computed.settle) settling frame"
-                             + "\(computed.settle == 1 ? "" : "s") before the path")
-            }
-        } else {
-            guard let positions = positions else {
-                pathNote = "Choose the scan_positions.npz written alongside the scan."
-                pathFailed = false
-                return
-            }
-
+        if let positions = positions {
             // The file's own name for the pattern, which is the one thing here
             // the arrays cannot say. `hilbert` is not a placement, but it is
             // what the user called the scan, so it is what the panel should
@@ -294,6 +215,24 @@ struct RawDimsSheet: View {
                 lines.append("\u{26A0}\u{FE0E} written for \(named), not \(opening)")
                 worrying = true
             }
+        } else if let computed = computed {
+            // Said plainly, because a recomputed order is a claim about the
+            // data rather than a reading of it: what was computed, from what,
+            // and over how many frames.
+            lines.append("\(computed.name), computed from \(computed.source)"
+                         + " \u{2014} \(computed.canvas)\u{00D7}\(computed.canvas) scan,"
+                         + " \(computed.keptWidth * computed.keptHeight) frames")
+            if computed.settle > 0 {
+                lines.append("\(computed.settle) settling frame"
+                             + "\(computed.settle == 1 ? "" : "s") before the path")
+            }
+        } else {
+            // Nothing loaded: the scan is read in the ordinary raster order,
+            // unless the metadata named a different one.
+            pathNote = metadataNamedPath.map { "Scan order from the metadata: \($0.name)." }
+                ?? "Read in raster order (row by row). Load a positions file for a non-raster scan."
+            pathFailed = false
+            return
         }
 
         switch resolvedPath() {
@@ -416,9 +355,8 @@ struct RawDimsSheet: View {
         // the picker, which may have been set deliberately, stands.
         if let path = metadata.macSTEMScanPath {
             computed = path
-            pathKind = .computed
         } else if let path = metadata.scanPath {
-            pathKind = ScanPathKind(path)
+            metadataNamedPath = path
         }
 
         var note = metadata.summary
@@ -539,29 +477,32 @@ struct RawDimsSheet: View {
                             .frame(width: 260)
                     }
 
-                    // Also in the open, and for the same reason as the
-                    // transforms below: a scan read in the wrong order is not
-                    // obviously wrong afterwards. A serpentine scan read as a
-                    // raster comes out complete and the right size, with every
-                    // other row mirrored — which on a uniform region looks like
-                    // a slightly noisy image rather than a mistake.
+                    // No order picker: the scan is read in raster order unless a
+                    // positions file is loaded (or the metadata names an order).
+                    // A serpentine or otherwise non-raster scan is described by
+                    // its positions file, which is the only reliable source for
+                    // it — a chosen order read against the wrong data is not
+                    // obviously wrong afterwards, it just mirrors the scan.
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("Scan path:")
                             Spacer()
                         }
-                        Picker("", selection: $pathKind) {
-                            ForEach(pathKinds) { kind in
-                                Text(kind.title).tag(kind)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 260)
-
-                        if pathKind == .custom {
-                            Button(positions == nil ? "Choose Positions\u{2026}" : "Choose Another\u{2026}") {
+                        HStack {
+                            Button(positions == nil ? "Load Scan Path\u{2026}" : "Load Another\u{2026}") {
                                 loadScanPath()
+                            }
+                            // Shown whenever the resolved order is not a plain
+                            // raster — a loaded file, or one the metadata
+                            // supplied — so the user can always fall back to it.
+                            if positions != nil || computed != nil || metadataNamedPath != nil {
+                                Button("Use Raster Order") {
+                                    positions = nil
+                                    computed = nil
+                                    metadataNamedPath = nil
+                                    refreshPathNote()
+                                    followContentSize()
+                                }
                             }
                         }
                         if let note = pathNote {
@@ -634,27 +575,17 @@ struct RawDimsSheet: View {
         .onChange(of: isCalibrationVisible) { _, _ in
             followContentSize()
         }
-        // The note under the picker depends on both, so both have to restate
-        // it. A raster typed after the path file was chosen is the ordinary way
-        // round, and it is the case where the check first becomes possible.
-        .onChange(of: pathKind) { _, _ in
-            refreshPathNote()
-            followContentSize()
-        }
+        // A raster typed after the path file was chosen is the ordinary way
+        // round, and it is the case where the placement check first becomes
+        // possible.
         .onChange(of: scan_dims) { _, _ in refreshPathNote() }
         // The acquisition's own metadata, if it is sitting beside the data. Done
         // on appearance rather than when the panel is built, because it reads a
         // file and the body is rebuilt on every keystroke.
-        .onAppear { adoptMetadataBesideFile() }
-    }
-
-    /// The rows the picker offers.
-    ///
-    /// The computed row appears only once there is something to compute from.
-    /// A row that cannot be chosen is worse than no row at all: it reads as a
-    /// claim that the metadata has been looked at.
-    private var pathKinds: [ScanPathKind] {
-        return ScanPathKind.allCases.filter { $0 != .computed || computed != nil }
+        .onAppear {
+            adoptMetadataBesideFile()
+            refreshPathNote()
+        }
     }
 
     /// Leaves the panel only if everything in it holds together.
