@@ -242,7 +242,13 @@ private struct RepresentedDocument: ViewModifier {
 
     func body(content: Content) -> some View {
         if let url {
-            content.navigationDocument(url)
+            // navigationTitle sets the titlebar text to the filename;
+            // navigationDocument adds the proxy icon and the right-click /
+            // ⌘-click path popup. navigationDocument alone did not set the
+            // title text, so both are needed.
+            content
+                .navigationTitle(url.lastPathComponent)
+                .navigationDocument(url)
         } else {
             content
         }
