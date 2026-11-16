@@ -290,14 +290,6 @@ struct FourDSTEMExplorerApp: App {
     var body: some Scene {
         Window("4DSTEM Explorer", id: "main") {
             RootView(zoomScale: $zoomScale, selectionMode: $selectionMode, showDetector: $showDetector, calculationMode: $calculationMode)
-                // Advertise an unbounded ideal height (and width) to the
-                // window. A `NavigationSplitView` otherwise reports a fixed
-                // ideal height upward, and the `Window` scene sizes itself to
-                // that — so the window could be dragged wider but never taller.
-                // Forcing `maxHeight: .infinity` here gives SwiftUI a flexible
-                // layout to grow into; `minWidth`/`minHeight` set the floor.
-                .frame(minWidth: 900, idealWidth: 1200, maxWidth: .infinity,
-                       minHeight: 520, idealHeight: 820, maxHeight: .infinity)
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .background(MainWindowRegistrationView())
