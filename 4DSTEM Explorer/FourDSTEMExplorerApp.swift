@@ -62,6 +62,23 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
         guard let window else { return }
         window.identifier = mainWindowIdentifier
         window.isReleasedWhenClosed = false
+
+        // Keep the window freely resizable in both directions.
+        //
+        // Inside a `Window` scene a `NavigationSplitView` reports a fixed
+        // ideal height to SwiftUI's content-driven sizing, which pins the
+        // window's maximum height to its current height — so it can be
+        // dragged wider (the detail column has no maximum width) but not
+        // taller. `.windowResizability(.contentMinSize)` on the scene is not
+        // enough on its own, so clear the AppKit max size explicitly. This
+        // runs again on every layout pass (updateNSView re-registers), which
+        // re-asserts the unbounded ceiling after SwiftUI touches it.
+        let unbounded = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                               height: CGFloat.greatestFiniteMagnitude)
+        window.styleMask.insert(.resizable)
+        window.maxSize = unbounded
+        window.contentMaxSize = unbounded
+
         mainWindow = window
         if !pendingURLs.isEmpty {
             _ = focusMainWindow(in: NSApp)
