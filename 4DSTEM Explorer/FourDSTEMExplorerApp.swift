@@ -62,6 +62,23 @@ final class ExternalFileOpenHandler: NSObject, NSApplicationDelegate {
         guard let window else { return }
         window.identifier = mainWindowIdentifier
         window.isReleasedWhenClosed = false
+
+        // Keep the window freely resizable in both directions.
+        //
+        // Inside a `Window` scene a `NavigationSplitView` reports a fixed
+        // ideal height to SwiftUI's content-driven sizing, which pins the
+        // window's maximum height to its current height — so it can be
+        // dragged wider (the detail column has no maximum width) but not
+        // taller. `.windowResizability(.contentMinSize)` on the scene is not
+        // enough on its own, so clear the AppKit max size explicitly. This
+        // runs again on every layout pass (updateNSView re-registers), which
+        // re-asserts the unbounded ceiling after SwiftUI touches it.
+        let unbounded = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                               height: CGFloat.greatestFiniteMagnitude)
+        window.styleMask.insert(.resizable)
+        window.maxSize = unbounded
+        window.contentMaxSize = unbounded
+
         mainWindow = window
         if !pendingURLs.isEmpty {
             _ = focusMainWindow(in: NSApp)
@@ -216,6 +233,28 @@ private final class WindowRegistrationView: NSView {
     }
 }
 
+/// Sets the window's represented document to the open file, so the titlebar
+/// shows the filename, a document proxy icon, and the right-click / ⌘-click
+/// path popup. When no file is open the view is left untouched and the window
+/// keeps its plain app title.
+private struct RepresentedDocument: ViewModifier {
+    let url: URL?
+
+    func body(content: Content) -> some View {
+        if let url {
+            // navigationTitle sets the titlebar text to the filename;
+            // navigationDocument adds the proxy icon and the right-click /
+            // ⌘-click path popup. navigationDocument alone did not set the
+            // title text, so both are needed.
+            content
+                .navigationTitle(url.lastPathComponent)
+                .navigationDocument(url)
+        } else {
+            content
+        }
+    }
+}
+
 private struct ExternalFileOpenRegistration: ViewModifier {
     @Environment(\.openWindow) private var openWindow
     let model: DataViewModel
@@ -273,10 +312,23 @@ struct FourDSTEMExplorerApp: App {
     var body: some Scene {
         Window("4DSTEM Explorer", id: "main") {
             RootView(zoomScale: $zoomScale, selectionMode: $selectionMode, showDetector: $showDetector, calculationMode: $calculationMode)
+                // Tell the window the content may be *any* size, so it can be
+                // dragged taller as well as wider. Only `maxWidth`/`maxHeight`
+                // are set — deliberately no `minHeight`/`idealHeight`, which on
+                // an earlier attempt forced the window taller than the screen
+                // and pushed its titlebar under the menubar. With no ideal the
+                // window still opens at the layout's natural size and simply
+                // becomes resizable upward from there.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environmentObject(model)
                 .environmentObject(openPanel)
                 .background(MainWindowRegistrationView())
-                .navigationSubtitle(model.selectedURL?.lastPathComponent ?? "")
+                // Show the open file's name in the titlebar, with a document
+                // proxy icon and the standard right-click / ⌘-click path popup.
+                // `.navigationDocument` sets the window's represented URL, which
+                // is what AppKit uses to drive both. Falls back to the plain
+                // app title when nothing is loaded.
+                .modifier(RepresentedDocument(url: model.selectedURL))
                 .modifier(ExternalFileOpenRegistration(model: model, recentFiles: recentFiles))
                 .alert("Unable to Load File", isPresented: Binding(
                     get: { model.loadErrorMessage != nil },
@@ -440,6 +492,14 @@ struct FourDSTEMExplorerApp: App {
                     pluginManager.reload()
                 }
         }
+        // Treat the content's size as a *minimum* only, not a fixed size. The
+        // default resizability for a `Window` scene is `.contentSize`, which
+        // pins the window's height to whatever the content currently wants —
+        // so the window could grow sideways (the detail pane has no maximum
+        // width) but not vertically. `.contentMinSize` keeps the content's
+        // minimum as the floor and lets the user drag the window taller or
+        // shorter freely.
+        .windowResizability(.contentMinSize)
         .defaultLaunchBehavior(.presented)
         .commands {
             FourDSTEMMenuCommands(model: model,

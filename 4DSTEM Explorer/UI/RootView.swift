@@ -131,6 +131,39 @@ struct RootView: View {
         return nil
     }
 
+    /// Scale bar for the diffraction pattern, in milliradians.
+    ///
+    /// `diff_step` is mrad per pattern pixel. The pattern is drawn to fit the
+    /// square image area and then scaled by `patternZoom`, so one pattern pixel
+    /// spans `(fittedWidth / patternWidth) * patternZoom` points. Returns the
+    /// bar's width in points and its label, or nil when there is no pattern or
+    /// no diffraction calibration.
+    private func patternScaleBarPointsAndLabel(viewSize: CGSize, zoom: CGFloat) -> (points: CGFloat, label: String)? {
+        guard let pi = pattern_image else { return nil }
+        guard let step = model.calibrations?.diff_step, step.isFinite, step > 0 else { return nil }
+
+        let patternW = CGFloat(max(pi.size.width, 1))
+        let fitted = fittedImageRect(viewSize: viewSize,
+                                     imageWidth: Int(pi.size.width),
+                                     imageHeight: Int(pi.size.height))
+        let pointsPerPatternPixel = (fitted.width / patternW) * zoom
+        guard pointsPerPatternPixel.isFinite, pointsPerPatternPixel > 0 else { return nil }
+
+        // Keep the bar within 20% of the displayed pattern width.
+        let maxPoints = fitted.width * zoom * 0.20
+        let niceMrad: [Float] = [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500]
+        for length in niceMrad.reversed() {
+            let points = CGFloat(length / step) * pointsPerPatternPixel
+            if points <= maxPoints {
+                let label = length < 1
+                    ? String(format: "%.1f mrad", length)
+                    : String(format: "%.0f mrad", length)
+                return (points, label)
+            }
+        }
+        return nil
+    }
+
     private func updateVirtual(_ interactive:Bool = false) {
         self.interactive = interactive
         if let (vi, vm) = model.computeScanImage(interactive: interactive){
@@ -424,7 +457,31 @@ struct RootView: View {
                     patternOffset = .zero
                     patternOffsetStart = .zero
                 }
+                // A column-wide square: aspectRatio(.fit) in the scrolling
+                // sidebar fits a square to the column width (height is
+                // unbounded there). The sidebar scrolls when the window is too
+                // short to show it all, so the pattern no longer needs to
+                // compress.
                 .aspectRatio(1.0, contentMode: .fit)
+                .overlay(alignment: .bottom) {
+                    GeometryReader { og in
+                        if model.showScaleBars,
+                           let bar = patternScaleBarPointsAndLabel(viewSize: og.size, zoom: patternZoom) {
+                            VStack(spacing: 2) {
+                                Rectangle()
+                                    .fill(Color.white)
+                                    .frame(width: bar.points, height: 2)
+                                Text(bar.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.white)
+                            }
+                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 0)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                            .padding(.bottom, 6)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                }
 
                 Text(patternHoverText)
                     .font(.caption)
@@ -592,7 +649,8 @@ struct RootView: View {
                         }
                         .overlay(alignment: .bottom) {
                             GeometryReader { geo in
-                                if let bar = scaleBarPixelsAndLabel(viewWidth: geo.size.width, zoomScale: zoomScale) {
+                                if model.showScaleBars,
+                                   let bar = scaleBarPixelsAndLabel(viewWidth: geo.size.width, zoomScale: zoomScale) {
                                     VStack(spacing: 4) {
                                         Rectangle()
                                             .fill(Color.white)
@@ -641,24 +699,34 @@ struct RootView: View {
             // thing that should decide it: the pattern is square, so a square
             // as wide as the column is exactly the size it wants. Spare height
             // then has only one place to go, which is the detector panel.
-            VStack(alignment: .leading, spacing: 10) {
-                patternPanel
-                    // Its ideal height is a square as wide as the column, which
-                    // is the only size a square pattern should be: it then
-                    // matches the width of the panel below and stays put at
-                    // every window height. Capping the height instead — the
-                    // previous attempt at this — made the square shrink to the
-                    // cap and left it visibly narrower than the controls.
-                    .fixedSize(horizontal: false, vertical: true)
-                detectorSettings
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // The sidebar scrolls when the window is too short to show the
+            // pattern and every detector control at once — which is what let
+            // the window get wedged at full-screen height before, since the
+            // controls could neither shrink nor scroll.
+            //
+            // The GeometryReader gives the viewport height; pinning the content
+            // to at least that height means a tall window still fills (the
+            // trailing Spacer takes the slack and the panels stay pinned to the
+            // top), while a short window lets the content exceed the viewport
+            // and scroll.
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        patternPanel
+                        detectorSettings
+                        Spacer(minLength: 0)
+                    }
+                    // No top padding: a full-height sidebar already insets its
+                    // content clear of the titlebar, and adding to that is what
+                    // opened the gap below the window buttons.
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .topLeading)
+                }
             }
-            // No top padding: a full-height sidebar already insets its content
-            // clear of the titlebar, and adding to that is what opened the gap
-            // below the window buttons.
-            .padding(.horizontal, 10)
-            .padding(.bottom, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // A floor well below any laptop screen, so the window can be made
+            // much shorter than before without becoming unusably small.
+            .frame(minHeight: 240)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 310, ideal: 330, max: 480)
         } detail: {
@@ -761,7 +829,11 @@ struct RootView: View {
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: 60, maxHeight: .infinity)
+                // A definite height (not maxHeight: .infinity): the sidebar now
+                // scrolls, so the detector panel needs a finite natural height
+                // for the scroll content to measure. The table scrolls
+                // internally when there are more detectors than fit.
+                .frame(height: 120)
                 .onChange(of: model.selectedDetectorID) { _, _ in
                     updateVirtual()
                 }
@@ -944,7 +1016,6 @@ struct RootView: View {
                     }
                 }
             }
-            .frame(maxHeight: .infinity)
             .disabled(model.imageWidth == 0)
             .padding(4)
         }

@@ -97,6 +97,9 @@ final class DataViewModel: NSObject, ObservableObject {
     @Published var isLoading: Bool = false
     @Published var lastProgressTick: Int = 0
     @Published var stride:Int = 1
+    /// Whether the scale bars are drawn over the scan image and the pattern.
+    /// Toggled from the View menu.
+    @Published var showScaleBars: Bool = true
     @Published var scanImage: NSImage?
     @Published var imageWidth: Int = 0
     @Published var imageHeight: Int = 0
@@ -492,11 +495,23 @@ final class DataViewModel: NSObject, ObservableObject {
                               backing: .buffered, defer: false)
         window.title = "Calibration"
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: CalibrationWindowView(
+        let hosting = NSHostingView(rootView: CalibrationWindowView(
             model: windowModel,
             onClose: { [weak self] in
                 self?.calibrationWindow?.close()
             }))
+        // Keep the window's resize limits ours, not the SwiftUI content's.
+        // NSHostingView defaults to .standardBounds, which pushes the view's
+        // own size limits — here a minimum with no maximum — onto the window
+        // and pins its maximum size, so a window created `.resizable` cannot
+        // actually be dragged larger. Clearing the options and setting the
+        // window's own min/max explicitly (as the plugin and About windows
+        // do) keeps it freely resizable.
+        hosting.sizingOptions = []
+        window.contentView = hosting
+        window.contentMinSize = NSSize(width: 560, height: 520)
+        window.contentMaxSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                       height: CGFloat.greatestFiniteMagnitude)
         window.center()
         window.makeKeyAndOrderFront(nil)
         calibrationWindow = window

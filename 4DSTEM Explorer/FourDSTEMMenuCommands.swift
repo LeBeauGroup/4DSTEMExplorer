@@ -104,6 +104,14 @@ struct FourDSTEMMenuCommands: Commands {
         
 
         // Detector menu
+        // Add to the standard View menu rather than a second one of our own.
+        CommandGroup(after: .sidebar) {
+            Button(model.showScaleBars ? "Hide Scalebars" : "Show Scalebars") {
+                model.showScaleBars.toggle()
+            }
+            .keyboardShortcut("b")
+        }
+
         CommandMenu("Detector") {
             // Shape
             Button("Bright Field") {
