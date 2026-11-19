@@ -45,6 +45,10 @@ struct DetectorConfiguration: Identifiable, Equatable {
     var color: Color
     var dpcAxis: DPCAxis
     var comAxis: COMAxis
+    /// Set when this detector is built from others rather than having a
+    /// geometry of its own. The sources are referenced by id, not copied, so
+    /// they stay live: move or resize one and this detector follows.
+    var math: DetectorMathSpec?
 
     init(
         id: UUID = UUID(),
@@ -57,7 +61,8 @@ struct DetectorConfiguration: Identifiable, Equatable {
         calculationMode: CalculationMode = .integrate,
         color: Color = .white,
         dpcAxis: DPCAxis = .leftRight,
-        comAxis: COMAxis = .x
+        comAxis: COMAxis = .x,
+        math: DetectorMathSpec? = nil
     ) {
         self.id = id
         self.name = name
@@ -70,7 +75,16 @@ struct DetectorConfiguration: Identifiable, Equatable {
         self.color = color
         self.dpcAxis = dpcAxis
         self.comAxis = comAxis
+        self.math = math
     }
+}
+
+/// What a math detector is made of.
+struct DetectorMathSpec: Equatable {
+    var op: DetectorMath
+    /// The source detectors, in the order the operation applies to them
+    /// (which matters for subtraction: the first is the minuend).
+    var sources: [DetectorConfiguration.ID]
 }
 
 //    var id: String { rawValue } }
@@ -279,6 +293,53 @@ final class DataViewModel: NSObject, ObservableObject {
         selectedDetectorIDs = [detector.id]
     }
 
+    /// Makes a detector out of the selected ones.
+    ///
+    /// The sources are taken in list order, so the result does not depend on the
+    /// order they were clicked in. A source that is itself a math detector is
+    /// fine: the references only ever point at detectors that already existed,
+    /// so they cannot form a cycle.
+    func addMathDetector(_ op: DetectorMath, from ids: Set<DetectorConfiguration.ID>) {
+        let sources = detectors.filter { ids.contains($0.id) }
+        guard sources.count >= 2 else { return }
+
+        let name = sources.map(\.name).joined(separator: " \(op.symbol) ")
+        let detector = DetectorConfiguration(
+            name: name,
+            shape: .custom,
+            type: .integrating,
+            calculationMode: .integrate,
+            math: DetectorMathSpec(op: op, sources: sources.map(\.id))
+        )
+        detectors.append(detector)
+        selectedDetectorID = detector.id
+        selectedDetectorIDs = [detector.id]
+    }
+
+    /// Every detector a math detector is built from, directly or through
+    /// another math detector.
+    private func sourceIDs(of config: DetectorConfiguration, into found: inout Set<DetectorConfiguration.ID>) {
+        guard let math = config.math else { return }
+        for id in math.sources where !found.contains(id) {
+            found.insert(id)
+            if let source = detectors.first(where: { $0.id == id }) {
+                sourceIDs(of: source, into: &found)
+            }
+        }
+    }
+
+    /// The detectors whose outlines belong on the pattern: the selected ones,
+    /// plus the sources of any selected math detector so that the geometry it
+    /// follows can be grabbed and moved. A math detector has no outline of its
+    /// own to draw.
+    var overlayDetectors: [DetectorConfiguration] {
+        var shown = selectedDetectorIDs
+        for config in detectors where selectedDetectorIDs.contains(config.id) {
+            sourceIDs(of: config, into: &shown)
+        }
+        return detectors.filter { shown.contains($0.id) && $0.math == nil }
+    }
+
     func removeSelectedDetector() {
         guard detectors.count > 1,
               let selectedDetectorID,
@@ -287,6 +348,24 @@ final class DataViewModel: NSObject, ObservableObject {
         }
 
         detectors.remove(at: index)
+        // A math detector with a source gone has nothing left to follow.
+        var removed: Set<DetectorConfiguration.ID> = [selectedDetectorID]
+        var changed = true
+        while changed {
+            changed = false
+            for config in detectors {
+                if let math = config.math, math.sources.contains(where: removed.contains) {
+                    removed.insert(config.id)
+                    changed = true
+                }
+            }
+            detectors.removeAll { removed.contains($0.id) }
+        }
+        guard !detectors.isEmpty else {
+            // Everything left depended on what was removed; start over.
+            addDetector()
+            return
+        }
         let nextIndex = min(index, detectors.count - 1)
         self.selectedDetectorID = detectors[nextIndex].id
         self.selectedDetectorIDs = [detectors[nextIndex].id]
@@ -1478,9 +1557,19 @@ final class DataViewModel: NSObject, ObservableObject {
         }
     }
 
-    private func makeDetector(from config: DetectorConfiguration) -> Detector {
+    private func makeDetector(from config: DetectorConfiguration, visiting: Set<DetectorConfiguration.ID> = []) -> Detector {
         let pW = dataController.patternSize.width
         let pH = dataController.patternSize.height
+        if let math = config.math, !visiting.contains(config.id) {
+            let parts = math.sources.compactMap { id in
+                detectors.first(where: { $0.id == id })
+                    .map { makeDetector(from: $0, visiting: visiting.union([config.id])) }
+            }
+            let combined = Detector(shape: .custom, type: config.type, center: .zero, params: [:],
+                                    size: NSSize(width: pW, height: pH))
+            combined.combination = (math.op, parts)
+            return combined
+        }
         let center = NSPoint(
             x: max(0, min(CGFloat(pW - 1), config.center.x)),
             y: max(0, min(CGFloat(pH - 1), config.center.y))

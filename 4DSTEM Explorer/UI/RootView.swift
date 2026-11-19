@@ -65,6 +65,22 @@ struct RootView: View {
     @State private var patternOffsetStart: CGSize = .zero
     @State private var patternViewSize: CGSize = .zero
 
+    /// Offers to make a detector out of the selected ones. Nothing is offered
+    /// for fewer than two.
+    @ViewBuilder
+    private func detectorMathMenu(for ids: Set<DetectorConfiguration.ID>) -> some View {
+        if ids.count >= 2 {
+            Menu("Detector Math") {
+                ForEach(DetectorMath.allCases, id: \.self) { op in
+                    Button("\(op.title) Detectors") {
+                        model.addMathDetector(op, from: ids)
+                        updateVirtual()
+                    }
+                }
+            }
+        }
+    }
+
     private func detectorShapeLabel(_ shape: DetectorShape) -> String {
         switch shape {
         case .bf:
@@ -279,9 +295,10 @@ struct RootView: View {
                                     ForEach(Colormap.allCases) { Text($0.rawValue).tag($0.rawValue) }
                                 }
                                 .pickerStyle(.inline)
+                                detectorMathMenu(for: model.selectedDetectorIDs)
                             }
                         
-                        ForEach(model.detectors.filter { model.selectedDetectorIDs.contains($0.id) }) { detector in
+                        ForEach(model.overlayDetectors) { detector in
                             DetectorOverlay(
                                 shape: detector.shape,
                                 inner: detector.innerRadius,
@@ -300,7 +317,7 @@ struct RootView: View {
                                     let dr = fittedImageRect(viewSize: geo.size, imageWidth: patternW, imageHeight: patternH)
                                     let sc = min(dr.width / CGFloat(max(patternW, 1)), dr.height / CGFloat(max(patternH, 1)))
                                     let tol: CGFloat = 10
-                                    for det in model.detectors.filter({ model.selectedDetectorIDs.contains($0.id) }).reversed() {
+                                    for det in model.overlayDetectors.reversed() {
                                         let nx = det.center.x / CGFloat(max(patternW - 1, 1))
                                         let ny = 1.0 - det.center.y / CGFloat(max(patternH - 1, 1))
                                         let dc = CGPoint(x: dr.minX + nx * dr.width, y: dr.minY + ny * dr.height)
@@ -803,7 +820,7 @@ struct RootView: View {
                         Text(detector.name).lineLimit(1)
                     }
                     TableColumn("Shape") { (detector: DetectorConfiguration) in
-                        Text(detectorShapeLabel(detector.shape))
+                        Text(detector.math.map { $0.op.symbol } ?? detectorShapeLabel(detector.shape))
                             .foregroundStyle(.secondary)
                     }
                     .width(48)
@@ -826,6 +843,9 @@ struct RootView: View {
                         .controlSize(.small)
                     }
                     .width(44)
+                }
+                .contextMenu(forSelectionType: DetectorConfiguration.ID.self) { ids in
+                    detectorMathMenu(for: ids)
                 }
                 .tableStyle(.inset(alternatesRowBackgrounds: false))
                 .scrollContentBackground(.hidden)
