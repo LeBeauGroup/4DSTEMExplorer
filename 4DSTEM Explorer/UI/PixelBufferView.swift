@@ -4,18 +4,22 @@ import CoreImage.CIFilterBuiltins
 import CoreVideo
 import QuartzCore
 
+final class MenulessImageView: NSImageView {
+    override func menu(for event: NSEvent) -> NSMenu? { nil }
+}
+
 struct PixelBufferView: NSViewRepresentable {
     let pixelBuffer: CVPixelBuffer
 
-    func makeNSView(context: Context) -> NSImageView {
-        let v = NSImageView()
+    func makeNSView(context: Context) -> MenulessImageView {
+        let v = MenulessImageView()
         v.imageScaling = .scaleProportionallyUpOrDown
         v.imageAlignment = .alignCenter
         v.wantsLayer = true
         return v
     }
 
-    func updateNSView(_ nsView: NSImageView, context: Context) {
+    func updateNSView(_ nsView: MenulessImageView, context: Context) {
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let rep = NSCIImageRep(ciImage: ciImage)
         let img = NSImage(size: rep.size)
@@ -26,6 +30,12 @@ struct PixelBufferView: NSViewRepresentable {
 
 
 final class NearestNeighborNSImageView: NSImageView {
+    /// The image view offers none of its own menu. AppKit adds "Ask Siri" (and
+    /// image-specific items) to an image view's menu, none of which belong on a
+    /// diffraction pattern; the SwiftUI context menu around it is the only one
+    /// wanted, and answers once this gives way.
+    override func menu(for event: NSEvent) -> NSMenu? { nil }
+
     override func draw(_ dirtyRect: NSRect) {
         NSGraphicsContext.current?.imageInterpolation = .none
         super.draw(dirtyRect)
