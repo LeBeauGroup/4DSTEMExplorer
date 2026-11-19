@@ -452,7 +452,16 @@ struct RootView: View {
                     .onChange(of: geo.size) { _, size in patternViewSize = size }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .fileLoaded)) { _ in
-                    updatePattern(0, 0)
+                    // A new dataset starts with the middle probe position
+                    // selected: the corner is the least representative place
+                    // to look first, and for a non-raster scan it may not even
+                    // hold a frame.
+                    marquee = nil
+                    selectionMode = .point
+                    let column = max(0, model.imageWidth / 2)
+                    let row = max(0, model.imageHeight / 2)
+                    lastPoint = CGPoint(x: column, y: row)
+                    updatePattern(row, column)
                     updateVirtual()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .imageViewClicked)) { _ in
