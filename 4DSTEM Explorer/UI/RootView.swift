@@ -876,6 +876,8 @@ struct RootView: View {
                     updateVirtual()
                 }
                 .onChange(of: model.selectedDetectorIDs) { _, _ in
+                    // A range set for one image means nothing for another.
+                    model.scanRange = nil
                     updateVirtual()
                 }
                 .onChange(of: model.detectorColor) { _, _ in

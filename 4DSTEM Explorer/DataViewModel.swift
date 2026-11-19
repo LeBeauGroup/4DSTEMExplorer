@@ -1588,6 +1588,10 @@ final class DataViewModel: NSObject, ObservableObject {
         return Detector(shape: config.shape, type: config.type, center: center, params: params, size: NSSize(width: pW, height: pH))
     }
 
+    /// The integrated image of each detector in the current blend, kept so the
+    /// blend can be redrawn with another range without integrating again.
+    private var blendSources: [(matrix: Matrix, color: NSColor)] = []
+
     private func blendDetectorImages(configs: [DetectorConfiguration], strideLength: Int) -> (NSImage, Matrix)? {
         guard !configs.isEmpty else { return nil }
 
@@ -1597,6 +1601,15 @@ final class DataViewModel: NSObject, ObservableObject {
             let nsColor = (NSColor(config.color).usingColorSpace(.sRGB) ?? NSColor.white)
             return (mat, nsColor)
         }
+        blendSources = pairs.map { (matrix: $0.0, color: $0.1) }
+        return renderBlend(range: scanRange)
+    }
+
+    /// Draws the cached blend. With a range, every detector is scaled by that
+    /// one black and white point; without, each is scaled to its own extremes,
+    /// so that a faint detector is not lost beside a bright one.
+    private func renderBlend(range: ClosedRange<Float>?) -> (NSImage, Matrix)? {
+        let pairs = blendSources.map { ($0.matrix, $0.color) }
         guard let (first, _) = pairs.first else { return nil }
 
         let rows = first.rows
@@ -1610,8 +1623,8 @@ final class DataViewModel: NSObject, ObservableObject {
         for (matrix, nsColor) in pairs {
             let data = matrix.real
             guard data.count == count else { continue }
-            let minVal = data.min() ?? 0
-            let maxVal = data.max() ?? 1
+            let minVal = range?.lowerBound ?? data.min() ?? 0
+            let maxVal = range?.upperBound ?? data.max() ?? 1
             let invRange: Float = (maxVal - minVal) > 0 ? 1.0 / (maxVal - minVal) : 1.0
             var cr: CGFloat = 1, cg: CGFloat = 1, cb: CGFloat = 1, ca: CGFloat = 1
             nsColor.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
@@ -1673,7 +1686,9 @@ final class DataViewModel: NSObject, ObservableObject {
 /// True when the scan image is a single scalar map whose range can be set
     /// by hand (not a colour-wheel or blended multi-detector image).
     var scanRangeAdjustable: Bool {
-        guard selectedDetectorIDs.count <= 1 else { return false }
+        // A blend is adjustable too: the one range is applied to every
+        // detector in it.
+        guard selectedDetectorIDs.count <= 1 else { return !blendSources.isEmpty }
         switch calculationMode {
         case .integrate: return true
         case .com: return comAxis != .color
@@ -1691,6 +1706,14 @@ final class DataViewModel: NSObject, ObservableObject {
     /// The scan image's values with empty scan positions (outside a spiral)
     /// left out. Everything when the scan is full or the matrix is subsampled.
     func scanValuesForScaling(_ m: Matrix) -> [Float] {
+        // For a blend, every detector's values together.
+        if selectedDetectorIDs.count > 1, !blendSources.isEmpty {
+            return blendSources.flatMap { source -> [Float] in
+                let values = source.matrix.real
+                guard let mask = dataController.scanFilledMask, mask.count == values.count else { return values }
+                return values.enumerated().compactMap { mask[$0.offset] ? $0.element : nil }
+            }
+        }
         let data = m.real
         guard let mask = dataController.scanFilledMask, mask.count == data.count else { return data }
         var out = [Float]()
@@ -1716,6 +1739,10 @@ final class DataViewModel: NSObject, ObservableObject {
 
     /// Redraws the scan image from an existing matrix with the current range.
     func rerenderScanImage(_ mat: Matrix) -> NSImage? {
+        if selectedDetectorIDs.count > 1, !blendSources.isEmpty {
+            guard let (blended, _) = renderBlend(range: scanRange) else { return nil }
+            return scaleStrideImage(blended, stride)
+        }
         guard let img = makeColoredImage(from: mat, tintColor: NSColor(detectorColor), range: scanRange ?? maskedAutoScanRange(mat)) else { return nil }
         return scaleStrideImage(img, stride)
     }
