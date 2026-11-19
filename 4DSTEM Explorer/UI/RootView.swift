@@ -334,7 +334,16 @@ struct RootView: View {
                                         case .point: hit = dist <= tol + 2
                                         default:   hit = false
                                         }
-                                        if hit { model.selectedDetectorID = det.id; break }
+                                        if hit {
+                                            // A source of the selected math detector can be
+                                            // grabbed, but it is not selected by it: the
+                                            // image stays the math detector's while the
+                                            // source moves.
+                                            if model.selectedDetectorIDs.contains(det.id) {
+                                                model.selectedDetectorID = det.id
+                                            }
+                                            break
+                                        }
                                     }
                                 },
                                 onCenterChange: { point, interactive in
