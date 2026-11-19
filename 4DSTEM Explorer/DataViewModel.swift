@@ -1487,6 +1487,12 @@ final class DataViewModel: NSObject, ObservableObject {
     }
 
     private func currentDetector() -> Detector {
+        // A math detector has no geometry of its own in the published
+        // properties below — those describe a shape — so it is built from the
+        // stored configuration, which knows what it is made of.
+        if let selected = selectedDetector, selected.math != nil {
+            return makeDetector(from: selected)
+        }
         let pW = self.dataController.patternSize.width
         let pH = self.dataController.patternSize.height
         let center = NSPoint(x: max(0, min(CGFloat(pW - 1), detectorCenter.x)),
